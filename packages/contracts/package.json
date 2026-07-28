@@ -1,0 +1,22 @@
+{
+  "name": "@arb-guardian/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "lint": "solhint \"contracts/**/*.sol\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network arbitrumSepolia"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.2.0",
+    "@types/node": "^22.10.2",
+    "dotenv": "^16.4.7",
+    "hardhat": "^2.22.18",
+    "solhint": "^5.0.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  }
+}

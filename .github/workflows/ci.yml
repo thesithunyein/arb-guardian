@@ -1,0 +1,24 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm install
+      - run: npm run test -w packages/contracts
+      - run: npm run test -w apps/api
+      - run: npm run eval:agent -w apps/api
+      - run: npm run build -w apps/api
+      - run: npm run build -w apps/web
+      - run: npm run build -w packages/shared

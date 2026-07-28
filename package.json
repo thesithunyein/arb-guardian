@@ -1,0 +1,29 @@
+{
+  "name": "arb-guardian",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "npm run dev --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "format": "npm run format --workspaces --if-present",
+    "quality:gate": "npm run test -w packages/contracts && npm run test -w apps/api && npm run eval:agent -w apps/api && npm run build -w packages/shared && npm run build -w apps/api && npm run build -w apps/web",
+    "submission:check": "node scripts/submission-readiness.mjs",
+    "submission:finalize": "node scripts/finalize-submission.mjs",
+    "submission:record-deploy": "node scripts/record-deployment-evidence.mjs",
+    "submission:bundle": "node scripts/export-submission-bundle.mjs",
+    "demo:seed": "node scripts/demo-seed.mjs",
+    "demo:smoke": "node scripts/demo-smoke.mjs",
+    "push:audit": "node scripts/push-safe-audit.mjs",
+    "preflight": "npm run quality:gate && npm run submission:check && npm run push:audit"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
