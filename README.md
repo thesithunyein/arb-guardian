@@ -1,12 +1,21 @@
 # Arb Guardian
 
 <p align="center">
-  <img src="docs/assets/logo.png" alt="Arb Guardian logo" width="180" />
+  <img src="https://raw.githubusercontent.com/thesithunyein/arb-guardian/master/docs/assets/logo.png" alt="Arb Guardian shield logo" width="160" />
 </p>
 
 <p align="center">
   <strong>Treasury risk operations for Arbitrum-native teams</strong><br/>
   Onchain policy guardrails · Evidence-first risk scoring · Policy-bounded incident response
+</p>
+
+<p align="center">
+  <a href="https://arb-guardian.vercel.app"><img src="https://img.shields.io/badge/Live-Dashboard-14606B?style=for-the-badge&logo=vercel&logoColor=white" alt="Live dashboard" /></a>
+  <a href="https://github.com/thesithunyein/arb-guardian"><img src="https://img.shields.io/badge/GitHub-Repository-0B3A42?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" /></a>
+  <img src="https://img.shields.io/badge/Arbitrum-Ready-28A0F0?style=for-the-badge&logo=arbitrum&logoColor=white" alt="Arbitrum" />
+  <img src="https://img.shields.io/badge/Solidity-Contracts-363636?style=for-the-badge&logo=solidity&logoColor=white" alt="Solidity" />
+  <img src="https://img.shields.io/badge/Agentic-Deterministic-5FD0C8?style=for-the-badge" alt="Agentic" />
+  <img src="https://img.shields.io/badge/License-MIT-1A7A84?style=for-the-badge" alt="MIT License" />
 </p>
 
 <p align="center">
@@ -74,8 +83,8 @@ npm run test -w packages/contracts
 | UI font | Manrope |
 
 Logo assets:
-- Main mark: `docs/assets/logo.png` / `apps/web/public/logo.png`
-- Browser tab icon: `apps/web/public/favicon.png`
+- Main mark: [`docs/assets/logo.png`](docs/assets/logo.png)
+- App / favicon: [`apps/web/public/logo.png`](apps/web/public/logo.png), [`apps/web/public/favicon.png`](apps/web/public/favicon.png)
 - Theme: light/dark mode with system preference + persistence
 
 ## Live

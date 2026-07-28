@@ -394,7 +394,6 @@ export function App() {
             </div>
             {error && <p className="error">Using local engine: {error}</p>}
           </div>
-          <img className="hero-logo" src="/logo.png" alt="" />
         </div>
       </section>
 
