@@ -34,10 +34,10 @@ Arbitrum provides scalable EVM-compatible infrastructure where treasury operatio
 - **Real problem solving:** blocks unsafe transactions and guides incident response in one operational workflow.
 
 ## Live/demo links
-- Web app URL: `<fill_web_url>`
+- Web app URL: `https://arb-guardian.vercel.app`
 - API URL: `<fill_api_url>`
 - Demo video: `<fill_demo_url>`
-- Repo URL: `<fill_repo_url>`
+- Repo URL: `https://github.com/thesithunyein/arb-guardian`
 
 ## Contract addresses (Arbitrum chain)
 - PolicyManager: `<fill_policy_address>`
