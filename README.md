@@ -76,6 +76,12 @@ npm run test -w packages/contracts
 Logo assets:
 - Main mark: `docs/assets/logo.png` / `apps/web/public/logo.png`
 - Browser tab icon: `apps/web/public/favicon.png`
+- Theme: light/dark mode with system preference + persistence
+
+## Live
+
+- Product: https://arb-guardian.vercel.app
+- Repo: https://github.com/thesithunyein/arb-guardian
 
 ## Release commands
 

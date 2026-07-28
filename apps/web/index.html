@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0B3A42" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("arb-guardian-theme");
+          if (t !== "light" && t !== "dark") {
+            t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+          document.documentElement.setAttribute("data-theme", t);
+        } catch (e) {}
+      })();
+    </script>
     <meta
       name="description"
       content="Arb Guardian — treasury risk operations for Arbitrum teams. Policy guardrails, evidence-first risk scoring, and policy-bounded incident response."
