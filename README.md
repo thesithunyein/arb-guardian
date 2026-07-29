@@ -1,7 +1,7 @@
 # Arb Guardian
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/thesithunyein/arb-guardian/master/docs/assets/logo.png" alt="Arb Guardian shield logo" width="160" />
+  <img src="https://raw.githubusercontent.com/thesithunyein/arb-guardian/master/docs/assets/logo.png" alt="Arb Guardian logo" width="180" />
 </p>
 
 <p align="center">
@@ -10,12 +10,12 @@
 </p>
 
 <p align="center">
-  <a href="https://arb-guardian.vercel.app"><img src="https://img.shields.io/badge/Live-Dashboard-14606B?style=for-the-badge&logo=vercel&logoColor=white" alt="Live dashboard" /></a>
-  <a href="https://github.com/thesithunyein/arb-guardian"><img src="https://img.shields.io/badge/GitHub-Repository-0B3A42?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" /></a>
+  <a href="https://arb-guardian.vercel.app"><img src="https://img.shields.io/badge/Live-Dashboard-2B6BFF?style=for-the-badge&logo=vercel&logoColor=white" alt="Live dashboard" /></a>
+  <a href="https://github.com/thesithunyein/arb-guardian"><img src="https://img.shields.io/badge/GitHub-Repository-0B1220?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" /></a>
   <img src="https://img.shields.io/badge/Arbitrum-Ready-28A0F0?style=for-the-badge&logo=arbitrum&logoColor=white" alt="Arbitrum" />
   <img src="https://img.shields.io/badge/Solidity-Contracts-363636?style=for-the-badge&logo=solidity&logoColor=white" alt="Solidity" />
-  <img src="https://img.shields.io/badge/Agentic-Deterministic-5FD0C8?style=for-the-badge" alt="Agentic" />
-  <img src="https://img.shields.io/badge/License-MIT-1A7A84?style=for-the-badge" alt="MIT License" />
+  <img src="https://img.shields.io/badge/Agentic-Deterministic-2B6BFF?style=for-the-badge" alt="Agentic" />
+  <img src="https://img.shields.io/badge/License-MIT-1A4FD6?style=for-the-badge" alt="MIT License" />
 </p>
 
 <p align="center">
@@ -75,17 +75,18 @@ npm run test -w packages/contracts
 
 | Token | Value |
 | --- | --- |
-| Deep teal | `#0B3A42` |
-| Mid teal | `#14606B` |
-| Cyan highlight | `#5FD0C8` |
-| Paper | `#F4F8F8` |
-| Display font | Source Serif 4 |
-| UI font | Manrope |
+| Near-black bg | `#05070D` |
+| Electric blue | `#2B6BFF` |
+| Blue bright | `#5B8FFF` |
+| Panel | `#10182A` |
+| Ink | `#F4F7FB` |
+| Display / UI font | Space Grotesk |
+| Mono | IBM Plex Mono |
 
-Logo assets:
+Logo assets (transparent PNG, black bg removed):
 - Main mark: [`docs/assets/logo.png`](docs/assets/logo.png)
 - App / favicon: [`apps/web/public/logo.png`](apps/web/public/logo.png), [`apps/web/public/favicon.png`](apps/web/public/favicon.png)
-- Theme: light/dark mode with system preference + persistence
+- Theme: **dark default** (faucet aesthetic) with light mode toggle
 
 ## Live
 
@@ -97,8 +98,11 @@ Logo assets:
 - `npm run quality:gate`
 - `npm run preflight`
 - `npm run push:audit`
+- `npm run deploy:p0` — Sepolia deploy + evidence (requires funded `.env`)
 - `npm run submission:finalize`
 - `npm run demo:seed` / `npm run demo:smoke`
+
+See [`docs/deploy-sepolia.md`](docs/deploy-sepolia.md) for public API + Arbiscan qualification steps.
 
 ## Security baseline
 

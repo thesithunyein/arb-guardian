@@ -28,11 +28,19 @@ type IncidentItem = {
 type ScenarioId = "risky-approve" | "limit-breach" | "safe-transfer";
 type TabId = "overview" | "assess" | "incidents" | "evidence";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8787";
-const API_KEY = import.meta.env.VITE_API_KEY;
-const CHAIN_NAME = import.meta.env.VITE_CHAIN_NAME ?? "Arbitrum Sepolia";
-const POLICY_MANAGER = import.meta.env.VITE_POLICY_MANAGER_ADDRESS ?? "pending-deploy";
-const EXECUTION_GUARD = import.meta.env.VITE_EXECUTION_GUARD_ADDRESS ?? "pending-deploy";
+const API_BASE = import.meta.env.VITE_API_BASE_URL?.trim() || "http://localhost:8787";
+const API_KEY = import.meta.env.VITE_API_KEY?.trim() || undefined;
+const CHAIN_NAME = import.meta.env.VITE_CHAIN_NAME?.trim() || "Arbitrum Sepolia";
+const POLICY_MANAGER = import.meta.env.VITE_POLICY_MANAGER_ADDRESS?.trim() || "pending-deploy";
+const EXECUTION_GUARD = import.meta.env.VITE_EXECUTION_GUARD_ADDRESS?.trim() || "pending-deploy";
+
+const DEMO = {
+  treasuryA: "0x1111111111111111111111111111111111111111",
+  treasuryB: "0x2222222222222222222222222222222222222222",
+  treasuryC: "0x3333333333333333333333333333333333333333",
+  payrollVault: "0x4444444444444444444444444444444444444444",
+  unlistedVendor: "0x5555555555555555555555555555555555555555"
+};
 
 const SCENARIOS: Record<
   ScenarioId,
@@ -54,8 +62,8 @@ const SCENARIOS: Record<
     label: "Risky approval",
     blurb: "Non-allowlisted destination + approve surface",
     payload: {
-      wallet: "0xTreasuryWallet0001",
-      destination: "0xUnlistedDestination",
+      wallet: DEMO.treasuryA,
+      destination: DEMO.unlistedVendor,
       method: "approve",
       amountWei: "1000000000000000000",
       allowlisted: false,
@@ -67,8 +75,8 @@ const SCENARIOS: Record<
     label: "Daily limit breach",
     blurb: "Allowlisted destination but over daily ceiling",
     payload: {
-      wallet: "0xTreasuryWallet0002",
-      destination: "0xListedVendor",
+      wallet: DEMO.treasuryB,
+      destination: DEMO.payrollVault,
       method: "transfer",
       amountWei: "4000000000000000000",
       allowlisted: true,
@@ -80,8 +88,8 @@ const SCENARIOS: Record<
     label: "Safe transfer",
     blurb: "Allowlisted destination within daily limit",
     payload: {
-      wallet: "0xTreasuryWallet0003",
-      destination: "0xPayrollVault",
+      wallet: DEMO.treasuryC,
+      destination: DEMO.payrollVault,
       method: "transfer",
       amountWei: "1000000000000000000",
       allowlisted: true,
@@ -118,12 +126,12 @@ function assessLocal(input: {
   }
 
   if (dailyLimitWei > 0n && spentTodayWei + amountWei > dailyLimitWei) {
-    totalScore += 40;
+    totalScore += 60;
     matches.push({
       ruleId: "RULE_DAILY_LIMIT",
       reason: "Daily wallet limit would be exceeded",
       severity: "high",
-      scoreDelta: 40
+      scoreDelta: 60
     });
   }
 
@@ -177,7 +185,14 @@ export function App() {
     network: string | null;
     policyManager: string | null;
     executionGuard: string | null;
+    policyManagerTxUrl: string | null;
+    executionGuardTxUrl: string | null;
+    policyManagerUrl: string | null;
+    executionGuardUrl: string | null;
     source: string;
+  } | null>(null);
+  const [chainResult, setChainResult] = useState<{
+    onchain: { attempted: boolean; allowed: boolean; reverted: boolean; txHash: string | null };
   } | null>(null);
 
   const payload = useMemo(() => {
@@ -253,6 +268,10 @@ export function App() {
           network: CHAIN_NAME,
           policyManager: POLICY_MANAGER,
           executionGuard: EXECUTION_GUARD,
+          policyManagerTxUrl: null,
+          executionGuardTxUrl: null,
+          policyManagerUrl: null,
+          executionGuardUrl: null,
           source: "none"
         });
       });
@@ -261,13 +280,21 @@ export function App() {
   async function runAssessment() {
     setLoading(true);
     setError(null);
+    setChainResult(null);
     setTab("assess");
+    const basePayload = {
+      txHash: payload.txHash,
+      wallet: payload.wallet,
+      destination: payload.destination,
+      method: payload.method,
+      amountWei: payload.amountWei
+    };
     try {
       if (mode === "live-api") {
         const res = await fetch(`${API_BASE}/risk/assess`, {
           method: "POST",
           headers: buildHeaders(true),
-          body: JSON.stringify(payload)
+          body: JSON.stringify(basePayload)
         });
         if (!res.ok) throw new Error(`Risk assessment failed (${res.status})`);
         const data = (await res.json()) as RiskResponse;
@@ -306,6 +333,44 @@ export function App() {
         });
         setTab("incidents");
       }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function runChainValidation() {
+    setLoading(true);
+    setError(null);
+    setTab("assess");
+    try {
+      if (mode !== "live-api") {
+        setError("Onchain validation requires live API");
+        return;
+      }
+      const res = await fetch(`${API_BASE}/chain/validate`, {
+        method: "POST",
+        headers: buildHeaders(true),
+        body: JSON.stringify({
+          txHash: payload.txHash,
+          wallet: payload.wallet,
+          destination: payload.destination,
+          method: payload.method,
+          amountWei: payload.amountWei
+        })
+      });
+      if (!res.ok) throw new Error(`Chain validation failed (${res.status})`);
+      const data = (await res.json()) as {
+        onchain: { attempted: boolean; allowed: boolean; reverted: boolean; txHash: string | null };
+        assessment: RiskResponse["assessment"];
+        incident: RiskResponse["incident"];
+      };
+      setChainResult({ onchain: data.onchain });
+      setResult({ assessment: data.assessment, incident: data.incident });
+      await refreshFromApi();
+      if (data.incident) setTab("incidents");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unexpected error";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -355,13 +420,15 @@ export function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="brand">
-          <img src="/logo.png" alt="Arb Guardian shield logo" width={52} height={52} />
-          <div className="brand-copy">
-            <h1>Arb Guardian</h1>
-            <p>Treasury risk operations</p>
+        <a className="brand" href="/" aria-label="Arb Guardian home">
+          <img src="/logo.png" alt="Arb Guardian" width={44} height={44} />
+          <div className="brand-mark">
+            <h1 className="brand-title">
+              <span className="accent">Arb</span> Guardian
+            </h1>
+            <p className="brand-sub">Treasury risk ops</p>
           </div>
-        </div>
+        </a>
         <div className="topbar-actions">
           <span className="chip">{mode === "live-api" ? "Live API" : "Demo mode"}</span>
           <button
@@ -376,25 +443,22 @@ export function App() {
       </header>
 
       <section className="hero">
-        <div className="hero-grid">
-          <div>
-            <p className="eyebrow">Arbitrum Open House · Buildathon</p>
-            <h2>Prevent treasury loss before execution.</h2>
-            <p>
-              Policy guardrails, deterministic risk evidence, and bounded playbooks for operators who need
-              production control—not mock alerts.
-            </p>
-            <div className="cta-row">
-              <button type="button" className="primary" onClick={runAssessment} disabled={loading}>
-                {loading ? "Analyzing…" : "Run assessment"}
-              </button>
-              <button type="button" className="ghost" onClick={() => setTab("evidence")}>
-                Judging evidence
-              </button>
-            </div>
-            {error && <p className="error">Using local engine: {error}</p>}
-          </div>
+        <p className="eyebrow">Arbitrum Open House · Buildathon</p>
+        <h2>
+          <span className="accent">Block</span> unsafe treasury txs
+        </h2>
+        <p className="hero-lead">
+          Policy guardrails, deterministic risk evidence, and bounded playbooks — before funds move.
+        </p>
+        <div className="cta-row">
+          <button type="button" className="primary" onClick={runAssessment} disabled={loading}>
+            {loading ? "Analyzing…" : "Run assessment"}
+          </button>
+          <button type="button" className="ghost" onClick={() => setTab("assess")}>
+            Choose scenario
+          </button>
         </div>
+        {error && <p className="error">Using local engine: {error}</p>}
       </section>
 
       <nav className="tabs" aria-label="Primary">
@@ -402,7 +466,7 @@ export function App() {
           [
             ["overview", "Overview"],
             ["assess", "Assess"],
-            ["incidents", `Incidents${openIncidents ? ` (${openIncidents})` : ""}`],
+            ["incidents", openIncidents ? `Incidents (${openIncidents})` : "Incidents"],
             ["evidence", "Evidence"]
           ] as Array<[TabId, string]>
         ).map(([id, label]) => (
@@ -416,6 +480,8 @@ export function App() {
           </button>
         ))}
       </nav>
+
+      <div className="panel">
 
       {tab === "overview" && (
         <div className="grid">
@@ -454,16 +520,46 @@ export function App() {
               </div>
               <div>
                 <dt>PolicyManager</dt>
-                <dd className="mono">{deployment?.policyManager ?? POLICY_MANAGER}</dd>
+                <dd className="mono">
+                  {deployment?.policyManagerUrl ? (
+                    <a href={deployment.policyManagerUrl} target="_blank" rel="noreferrer">
+                      {deployment.policyManager}
+                    </a>
+                  ) : (
+                    deployment?.policyManager ?? POLICY_MANAGER
+                  )}
+                </dd>
               </div>
               <div>
                 <dt>ExecutionGuard</dt>
-                <dd className="mono">{deployment?.executionGuard ?? EXECUTION_GUARD}</dd>
+                <dd className="mono">
+                  {deployment?.executionGuardUrl ? (
+                    <a href={deployment.executionGuardUrl} target="_blank" rel="noreferrer">
+                      {deployment.executionGuard}
+                    </a>
+                  ) : (
+                    deployment?.executionGuard ?? EXECUTION_GUARD
+                  )}
+                </dd>
               </div>
               <div>
                 <dt>Status</dt>
-                <dd>{deployment?.ready ? `Ready (${deployment.source})` : "Pending Sepolia deploy"}</dd>
+                <dd>
+                  {deployment?.ready
+                    ? `Qualified (${deployment.source})`
+                    : "Deploy Sepolia to qualify"}
+                </dd>
               </div>
+              {deployment?.policyManagerTxUrl && (
+                <div>
+                  <dt>Deploy tx</dt>
+                  <dd>
+                    <a href={deployment.policyManagerTxUrl} target="_blank" rel="noreferrer">
+                      PolicyManager on Arbiscan
+                    </a>
+                  </dd>
+                </div>
+              )}
             </dl>
           </section>
 
@@ -509,6 +605,11 @@ export function App() {
             <button type="button" className="primary full" onClick={runAssessment} disabled={loading}>
               {loading ? "Analyzing…" : "Assess this intent"}
             </button>
+            {mode === "live-api" && deployment?.ready && (
+              <button type="button" className="ghost full" onClick={runChainValidation} disabled={loading}>
+                Validate onchain
+              </button>
+            )}
           </section>
 
           <section className="card">
@@ -560,6 +661,20 @@ export function App() {
                 {result.incident && (
                   <p className="playbook">
                     Recommended playbook: <span className="mono">{result.incident.recommendedPlaybook}</span>
+                  </p>
+                )}
+                {chainResult?.onchain.attempted && (
+                  <p className="playbook">
+                    Onchain:{" "}
+                    <span className={`status-pill ${chainResult.onchain.allowed ? "allowed" : "blocked"}`}>
+                      {chainResult.onchain.allowed ? "Recorded" : "Reverted"}
+                    </span>
+                    {chainResult.onchain.txHash && (
+                      <>
+                        {" "}
+                        <span className="mono">{chainResult.onchain.txHash.slice(0, 18)}…</span>
+                      </>
+                    )}
                   </p>
                 )}
               </>
@@ -663,16 +778,28 @@ export function App() {
           <section className="card">
             <h3>Qualification note</h3>
             <p className="muted">
-              Bounty requires deployment on an Arbitrum chain. Local Hardhat evidence is ready; live Sepolia
-              addresses finalize eligibility once a funded deployer key is provided.
+              Bounty requires deployment on an Arbitrum chain. After Sepolia deploy + public API, the dashboard
+              reads live policy state and can validate via ExecutionGuard with Arbiscan evidence.
             </p>
           </section>
         </div>
       )}
 
+      </div>
+
       <footer className="footer">
-        <span>Arb Guardian</span>
-        <span className="muted">Teal shield brand · Arbitrum treasury ops</span>
+        <div>
+          Built for <strong>Arbitrum</strong> treasury operators
+        </div>
+        <div>
+          <a href="https://github.com/thesithunyein/arb-guardian" target="_blank" rel="noreferrer">
+            Repo
+          </a>
+          {" · "}
+          <a href="https://arb-guardian.vercel.app" target="_blank" rel="noreferrer">
+            Live
+          </a>
+        </div>
       </footer>
     </div>
   );
