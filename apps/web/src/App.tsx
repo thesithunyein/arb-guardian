@@ -273,7 +273,6 @@ export function App() {
   const [entered, setEntered] = useState(false);
   const [guildName, setGuildName] = useState(() => loadGuildName());
   const [editingGuild, setEditingGuild] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
   const [spendPickerOpen, setSpendPickerOpen] = useState(false);
 
   useEffect(() => {
@@ -340,7 +339,6 @@ export function App() {
   function goVault() {
     void sfxClick();
     setTab("security");
-    setMoreOpen(false);
   }
 
   function resetSession() {
@@ -363,9 +361,8 @@ export function App() {
     } catch {
       // ignore
     }
-    setTab("review");
+    setTab("home");
     setIntent("risky-approve");
-    setMoreOpen(false);
   }
 
   function awardXp(amount: number, label: string, badgeKey?: BadgeKey, tone: "xp" | "block" | "success" | "freeze" = "xp") {
@@ -654,9 +651,7 @@ export function App() {
   const coreTabs: Array<[TabId, string, ReactElement]> = [
     ["home", "Home", <IconHome key="h" size={16} />],
     ["review", "Review", <IconReview key="r" size={16} />],
-    ["alerts", openIncidents ? `Alerts (${openIncidents})` : "Alerts", <IconAlerts key="a" size={16} />]
-  ];
-  const moreTabs: Array<[TabId, string, ReactElement]> = [
+    ["alerts", openIncidents ? `Alerts (${openIncidents})` : "Alerts", <IconAlerts key="a" size={16} />],
     ["automation", "Playbooks", <IconAutomation key="u" size={16} />],
     ["security", "Vault", <IconSecurity key="s" size={16} />]
   ];
@@ -785,42 +780,6 @@ export function App() {
                 {label}
               </button>
             ))}
-            <div className="more-wrap">
-              <button
-                type="button"
-                className={`tab ${moreOpen || moreTabs.some(([id]) => id === tab) ? "active" : ""}`}
-                onClick={() => {
-                  void sfxClick();
-                  setMoreOpen((v) => !v);
-                }}
-                aria-expanded={moreOpen}
-              >
-                More
-              </button>
-              {moreOpen && (
-                <div className="more-menu" role="menu">
-                  {moreTabs.map(([id, label, icon]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      role="menuitem"
-                      className={tab === id ? "active" : ""}
-                      onClick={() => {
-                        void sfxClick();
-                        setTab(id);
-                        setMoreOpen(false);
-                      }}
-                    >
-                      {icon}
-                      {label}
-                    </button>
-                  ))}
-                  <button type="button" role="menuitem" onClick={resetSession}>
-                    Reset session
-                  </button>
-                </div>
-              )}
-            </div>
           </nav>
 
           <div className="panel" key={tab}>
@@ -874,6 +833,11 @@ export function App() {
                     <span>Open alerts</span>
                   </div>
                 </section>
+                <p className="muted" style={{ margin: 0 }}>
+                  <button type="button" className="linkish" onClick={resetSession}>
+                    Reset session
+                  </button>
+                </p>
               </div>
             )}
 
