@@ -270,13 +270,7 @@ export function App() {
   const [xpToast, setXpToast] = useState<string | null>(null);
   const [badges, setBadges] = useState<BadgeState>(() => loadBadges());
   const [sfxMuted, setSfxMutedState] = useState(() => loadSfxMuted());
-  const [entered, setEntered] = useState(() => {
-    try {
-      return localStorage.getItem("arb-guardian-entered-v1") === "1";
-    } catch {
-      return false;
-    }
-  });
+  const [entered, setEntered] = useState(false);
   const [guildName, setGuildName] = useState(() => loadGuildName());
   const [editingGuild, setEditingGuild] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -318,11 +312,8 @@ export function App() {
     setTab("review");
     setIntent("risky-approve");
     setSpendPickerOpen(false);
-    try {
-      localStorage.setItem("arb-guardian-entered-v1", "1");
-    } catch {
-      // ignore
-    }
+    setAssessment(null);
+    setWhyOpen(false);
     void sfxClick();
   }
 
@@ -331,11 +322,8 @@ export function App() {
     setTab("review");
     setIntent("risky-approve");
     setSpendPickerOpen(false);
-    try {
-      localStorage.setItem("arb-guardian-entered-v1", "1");
-    } catch {
-      // ignore
-    }
+    setAssessment(null);
+    setWhyOpen(false);
     void sfxClick();
     await runAssessment();
   }
