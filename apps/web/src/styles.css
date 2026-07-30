@@ -1654,3 +1654,120 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+.product-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.85rem;
+}
+
+.practice-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.7rem;
+  border: 3px solid rgba(229, 255, 93, 0.45);
+  border-radius: var(--radius);
+  background: rgba(229, 255, 93, 0.12);
+  color: var(--lime);
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-family: var(--font-pixel);
+}
+
+.guild-chip {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.guild-input {
+  font: inherit;
+  font-weight: 800;
+  color: var(--ink);
+  background: var(--bg-elevated);
+  border: 3px solid var(--lime);
+  border-radius: var(--radius);
+  padding: 0.25rem 0.5rem;
+  min-width: 10rem;
+}
+
+.coach-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border: 3px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: rgba(229, 255, 93, 0.08);
+  box-shadow: var(--shadow);
+  grid-column: 1 / -1;
+}
+
+.coach-strip strong {
+  display: block;
+  font-family: var(--font-pixel);
+  color: var(--lime);
+  margin-bottom: 0.2rem;
+}
+
+.coach-strip p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.4;
+  max-width: 62ch;
+}
+
+.decision-copy {
+  margin: 0 0 0.85rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.officer-ai {
+  padding: 0.85rem 0.95rem;
+  border: 3px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(61, 139, 255, 0.1);
+  margin-bottom: 0.65rem;
+}
+
+.officer-ai strong {
+  display: block;
+  font-family: var(--font-pixel);
+  color: var(--accent-bright);
+  margin-bottom: 0.25rem;
+}
+
+.officer-ai p {
+  margin: 0.2rem 0;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.officer-ai em {
+  font-style: normal;
+  color: var(--lime);
+  font-weight: 800;
+}
+
+.freeze-success {
+  padding: 0.9rem 1rem;
+  margin-bottom: 0.85rem;
+  border: 3px solid var(--gold);
+  border-radius: var(--radius);
+  background: rgba(255, 209, 102, 0.12);
+  box-shadow: var(--shadow);
+}
+
+.freeze-success strong {
+  display: block;
+  font-family: var(--font-pixel);
+  color: var(--gold);
+  margin-bottom: 0.3rem;
+}

@@ -1,26 +1,27 @@
-# Demo record card (Codedex pixel RPG · Gaming)
+# Demo record card (90s max-win)
 
-**Category:** Gaming (guild bank quests)  
+**Category:** Gaming (guild bank / prize-pot protection)  
 **Tracks:** Overall + Best Agentic  
 **Live:** https://arb-guardian.vercel.app
 
-**One sentence:** Arb Guardian is a pixel quest for guild-bank protection — stop marketplace drains, keep prize budgets, earn XP for real actions, freeze with an officer click.
+**One sentence:** Arb Guardian helps guild officers stop bad spends on a shared prize pot — check a spend, get allow/block from Officer AI, freeze the bank with a human click — live on Arbitrum and Robinhood Chain.
 
-**Seller points (say these):**
-1. First win in minutes — quest log on Base Camp  
-2. Scam stop — unknown marketplace approve  
-3. Prize budget — over-limit payout blocked  
-4. Officer freeze — human still clicks Freeze  
-5. Progress stays — XP/badges on this device + 8-bit SFX (mute in top bar)
+## 90-second beats (say these)
 
-**Easy check path:**
-1. Title screen → Press start (logo + one CTA only)  
-2. Base Camp doors stay closed until clicked (Quest log / How it works / Badges / …)  
-3. Quests → Unknown marketplace → Complete quest check → Block + XP toast + SFX  
-4. Alerts → Freeze guild spending (+XP + freeze SFX + badge cutscene)  
-5. Playbooks → accuracy  
-6. Vault → explorers for judges
+| Time | Criterion | Beat |
+| --- | --- | --- |
+| 0–10s | Real Problem | Guild bank drained by fake marketplace approve |
+| 10–40s | PMF | Press start → Check spend → Block (decision card) |
+| 40–65s | Innovation + Agentic | Officer AI suggests freeze · cannot move funds · you click Freeze |
+| 65–80s | Agentic proof | More → Playbooks · 12/12 accuracy · hard limits |
+| 80–90s | Contracts + lanes | See live networks · Arb + Robinhood explorers |
 
----
+## Easy click path
 
-**Script beats:** Base Camp → Quests → Alerts → Playbooks → Vault → Close Overall + Best Agentic
+1. Press start  
+2. Check **Unknown marketplace approval** → Block  
+3. Alerts → **Freeze guild spending** → See live networks  
+4. More → Playbooks (bounds + accuracy)  
+5. Vault (Arb + RH links)
+
+**Close:** Overall + Best Agentic · Gaming · dual-chain live.

@@ -11,16 +11,20 @@
 
 <p align="center">
   <a href="https://arb-guardian.vercel.app"><img src="https://img.shields.io/badge/▶_Play_live-E5FF5D?style=for-the-badge&labelColor=0B1220" alt="Play live" /></a>
+  <img src="https://img.shields.io/badge/Category-Gaming-28A0F0?style=for-the-badge&labelColor=0B1220" alt="Gaming" />
 </p>
 
 ---
 
-## In one sentence
+## Launch loop (60 seconds)
 
-**Arb Guardian** helps guild officers stop bad spends on a shared prize pot — check a spend, get allow/block, freeze the bank if needed.
+1. **Press start**  
+2. **Check spend** — unknown marketplace approval  
+3. **Block** — Officer AI suggests freeze (cannot move funds)  
+4. **Alerts → Freeze** — human click  
+5. **Live networks** — Arbitrum + Robinhood explorers  
 
-**Play → [arb-guardian.vercel.app](https://arb-guardian.vercel.app)**  
-No wallet needed to try the practice spends.
+**Play → [arb-guardian.vercel.app](https://arb-guardian.vercel.app)** · Practice mode · no wallet needed to try
 
 ## How it works
 
@@ -28,37 +32,25 @@ No wallet needed to try the practice spends.
 flowchart LR
   A[Someone asks the bank to pay] --> B[Officer checks the spend]
   B --> C{Safe?}
-  C -->|Yes| D[Allow · normal payout]
-  C -->|No| E[Block · open alert]
+  C -->|Yes| D[Allow]
+  C -->|No| E[Block + Officer AI suggestion]
   E --> F[Officer freezes the bank]
 ```
-
-1. Guild keeps prize / payout money in one bank  
-2. A marketplace or payout asks to spend  
-3. You check it in the app  
-4. Safe → allow · Risky → block, then freeze from Alerts  
 
 ## Who it’s for
 
 Guild officers, clan managers, and esports teams that share a prize pot.
 
-## Try it in a minute
-
-1. Press start  
-2. Read the 60-second story  
-3. Tap **Try a scam check** (unknown marketplace)  
-4. If blocked → Alerts → **Freeze guild spending**
-
 ## For builders
-
-Advanced architecture, contracts, and deploy proof live in docs — not on the product home screen:
 
 - [`docs/architecture.md`](docs/architecture.md) — system design  
 - [`docs/live-deployment.md`](docs/live-deployment.md) — Arbitrum + Robinhood addresses  
-- [`docs/agent-permissions-matrix.md`](docs/agent-permissions-matrix.md) — what automation can / cannot do  
+- [`docs/agent-permissions-matrix.md`](docs/agent-permissions-matrix.md) — Officer AI bounds  
+- [`docs/demo-video-script.md`](docs/demo-video-script.md) — 90s demo  
 
 ```bash
 npm install
+npm run quality:gate
 npm run dev -w apps/web
 ```
 
