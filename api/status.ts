@@ -1,18 +1,21 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { cors, store } from "./_store";
 
-const POLICY_MANAGER =
+const POLICY_MANAGER = (
   process.env.VITE_POLICY_MANAGER_ADDRESS ||
   process.env.SUBMISSION_POLICY_MANAGER_ADDRESS ||
-  "0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76";
-const EXECUTION_GUARD =
+  "0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76"
+).trim();
+const EXECUTION_GUARD = (
   process.env.VITE_EXECUTION_GUARD_ADDRESS ||
   process.env.SUBMISSION_EXECUTION_GUARD_ADDRESS ||
-  "0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124";
-const SAFE_GUARD =
+  "0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124"
+).trim();
+const SAFE_GUARD = (
   process.env.VITE_SAFE_TREASURY_GUARD_ADDRESS ||
   process.env.SUBMISSION_SAFE_TREASURY_GUARD_ADDRESS ||
-  "0xcba30F60BE3FB0fB0e9db0C816c4ab9Fa2f7b211";
+  "0xcba30F60BE3FB0fB0e9db0C816c4ab9Fa2f7b211"
+).trim();
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   cors(res);
