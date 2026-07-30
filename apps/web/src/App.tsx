@@ -1,26 +1,89 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { pingRpc, readOnchainPolicy, type OnchainPolicy } from "./chain";
 import {
   API_BASE,
   API_KEY,
-  CHAIN_NAME,
   DEPLOYMENT_READY,
   EXECUTION_GUARD,
-  EXECUTION_GUARD_TX,
   POLICY_MANAGER,
-  POLICY_MANAGER_TX,
-  SAFE_ALLOWED_EXEC_TX,
-  SAFE_ENROLLMENT_TX,
-  SAFE_SET_GUARD_TX,
+  RH_EXECUTION_GUARD,
+  RH_POLICY_MANAGER,
+  RH_READY,
+  RH_SAFE_TREASURY_GUARD,
+  RH_TREASURY_SAFE,
   SAFE_TREASURY_GUARD,
-  SAFE_TREASURY_GUARD_TX,
   TREASURY_SAFE,
-  TREASURY_SAFE_TX,
   addressUrl,
+  rhAddressUrl,
   txUrl
 } from "./config";
+import { BrandBackdrop } from "./BrandBackdrop";
+import {
+  IconAlerts,
+  IconAutomation,
+  IconCheck,
+  IconFreeze,
+  IconHome,
+  IconMoon,
+  IconPayment,
+  IconPolicy,
+  IconReview,
+  IconSecurity,
+  IconSoundOff,
+  IconSoundOn,
+  IconSpark,
+  IconSun
+} from "./icons";
 import { assessIntent, predictGuardOutcome, type RiskAssessment } from "./riskEngine";
+import {
+  loadSfxMuted,
+  setSfxMuted,
+  sfxBadge,
+  sfxBlock,
+  sfxClick,
+  sfxFreeze,
+  sfxSuccess,
+  sfxXp
+} from "./sfx";
 import { useTheme } from "./useTheme";
+
+type BadgeKey = "firstCheck" | "firstBlock" | "firstFreeze" | "cleanPayout";
+type BadgeState = Record<BadgeKey, boolean>;
+
+const XP_STORAGE = "arb-guardian-xp-v1";
+const BADGE_STORAGE = "arb-guardian-badges-v1";
+
+const BADGE_LABEL: Record<BadgeKey, string> = {
+  firstCheck: "First check",
+  firstBlock: "Scam stopper",
+  firstFreeze: "Bank freezer",
+  cleanPayout: "Clean payout"
+};
+
+function loadXp() {
+  try {
+    const n = Number(localStorage.getItem(XP_STORAGE) ?? "0");
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function loadBadges(): BadgeState {
+  try {
+    const raw = localStorage.getItem(BADGE_STORAGE);
+    if (!raw) return { firstCheck: false, firstBlock: false, firstFreeze: false, cleanPayout: false };
+    const parsed = JSON.parse(raw) as Partial<BadgeState>;
+    return {
+      firstCheck: !!parsed.firstCheck,
+      firstBlock: !!parsed.firstBlock,
+      firstFreeze: !!parsed.firstFreeze,
+      cleanPayout: !!parsed.cleanPayout
+    };
+  } catch {
+    return { firstCheck: false, firstBlock: false, firstFreeze: false, cleanPayout: false };
+  }
+}
 
 type IncidentItem = {
   id: string;
@@ -48,7 +111,7 @@ type AgentEvalSummary = {
 };
 
 type IntentId = "risky-approve" | "limit-breach" | "safe-transfer";
-type TabId = "overview" | "assess" | "incidents" | "agent" | "evidence";
+type TabId = "home" | "review" | "alerts" | "automation" | "security";
 
 const TREASURY = {
   a: "0x1111111111111111111111111111111111111111",
@@ -63,6 +126,11 @@ const INTENTS: Record<
   {
     label: string;
     blurb: string;
+    outcomeHint: string;
+    vendor: string;
+    walletLabel: string;
+    amountEth: string;
+    whyUsersCare: string;
     payload: {
       wallet: string;
       destination: string;
@@ -75,8 +143,13 @@ const INTENTS: Record<
   }
 > = {
   "risky-approve": {
-    label: "Risky approval",
-    blurb: "Unlisted counterparty + approve surface",
+    label: "Unknown marketplace approval",
+    blurb: "A random in-game shop asks your guild bank to approve spending",
+    outcomeHint: "unknown marketplace",
+    vendor: "Unknown marketplace",
+    walletLabel: "Guild signer A",
+    amountEth: "1.00",
+    whyUsersCare: "Stops scams that drain the guild bank with one bad approve",
     payload: {
       wallet: TREASURY.a,
       destination: TREASURY.unlisted,
@@ -88,8 +161,13 @@ const INTENTS: Record<
     }
   },
   "limit-breach": {
-    label: "Limit breach",
-    blurb: "Allowlisted destination over daily ceiling",
+    label: "Over daily prize budget",
+    blurb: "Contributor payouts are allowed, but this one is bigger than today’s limit",
+    outcomeHint: "over daily budget",
+    vendor: "Contributor payouts (approved)",
+    walletLabel: "Guild signer B",
+    amountEth: "4.00",
+    whyUsersCare: "Keeps prize / salary payouts inside the budget officers already set",
     payload: {
       wallet: TREASURY.b,
       destination: TREASURY.payroll,
@@ -101,8 +179,13 @@ const INTENTS: Record<
     }
   },
   "safe-transfer": {
-    label: "Safe transfer",
-    blurb: "Allowlisted destination within policy",
+    label: "Normal contributor payout",
+    blurb: "Paying a known contributor from the approved payout list",
+    outcomeHint: "within guild rules",
+    vendor: "Contributor payouts (approved)",
+    walletLabel: "Guild signer C",
+    amountEth: "1.00",
+    whyUsersCare: "Fast green light for normal guild ops — no drama when rules are clean",
     payload: {
       wallet: TREASURY.c,
       destination: TREASURY.payroll,
@@ -115,9 +198,51 @@ const INTENTS: Record<
   }
 };
 
+const VENDOR_LABEL: Record<string, string> = {
+  [TREASURY.payroll]: "Contributor payouts (approved)",
+  [TREASURY.unlisted]: "Unknown marketplace",
+  [TREASURY.a]: "Guild signer A",
+  [TREASURY.b]: "Guild signer B",
+  [TREASURY.c]: "Guild signer C"
+};
+
+const PLAYBOOK_LABELS: Record<string, string> = {
+  "freeze-wallet-and-revoke-approvals": "Freeze guild spending",
+  "hold-transaction-and-require-admin-review": "Hold for guild officer review",
+  "request-secondary-signer-confirmation": "Ask a second guild signer",
+  "allow-with-monitoring": "Allow and keep watching"
+};
+
+function playbookLabel(id: string) {
+  return PLAYBOOK_LABELS[id] ?? id.replace(/-/g, " ");
+}
+
+function plainOutcome(assessment: RiskAssessment, intentId: IntentId) {
+  if (!assessment.blocked) return "Allow — safe for the guild";
+  const hint = INTENTS[intentId].outcomeHint;
+  if (assessment.totalScore >= 80) return `Block — ${hint}`;
+  return `Hold — ${hint}`;
+}
+
+function methodLabel(method: string) {
+  if (method === "approve") return "Spend approval";
+  if (method === "transfer") return "Guild payout";
+  return method;
+}
+
+function formatEth(wei: string) {
+  const n = Number(wei) / 1e18;
+  if (!Number.isFinite(n)) return "—";
+  return `${n.toLocaleString(undefined, { maximumFractionDigits: 4 })} ETH`;
+}
+
+function vendorName(addr: string) {
+  return VENDOR_LABEL[addr] ?? `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+}
+
 export function App() {
   const { theme, toggleTheme } = useTheme();
-  const [tab, setTab] = useState<TabId>("overview");
+  const [tab, setTab] = useState<TabId>("home");
   const [intent, setIntent] = useState<IntentId>("risky-approve");
   const [assessment, setAssessment] = useState<RiskAssessment | null>(null);
   const [policyState, setPolicyState] = useState<OnchainPolicy | null>(null);
@@ -141,6 +266,92 @@ export function App() {
   const [lastPlaybook, setLastPlaybook] = useState<PlaybookExecution | null>(null);
   const [agentEval, setAgentEval] = useState<AgentEvalSummary | null>(null);
   const [policyPaused, setPolicyPaused] = useState<boolean | null>(null);
+  const [whyOpen, setWhyOpen] = useState(false);
+  const [xp, setXp] = useState(() => loadXp());
+  const [xpToast, setXpToast] = useState<string | null>(null);
+  const [badges, setBadges] = useState<BadgeState>(() => loadBadges());
+  const [sfxMuted, setSfxMutedState] = useState(() => loadSfxMuted());
+  const [cutscene, setCutscene] = useState<string | null>(null);
+  const [entered, setEntered] = useState(() => {
+    try {
+      return localStorage.getItem("arb-guardian-entered-v1") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [openPane, setOpenPane] = useState<"log" | "howto" | "badges" | "lands" | "stats" | "assets" | null>(null);
+  const [whyOpenHero, setWhyOpenHero] = useState(false);
+
+  const level = Math.floor(xp / 100) + 1;
+  const xpIntoLevel = xp % 100;
+  const xpPct = Math.min(100, (xpIntoLevel / 100) * 100);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(XP_STORAGE, String(xp));
+    } catch {
+      // ignore
+    }
+  }, [xp]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(BADGE_STORAGE, JSON.stringify(badges));
+    } catch {
+      // ignore
+    }
+  }, [badges]);
+
+  function toggleMute() {
+    const next = !sfxMuted;
+    setSfxMuted(next);
+    setSfxMutedState(next);
+    if (!next) void sfxClick();
+  }
+
+  function enterWorld() {
+    setEntered(true);
+    try {
+      localStorage.setItem("arb-guardian-entered-v1", "1");
+    } catch {
+      // ignore
+    }
+    void sfxClick();
+  }
+
+  function togglePane(id: typeof openPane) {
+    void sfxClick();
+    setOpenPane((prev) => (prev === id ? null : id));
+  }
+
+  function goQuests(intentId?: IntentId) {
+    void sfxClick();
+    if (!entered) {
+      setEntered(true);
+      try {
+        localStorage.setItem("arb-guardian-entered-v1", "1");
+      } catch {
+        // ignore
+      }
+    }
+    if (intentId) setIntent(intentId);
+    setTab("review");
+  }
+
+  function awardXp(amount: number, label: string, badgeKey?: BadgeKey, tone: "xp" | "block" | "success" | "freeze" = "xp") {
+    setXp((v) => v + amount);
+    setXpToast(`+${amount} XP · ${label}`);
+    window.setTimeout(() => setXpToast(null), 2200);
+    if (tone === "block") void sfxBlock();
+    else if (tone === "success") void sfxSuccess();
+    else if (tone === "freeze") void sfxFreeze();
+    else void sfxXp();
+    if (badgeKey && !badges[badgeKey]) {
+      setBadges((b) => ({ ...b, [badgeKey]: true }));
+      setCutscene(BADGE_LABEL[badgeKey]);
+      void sfxBadge();
+    }
+  }
 
   const payload = useMemo(() => {
     const base = INTENTS[intent].payload;
@@ -156,8 +367,9 @@ export function App() {
     return headers;
   }
 
-  function recordLocal(result: RiskAssessment, txHash: string, wallet: string) {
+  function recordLocal(result: RiskAssessment, txHash: string, _wallet: string) {
     setAssessment(result);
+    setWhyOpen(false);
     setKpi((prev) => {
       const totalAssessments = prev.totalAssessments + 1;
       const blockedCount = prev.blockedCount + (result.blocked ? 1 : 0);
@@ -169,16 +381,21 @@ export function App() {
           prev.criticalIncidentCount + (result.blocked && result.totalScore >= 80 ? 1 : 0)
       };
     });
-    if (!result.blocked) return;
+    if (!result.blocked) {
+      if (intent === "safe-transfer") awardXp(25, "Clean payout", "cleanPayout", "success");
+      else awardXp(15, "Guild check", "firstCheck", "success");
+      return;
+    }
+    awardXp(40, "Blocked a scam path", "firstBlock", "block");
     const item: IncidentItem = {
       id: `inc-${txHash}`,
-      title: `Blocked intent · ${wallet.slice(0, 8)}…`,
+      title: `Blocked · ${INTENTS[intent].vendor} · ${INTENTS[intent].amountEth} ETH`,
       severity: result.totalScore >= 80 ? "critical" : "high",
       recommendedPlaybook: result.recommendedPlaybook,
       status: "open"
     };
     setIncidents((prev) => [item, ...prev.filter((i) => i.id !== item.id)].slice(0, 12));
-    setTab("incidents");
+    setTab("alerts");
   }
 
   useEffect(() => {
@@ -225,7 +442,8 @@ export function App() {
   async function runAssessment() {
     setLoading(true);
     setError(null);
-    setTab("assess");
+    setWhyOpen(false);
+    setTab("review");
     try {
       if (runtime === "api" && API_BASE) {
         const res = await fetch(`${API_BASE}/risk/assess`, {
@@ -242,7 +460,7 @@ export function App() {
             spentTodayWei: payload.spentTodayWei
           })
         });
-        if (!res.ok) throw new Error(`Assessment failed (${res.status})`);
+        if (!res.ok) throw new Error(`Review failed (${res.status})`);
         const data = (await res.json()) as {
           assessment: RiskAssessment & { matches: RiskAssessment["matches"] };
           incident: null | { id: string; title: string; recommendedPlaybook: string };
@@ -255,6 +473,12 @@ export function App() {
           recommendedPlaybook: data.incident?.recommendedPlaybook ?? assessIntent(payload).recommendedPlaybook
         };
         setAssessment(result);
+        awardXp(
+          result.blocked ? 40 : intent === "safe-transfer" ? 25 : 15,
+          result.blocked ? "Blocked a scam path" : intent === "safe-transfer" ? "Clean payout" : "Guild check",
+          result.blocked ? "firstBlock" : intent === "safe-transfer" ? "cleanPayout" : "firstCheck",
+          result.blocked ? "block" : "success"
+        );
         if (data.policyState) setPolicyState(data.policyState);
         setGuardPrediction(
           predictGuardOutcome({
@@ -275,7 +499,7 @@ export function App() {
             },
             ...prev.filter((i) => i.id !== data.incident!.id)
           ]);
-          setTab("incidents");
+          setTab("alerts");
         }
         return;
       }
@@ -303,7 +527,7 @@ export function App() {
       setGuardPrediction(prediction);
       recordLocal(result, payload.txHash, payload.wallet);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Assessment failed");
+      setError(err instanceof Error ? err.message : "Review failed");
     } finally {
       setLoading(false);
     }
@@ -319,7 +543,7 @@ export function App() {
           headers: buildHeaders(true),
           body: JSON.stringify({
             action,
-            actor: "treasury-operator",
+            actor: "guild-officer",
             incident: target
               ? {
                   id: target.id,
@@ -341,6 +565,7 @@ export function App() {
           setLastPlaybook(actionBody.playbookExecution);
           if (actionBody.playbookExecution.action === "policy_manager.pause") {
             setPolicyPaused(true);
+            awardXp(60, "Froze the guild bank", "firstFreeze", "freeze");
           }
         }
         const incidentsRes = await fetch(`${API_BASE}/incidents`);
@@ -360,9 +585,10 @@ export function App() {
         )
       );
       setAuditLog((prev) => [
-        { incidentId, action, actor: "treasury-operator", createdAt: new Date().toISOString() },
+        { incidentId, action, actor: "guild-officer", createdAt: new Date().toISOString() },
         ...prev
       ]);
+      if (action === "mitigate") awardXp(60, "Froze the guild bank", "firstFreeze", "freeze");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
     }
@@ -377,7 +603,7 @@ export function App() {
         headers: buildHeaders(true),
         body: JSON.stringify({ op: "unpause" })
       });
-      if (!res.ok) throw new Error(`Unpause failed (${res.status})`);
+      if (!res.ok) throw new Error(`Resume failed (${res.status})`);
       const body = (await res.json()) as { txHash?: string };
       setPolicyPaused(false);
       setLastPlaybook({
@@ -388,284 +614,617 @@ export function App() {
         error: null
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unpause failed");
+      setError(err instanceof Error ? err.message : "Resume failed");
     }
   }
 
   const openIncidents = incidents.filter((i) => i.status === "open").length;
+  const statusLabel = policyPaused ? "Paused" : DEPLOYMENT_READY ? "Protected" : "Setup";
+
+  const tabMeta: Array<[TabId, string, ReactElement]> = [
+    ["home", "Base Camp", <IconHome key="h" size={16} />],
+    ["review", "Quests", <IconReview key="r" size={16} />],
+    ["alerts", openIncidents ? `Alerts (${openIncidents})` : "Alerts", <IconAlerts key="a" size={16} />],
+    ["automation", "Playbooks", <IconAutomation key="u" size={16} />],
+    ["security", "Vault", <IconSecurity key="s" size={16} />]
+  ];
 
   return (
-    <div className="app-shell">
+    <>
+      <BrandBackdrop />
+      {xpToast && <div className="xp-toast">{xpToast}</div>}
+      {cutscene && (
+        <div className="cutscene" role="dialog" aria-modal="true" aria-label="Badge unlocked">
+          <div className="cutscene-card">
+            <h3>Badge unlocked!</h3>
+            <p>
+              You earned <strong>{cutscene}</strong>. Progress stays on this device — keep protecting the guild bank.
+            </p>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => {
+                void sfxClick();
+                setCutscene(null);
+              }}
+            >
+              Continue adventure
+            </button>
+          </div>
+        </div>
+      )}
+      <div className={`app-shell ${entered ? "entered" : "title-screen"}`}>
       <header className="topbar">
         <a className="brand" href="/" aria-label="Arb Guardian home">
-          <img src="/logo.png" alt="Arb Guardian" width={44} height={44} />
+          <span className="brand-mark-frame">
+            <img src="/logo.png" alt="" width={44} height={44} />
+          </span>
           <div className="brand-mark">
             <h1 className="brand-title">
               <span className="accent">Arb</span> Guardian
             </h1>
-            <p className="brand-sub">Treasury risk operations</p>
+            <p className="brand-sub">Guild Quest</p>
           </div>
         </a>
         <div className="topbar-actions">
-          <span className={`chip ${DEPLOYMENT_READY ? "ok" : ""}`}>
-            {DEPLOYMENT_READY ? "Arbitrum Sepolia" : "Pending deploy"}
-          </span>
-          <span className="chip">{rpcLive ? "RPC live" : "RPC cold"}</span>
-          <span className="chip">{runtime === "api" ? "API connected" : "Onchain console"}</span>
+          {entered && (
+            <div className="xp-hud" title={`${xp} total XP`}>
+              <div className="level-badge">Lv{level}</div>
+              <div className="xp-meta">
+                <strong>{xpIntoLevel}/100 XP</strong>
+                <div className="xp-bar" aria-hidden="true">
+                  <i style={{ width: `${xpPct}%` }} />
+                </div>
+              </div>
+            </div>
+          )}
+          {entered && (
+            <span className={`chip ${policyPaused ? "warn" : "ok"}`} title={rpcLive ? "Live" : "Connecting"}>
+              {!policyPaused && <span className="pulse-dot" />}
+              {statusLabel}
+            </span>
+          )}
+          <button
+            type="button"
+            className={`icon-btn ${sfxMuted ? "" : "active"}`}
+            onClick={toggleMute}
+            aria-label={sfxMuted ? "Unmute sounds" : "Mute sounds"}
+            title={sfxMuted ? "Sound off" : "Sound on"}
+          >
+            {sfxMuted ? <IconSoundOff size={16} /> : <IconSoundOn size={16} />}
+          </button>
           <button
             type="button"
             className="icon-btn"
-            onClick={toggleTheme}
+            onClick={() => {
+              void sfxClick();
+              toggleTheme();
+            }}
             aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
           >
-            {theme === "light" ? "Dark" : "Light"}
+            {theme === "light" ? <IconMoon size={16} /> : <IconSun size={16} />}
           </button>
         </div>
       </header>
 
-      <section className="hero">
-        <p className="eyebrow">Arbitrum Sepolia · Live treasury console</p>
-        <h2>
-          <span className="accent">Arb</span> Guardian
-        </h2>
-        <p className="hero-lead">
-          Treasury risk operations for Arbitrum teams — onchain policy, clear risk evidence, and bounded incident
-          response.
-        </p>
-        <div className="cta-row">
-          <button type="button" className="primary" onClick={runAssessment} disabled={loading}>
-            {loading ? "Assessing…" : "Assess treasury intent"}
-          </button>
-          <button type="button" className="ghost" onClick={() => setTab("evidence")}>
-            View onchain proof
-          </button>
-        </div>
-        {error && <p className="error">{error}</p>}
-      </section>
-
-      <nav className="tabs" aria-label="Primary">
-        {(
-          [
-            ["overview", "Overview"],
-            ["assess", "Assess"],
-            ["incidents", openIncidents ? `Incidents (${openIncidents})` : "Incidents"],
-            ["agent", "Agent"],
-            ["evidence", "Evidence"]
-          ] as Array<[TabId, string]>
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            className={`tab ${tab === id ? "active" : ""}`}
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
-
-      <div className="panel">
-        {tab === "overview" && (
-          <div className="grid">
-            <section className="card span-2">
-              <h3>Operations metrics</h3>
-              <div className="kpi-row">
-                <div className="kpi">
-                  <strong>{kpi.totalAssessments}</strong>
-                  <span>Assessments</span>
+      {!entered ? (
+        <section className="hero title-hero">
+          <img className="hero-logo" src="/logo.png" alt="Arb Guardian" width={112} height={112} />
+          <p className="hero-kicker">GUILD BANK PROTECTION</p>
+          <h2>
+            <span className="accent">Arb</span> Guardian
+          </h2>
+          <p className="hero-lead">
+            Real guild assets. Real onchain rules. Played like a quest — not a spreadsheet.
+          </p>
+          <div className="chain-row" aria-label="Live networks">
+            <span className="chain-chip ok">Arbitrum</span>
+            {RH_READY && <span className="chain-chip ok">Robinhood</span>}
+            <span className="chain-chip">Guild bank protection</span>
+          </div>
+          <div className="cta-row">
+            <button type="button" className="primary" onClick={enterWorld}>
+              Press start
+            </button>
+            <button type="button" className="ghost" onClick={() => goQuests("risky-approve")} disabled={loading}>
+              {loading ? "Checking…" : "Skip to first quest"}
+            </button>
+          </div>
+          {error && <p className="error">{error}</p>}
+        </section>
+      ) : (
+        <>
+          <section className="hero compact-hero">
+            <p className="hero-kicker">BASE CAMP</p>
+            <h2 className="compact-title">
+              Protect the <span className="accent">guild bank</span>
+            </h2>
+            <p className="hero-lead">One path at a time. Open a door only when you need it.</p>
+            <div className="cta-row">
+              <button type="button" className="primary" onClick={() => goQuests()} disabled={loading}>
+                <IconPayment size={16} />
+                {loading ? "Checking…" : "Start quest"}
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  void sfxClick();
+                  setOpenPane("assets");
+                  setTab("home");
+                }}
+              >
+                Guild assets
+              </button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => {
+                  void sfxClick();
+                  setWhyOpenHero((v) => !v);
+                }}
+              >
+                {whyOpenHero ? "Hide features" : "What’s protected"}
+              </button>
+            </div>
+            {whyOpenHero && (
+              <div className="seller-strip" aria-label="What the product protects">
+                <div className="seller-point">
+                  <strong>Scam stop</strong>
+                  <span>Blocks unknown marketplace approvals before the bank drains.</span>
                 </div>
-                <div className="kpi">
-                  <strong>{kpi.blockedCount}</strong>
-                  <span>Blocked</span>
+                <div className="seller-point">
+                  <strong>Prize budget</strong>
+                  <span>Daily limit keeps contributor payouts inside the pot officers set.</span>
                 </div>
-                <div className="kpi">
-                  <strong>{(kpi.blockedRate * 100).toFixed(0)}%</strong>
-                  <span>Block rate</span>
+                <div className="seller-point">
+                  <strong>Officer freeze</strong>
+                  <span>Suggestions are automatic — freezing still needs a human click.</span>
                 </div>
-                <div className="kpi">
-                  <strong>{kpi.criticalIncidentCount}</strong>
-                  <span>Critical</span>
+                <div className="seller-point">
+                  <strong>Your progress</strong>
+                  <span>XP and badges save on this device as you protect the bank.</span>
                 </div>
               </div>
-            </section>
+            )}
+            {error && <p className="error">{error}</p>}
+          </section>
 
-            <section className="card">
-              <h3>Live deployment</h3>
-              <dl className="meta">
-                <div>
-                  <dt>Network</dt>
-                  <dd>{CHAIN_NAME}</dd>
-                </div>
-                <div>
-                  <dt>PolicyManager</dt>
-                  <dd className="mono">
-                    <a href={addressUrl(POLICY_MANAGER)} target="_blank" rel="noreferrer">
-                      {POLICY_MANAGER}
-                    </a>
-                  </dd>
-                </div>
-                <div>
-                  <dt>ExecutionGuard</dt>
-                  <dd className="mono">
-                    <a href={addressUrl(EXECUTION_GUARD)} target="_blank" rel="noreferrer">
-                      {EXECUTION_GUARD}
-                    </a>
-                  </dd>
-                </div>
-                {SAFE_TREASURY_GUARD && (
+          <nav className="tabs" aria-label="Primary">
+            {tabMeta.map(([id, label, icon]) => (
+              <button
+                key={id}
+                type="button"
+                className={`tab ${tab === id ? "active" : ""}`}
+                onClick={() => {
+                  void sfxClick();
+                  setTab(id);
+                }}
+              >
+                {icon}
+                {label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="panel" key={tab}>
+            {tab === "home" && (
+              <div className="home-stack">
+                <section className="policy-snapshot" aria-label="Guild bank status">
                   <div>
-                    <dt>SafeTreasuryGuard</dt>
-                    <dd className="mono">
-                      <a href={addressUrl(SAFE_TREASURY_GUARD)} target="_blank" rel="noreferrer">
-                        {SAFE_TREASURY_GUARD}
-                      </a>
-                    </dd>
+                    <p className="snapshot-label">Guild bank status</p>
+                    <strong>{policyPaused ? "Bank frozen!" : "Protected & ready"}</strong>
+                    <p className="muted">Rules live · daily prize budget · spend guard online</p>
                   </div>
-                )}
-                {TREASURY_SAFE && (
-                  <div>
-                    <dt>Treasury Safe (enrolled)</dt>
-                    <dd className="mono">
-                      <a href={addressUrl(TREASURY_SAFE)} target="_blank" rel="noreferrer">
-                        {TREASURY_SAFE}
-                      </a>
-                    </dd>
+                  <div className="snapshot-actions">
+                    <button type="button" className="primary" onClick={() => goQuests()}>
+                      <IconPayment size={16} />
+                      Continue quest
+                    </button>
+                    {openIncidents > 0 && (
+                      <button
+                        type="button"
+                        className="ghost"
+                        onClick={() => {
+                          void sfxClick();
+                          setTab("alerts");
+                        }}
+                      >
+                        <IconAlerts size={16} />
+                        {openIncidents} open alert{openIncidents === 1 ? "" : "s"}
+                      </button>
+                    )}
                   </div>
+                </section>
+
+                <section className="door-row" aria-label="Open when needed">
+                  {(
+                    [
+                      ["assets", "Guild assets", "Bank · budget"],
+                      ["log", "Quest log", "First wins"],
+                      ["howto", "How it works", "3 steps"],
+                      ["badges", "Badges", `${Object.values(badges).filter(Boolean).length}/4`],
+                      ["lands", "Featured quests", "3 lands"],
+                      ["stats", "This session", `${kpi.totalAssessments} checks`]
+                    ] as const
+                  ).map(([id, title, hint]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`door ${openPane === id ? "open" : ""}`}
+                      onClick={() => togglePane(id)}
+                      aria-expanded={openPane === id}
+                    >
+                      <strong>{title}</strong>
+                      <span>{hint}</span>
+                    </button>
+                  ))}
+                </section>
+
+                {openPane === "assets" && (
+                  <section className="section reveal">
+                    <h3>
+                      <IconSecurity size={18} /> Guild assets · live inventory
+                    </h3>
+                    <p className="muted section-lead">
+                      Real controls officers manage every day — shown like inventory, enforced onchain.
+                    </p>
+                    <div className="asset-grid">
+                      <article className="asset-card">
+                        <strong>Prize pot / bank</strong>
+                        <span>{policyPaused ? "Frozen" : "Protected"}</span>
+                        <p>Shared ETH the guild cannot afford to drain.</p>
+                      </article>
+                      <article className="asset-card">
+                        <strong>Approved payouts</strong>
+                        <span>Allowlist on</span>
+                        <p>Only known contributor destinations pass clean.</p>
+                      </article>
+                      <article className="asset-card">
+                        <strong>Daily prize budget</strong>
+                        <span>Limit live</span>
+                        <p>Over-budget payouts get held or blocked.</p>
+                      </article>
+                      <article className="asset-card">
+                        <strong>Marketplace gate</strong>
+                        <span>Scam path blocked</span>
+                        <p>Unknown approve requests open Alerts — not silent drains.</p>
+                      </article>
+                      <article className="asset-card">
+                        <strong>Freeze switch</strong>
+                        <span>Officer gated</span>
+                        <p>Agent suggests; a human still clicks Freeze.</p>
+                      </article>
+                      <article className="asset-card">
+                        <strong>Networks</strong>
+                        <span>{RH_READY ? "Arb + Robinhood" : "Arbitrum"}</span>
+                        <p>Open Vault for live contract links when you need them.</p>
+                      </article>
+                    </div>
+                    <div className="cta-row left" style={{ marginTop: "0.85rem" }}>
+                      <button type="button" className="primary" onClick={() => goQuests("risky-approve")}>
+                        Test marketplace gate
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost"
+                        onClick={() => {
+                          void sfxClick();
+                          setTab("security");
+                        }}
+                      >
+                        Open Vault
+                      </button>
+                    </div>
+                  </section>
                 )}
-                <div>
-                  <dt>Status</dt>
-                  <dd>
-                    {DEPLOYMENT_READY
-                      ? policyPaused
-                        ? "Qualified · Policy paused"
-                        : "Qualified · Safe enrolled"
-                      : "Pending"}
-                  </dd>
-                </div>
-              </dl>
-            </section>
 
-            <section className="card">
-              <h3>Policy controls</h3>
-              <ul className="clean">
-                <li>Counterparty allowlist enforced onchain</li>
-                <li>Per-wallet daily spend ceiling</li>
-                <li>RBAC + pausable circuit breaker</li>
-                <li>Gnosis Safe Transaction Guard path</li>
-                <li>Approve surface requires review</li>
-              </ul>
-            </section>
+                {openPane === "log" && (
+                  <section className="section reveal" id="quest-log">
+                    <h3>
+                      <IconSpark size={18} /> Quest log · first wins
+                    </h3>
+                    <p className="muted section-lead">
+                      Clear these in under 10 minutes. Each step protects a real guild pain point — and awards XP.
+                    </p>
+                    <ul className="quest-check">
+                      <li className={badges.firstBlock || kpi.blockedCount > 0 ? "done" : ""}>
+                        <span className="tick">
+                          <IconCheck size={12} />
+                        </span>
+                        <div>
+                          <strong>Block a marketplace scam</strong>
+                          <span>Unknown approve path — the drain guilds hit most.</span>
+                        </div>
+                      </li>
+                      <li className={badges.cleanPayout ? "done" : ""}>
+                        <span className="tick">
+                          <IconCheck size={12} />
+                        </span>
+                        <div>
+                          <strong>Green-light a clean payout</strong>
+                          <span>Prove normal ops still feel fast when rules are clean.</span>
+                        </div>
+                      </li>
+                      <li className={badges.firstFreeze || policyPaused ? "done" : ""}>
+                        <span className="tick">
+                          <IconCheck size={12} />
+                        </span>
+                        <div>
+                          <strong>Officer freeze</strong>
+                          <span>From Alerts, freeze guild spending with a shared activity log.</span>
+                        </div>
+                      </li>
+                      <li className={badges.firstCheck || badges.firstBlock || badges.cleanPayout ? "done" : ""}>
+                        <span className="tick">
+                          <IconCheck size={12} />
+                        </span>
+                        <div>
+                          <strong>Collect your first badge</strong>
+                          <span>Progress saves on this device so the adventure continues.</span>
+                        </div>
+                      </li>
+                    </ul>
+                    <div className="cta-row left" style={{ marginTop: "0.85rem" }}>
+                      <button type="button" className="primary" onClick={() => goQuests("risky-approve")}>
+                        Play first quest
+                      </button>
+                    </div>
+                  </section>
+                )}
 
-            <section className="card span-2">
-              <h3>Control loop</h3>
-              <ol className="steps">
-                <li>Policy</li>
-                <li>Assess</li>
-                <li>Block</li>
-                <li>Incident</li>
-                <li>Mitigate</li>
-              </ol>
-            </section>
-          </div>
-        )}
+                {openPane === "howto" && (
+                  <section className="section reveal" id="how-it-works">
+                    <h3>How the adventure works</h3>
+                    <ol className="howto">
+                      <li>
+                        <span className="step-icon">
+                          <IconPolicy size={20} />
+                        </span>
+                        <strong>1 · Rules stay on</strong>
+                        <span>Who can get paid + daily prize budget is already live. No setup grind to start.</span>
+                      </li>
+                      <li>
+                        <span className="step-icon">
+                          <IconPayment size={20} />
+                        </span>
+                        <strong>2 · Pick a quest spend</strong>
+                        <span>Check marketplace approvals and payouts. Earn XP when you complete a check.</span>
+                      </li>
+                      <li>
+                        <span className="step-icon">
+                          <IconFreeze size={20} />
+                        </span>
+                        <strong>3 · Boss move: freeze</strong>
+                        <span>If it’s blocked, freeze the guild bank or ping another officer — with a shared log.</span>
+                      </li>
+                    </ol>
+                  </section>
+                )}
 
-        {tab === "assess" && (
+                {openPane === "badges" && (
+                  <section className="section reveal">
+                    <h3>
+                      <IconSpark size={18} /> Your badges
+                    </h3>
+                    <div className="badge-row">
+                      <span
+                        className={`badge-pill ${badges.firstCheck || badges.firstBlock || badges.cleanPayout ? "on" : ""}`}
+                      >
+                        First check
+                      </span>
+                      <span className={`badge-pill ${badges.firstBlock ? "on" : ""}`}>Scam stopper</span>
+                      <span className={`badge-pill ${badges.firstFreeze ? "on" : ""}`}>Bank freezer</span>
+                      <span className={`badge-pill ${badges.cleanPayout ? "on" : ""}`}>Clean payout</span>
+                    </div>
+                  </section>
+                )}
+
+                {openPane === "lands" && (
+                  <section className="section reveal">
+                    <h3>Featured lands · quests</h3>
+                    <div className="retain-grid">
+                      {(Object.keys(INTENTS) as IntentId[]).map((id) => (
+                        <button key={id} type="button" className="retain-card" onClick={() => goQuests(id)}>
+                          <strong>{INTENTS[id].label}</strong>
+                          <span>{INTENTS[id].whyUsersCare}</span>
+                          <em>Play quest →</em>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {openPane === "stats" && (
+                  <section className="section reveal">
+                    <h3>This session</h3>
+                    <div className="kpi-row">
+                      <div className="kpi">
+                        <strong>{kpi.totalAssessments}</strong>
+                        <span>Checks</span>
+                      </div>
+                      <div className="kpi">
+                        <strong>{kpi.blockedCount}</strong>
+                        <span>Blocked</span>
+                      </div>
+                      <div className="kpi">
+                        <strong>{(kpi.blockedRate * 100).toFixed(0)}%</strong>
+                        <span>Block rate</span>
+                      </div>
+                      <div className="kpi">
+                        <strong>{openIncidents}</strong>
+                        <span>Open alerts</span>
+                      </div>
+                    </div>
+                    {kpi.totalAssessments === 0 ? (
+                      <p className="empty-hint">
+                        No checks yet. Start with <strong>Unknown marketplace approval</strong>.
+                        <button type="button" className="linkish" onClick={() => goQuests("risky-approve")}>
+                          Check it now
+                        </button>
+                      </p>
+                    ) : (
+                      <p className="muted" style={{ marginTop: "0.75rem" }}>
+                        Keep checking from Quests — Alerts saves actions for other officers.
+                      </p>
+                    )}
+                  </section>
+                )}
+              </div>
+            )}
+
+        {tab === "review" && (
           <div className="grid">
-            <section className="card">
-              <h3>Treasury intent</h3>
+            <section className="surface">
+              <h3>
+                <IconReview size={18} /> Quest board · is this spend safe?
+              </h3>
+              <p className="muted" style={{ marginBottom: "0.85rem" }}>
+                Pick a quest. Complete the check to earn XP — just like clearing a stage.
+              </p>
               <div className="scenario-list">
                 {(Object.keys(INTENTS) as IntentId[]).map((id) => (
                   <button
                     key={id}
                     type="button"
                     className={`scenario ${intent === id ? "active" : ""}`}
-                    onClick={() => setIntent(id)}
+                    onClick={() => {
+                      void sfxClick();
+                      setIntent(id);
+                    }}
                   >
                     <strong>{INTENTS[id].label}</strong>
                     <span>{INTENTS[id].blurb}</span>
+                    <span className="scenario-meta">
+                      {INTENTS[id].vendor} · {INTENTS[id].amountEth} ETH
+                    </span>
                   </button>
                 ))}
               </div>
-              <button type="button" className="primary full" onClick={runAssessment} disabled={loading}>
-                {loading ? "Assessing…" : "Run risk assessment"}
+              <button
+                type="button"
+                className="primary full"
+                onClick={() => {
+                  void sfxClick();
+                  void runAssessment();
+                }}
+                disabled={loading}
+              >
+                <IconCheck size={16} />
+                {loading ? "Checking…" : "Complete quest check"}
               </button>
             </section>
 
-            <section className="card">
-              <h3>Intent preview</h3>
+            <section className="surface">
+              <h3>Spend summary</h3>
               <dl className="meta">
                 <div>
-                  <dt>Method</dt>
-                  <dd className="mono">{payload.method}</dd>
+                  <dt>Type</dt>
+                  <dd>{methodLabel(payload.method)}</dd>
                 </div>
                 <div>
-                  <dt>Wallet</dt>
-                  <dd className="mono">{payload.wallet}</dd>
+                  <dt>From</dt>
+                  <dd>{INTENTS[intent].walletLabel}</dd>
                 </div>
                 <div>
-                  <dt>Destination</dt>
-                  <dd className="mono">{payload.destination}</dd>
+                  <dt>To</dt>
+                  <dd>{INTENTS[intent].vendor}</dd>
                 </div>
                 <div>
-                  <dt>Policy source</dt>
-                  <dd>{policyState ? "Onchain Sepolia" : "Intent template"}</dd>
+                  <dt>Amount</dt>
+                  <dd>{formatEth(payload.amountWei)}</dd>
                 </div>
-                {policyState && (
-                  <>
-                    <div>
-                      <dt>Allowlisted</dt>
-                      <dd>{policyState.allowlisted ? "Yes" : "No"}</dd>
-                    </div>
-                    <div>
-                      <dt>Daily limit</dt>
-                      <dd>{policyState.dailyLimitEth} ETH</dd>
-                    </div>
-                    <div>
-                      <dt>Spent today</dt>
-                      <dd>{policyState.spentTodayEth} ETH</dd>
-                    </div>
-                  </>
-                )}
+                <div>
+                  <dt>On approved list?</dt>
+                  <dd>
+                    {(policyState?.allowlisted ?? payload.allowlisted) ? "Yes" : "No"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Daily prize budget</dt>
+                  <dd>
+                    {policyState
+                      ? `${policyState.dailyLimitEth} ETH`
+                      : formatEth(payload.dailyLimitWei)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Spent today</dt>
+                  <dd>
+                    {policyState
+                      ? `${policyState.spentTodayEth} ETH`
+                      : formatEth(payload.spentTodayWei)}
+                  </dd>
+                </div>
               </dl>
             </section>
 
-            <section className="card span-2">
-              <h3>Risk result</h3>
+            <section className="surface span-2">
+              <h3>Result</h3>
               {!assessment ? (
-                <p className="muted">Select an intent and run assessment against policy.</p>
+                <div className="empty-state">
+                  <IconPayment size={28} />
+                  <p>
+                    Choose a scenario on the left, then click <strong>Complete quest check</strong>.
+                  </p>
+                  <p className="muted">
+                    Start with Unknown marketplace approval — that’s the common guild scam path.
+                  </p>
+                </div>
               ) : (
                 <>
                   <p className="result-line">
-                    Score <strong>{assessment.totalScore}</strong>
                     <span className={`status-pill ${assessment.blocked ? "blocked" : "allowed"}`}>
-                      {assessment.blocked ? "Blocked" : "Allowed"}
+                      {assessment.blocked ? <IconAlerts size={14} /> : <IconCheck size={14} />}
+                      {plainOutcome(assessment, intent)}
                     </span>
                   </p>
-                  <ul className="clean">
-                    {assessment.matches.length === 0 ? (
-                      <li>No rule matches — intent within policy.</li>
-                    ) : (
-                      assessment.matches.map((m) => (
-                        <li key={m.ruleId}>
-                          <strong>{m.ruleId}</strong> — {m.reason}{" "}
-                          <span className="muted">
-                            ({m.severity}, +{m.scoreDelta})
-                          </span>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                  <p className="playbook">
-                    Playbook: <span className="mono">{assessment.recommendedPlaybook}</span>
+                  <p className="muted" style={{ marginBottom: "0.75rem" }}>
+                    {assessment.blocked
+                      ? "Do not sign in the wallet. Open Alerts to freeze the guild bank or escalate."
+                      : "Guild rules look clean. Sign as usual — this is the everyday happy path."}
+                  </p>
+                  <p className="next-step">
+                    Suggested next step: <strong>{playbookLabel(assessment.recommendedPlaybook)}</strong>
                   </p>
                   {guardPrediction && (
-                    <p className="playbook">
-                      ExecutionGuard prediction:{" "}
-                      <span className={`status-pill ${guardPrediction.wouldRevert ? "blocked" : "allowed"}`}>
-                        {guardPrediction.wouldRevert ? "Would revert" : "Would allow"}
-                      </span>{" "}
-                      <span className="mono">{guardPrediction.reason}</span>
+                    <p className="muted" style={{ marginTop: "0.5rem" }}>
+                      Spend guard: {guardPrediction.wouldRevert ? "would stop this" : "would allow this"}
                     </p>
+                  )}
+                  <button type="button" className="linkish" onClick={() => setWhyOpen((v) => !v)}>
+                    {whyOpen ? "Hide details" : "Why this decision"}
+                  </button>
+                  {whyOpen && (
+                    <ul className="clean why-list">
+                      {assessment.matches.length === 0 ? (
+                        <li>No rule flags — destination and amount are inside guild limits.</li>
+                      ) : (
+                        assessment.matches.map((m) => (
+                          <li key={m.ruleId}>
+                            {m.reason}{" "}
+                            <span className="muted">({m.severity})</span>
+                          </li>
+                        ))
+                      )}
+                      <li className="muted">
+                        Counterparty: {vendorName(payload.destination)} · {formatEth(payload.amountWei)}
+                      </li>
+                    </ul>
+                  )}
+                  {assessment.blocked && (
+                    <button
+                      type="button"
+                      className="primary"
+                      style={{ marginTop: "0.85rem" }}
+                      onClick={() => {
+                        void sfxClick();
+                        setTab("alerts");
+                      }}
+                    >
+                      <IconAlerts size={16} />
+                      Go to alerts
+                    </button>
                   )}
                 </>
               )}
@@ -673,12 +1232,32 @@ export function App() {
           </div>
         )}
 
-        {tab === "incidents" && (
+        {tab === "alerts" && (
           <div className="grid">
-            <section className="card">
-              <h3>Incident queue</h3>
+            <section className="surface">
+              <h3>
+                <IconAlerts size={18} /> Alert queue
+              </h3>
+              <p className="muted" style={{ marginBottom: "0.85rem" }}>
+                Shared queue for guild officers. Acknowledge, freeze the bank, or dismiss — every action stays in
+                the activity log.
+              </p>
               {incidents.length === 0 ? (
-                <p className="muted">No open incidents. Assess a risky intent to create one.</p>
+                <div className="empty-state">
+                  <IconAlerts size={28} />
+                  <p>No open alerts.</p>
+                  <p className="muted">Check a risky spend to create one — then freeze from here.</p>
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => {
+                      setIntent("risky-approve");
+                      setTab("review");
+                    }}
+                  >
+                    Check unknown marketplace approval
+                  </button>
+                </div>
               ) : (
                 <ul className="incident-list">
                   {incidents.map((incident) => (
@@ -688,17 +1267,39 @@ export function App() {
                         <span className={`sev sev-${incident.severity}`}>{incident.severity}</span>
                       </div>
                       <p className="muted">
-                        {incident.status} · {incident.recommendedPlaybook}
+                        {incident.status} · Recommended: {playbookLabel(incident.recommendedPlaybook)}
                       </p>
                       <div className="actions">
-                        <button type="button" className="secondary" onClick={() => applyAction(incident.id, "acknowledge")}>
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => {
+                            void sfxClick();
+                            void applyAction(incident.id, "acknowledge");
+                          }}
+                        >
                           Acknowledge
                         </button>
-                        <button type="button" className="secondary" onClick={() => applyAction(incident.id, "mitigate")}>
-                          Mitigate
+                        <button
+                          type="button"
+                          className="primary"
+                          onClick={() => {
+                            void sfxClick();
+                            void applyAction(incident.id, "mitigate");
+                          }}
+                        >
+                          <IconFreeze size={14} />
+                          Freeze guild spending
                         </button>
-                        <button type="button" className="secondary" onClick={() => applyAction(incident.id, "ignore")}>
-                          Ignore
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => {
+                            void sfxClick();
+                            void applyAction(incident.id, "ignore");
+                          }}
+                        >
+                          Dismiss
                         </button>
                       </div>
                     </li>
@@ -706,16 +1307,16 @@ export function App() {
                 </ul>
               )}
             </section>
-            <section className="card">
-              <h3>Audit trail</h3>
+            <section className="surface">
+              <h3>Activity log</h3>
               {lastPlaybook && (
-                <p className="playbook" style={{ marginBottom: "0.75rem" }}>
-                  Last playbook: <span className="mono">{lastPlaybook.action}</span>
+                <p className="next-step" style={{ marginBottom: "0.75rem" }}>
+                  Last action: <strong>{lastPlaybook.action?.includes("pause") ? "Freeze guild spending" : lastPlaybook.action}</strong>
                   {lastPlaybook.txHash ? (
                     <>
                       {" · "}
                       <a href={txUrl(lastPlaybook.txHash)} target="_blank" rel="noreferrer">
-                        onchain tx
+                        view confirmation
                       </a>
                     </>
                   ) : null}
@@ -725,11 +1326,11 @@ export function App() {
               )}
               {policyPaused && (
                 <button type="button" className="secondary" onClick={unpausePolicy} style={{ marginBottom: "0.75rem" }}>
-                  Unpause PolicyManager (demo reset)
+                  Unfreeze guild bank (demo reset)
                 </button>
               )}
               {auditLog.length === 0 && !lastPlaybook ? (
-                <p className="muted">Operator actions appear here after acknowledge / mitigate / ignore.</p>
+                <p className="muted">Operator actions appear here after you respond to an alert.</p>
               ) : (
                 <ul className="clean">
                   {auditLog.slice(0, 10).map((log, idx) => (
@@ -745,13 +1346,15 @@ export function App() {
           </div>
         )}
 
-        {tab === "agent" && (
+        {tab === "automation" && (
           <div className="grid">
-            <section className="card span-2">
-              <h3>Policy-bounded agent</h3>
+            <section className="surface span-2">
+              <h3>
+                <IconAutomation size={18} /> Suggested guild playbooks
+              </h3>
               <p className="muted">
-                Deterministic playbook selection from risk score. No free-form tool use. Critical mitigations can
-                pause PolicyManager onchain when operator key is configured.
+                Risk score maps to a fixed response officers can trust. Automation never moves guild funds.
+                Freezing the bank still needs a human click on Alerts.
               </p>
               <button
                 type="button"
@@ -759,205 +1362,228 @@ export function App() {
                 style={{ marginTop: "0.75rem" }}
                 onClick={async () => {
                   setIntent("risky-approve");
-                  setTab("assess");
+                  setTab("review");
                   await new Promise((r) => setTimeout(r, 50));
                   await runAssessment();
-                  setTab("agent");
+                  setTab("automation");
                 }}
                 disabled={loading}
               >
-                {loading ? "Running agent loop…" : "Simulate agent loop (risky approval)"}
+                {loading ? "Running…" : "Simulate marketplace scam"}
               </button>
               {assessment && (
-                <div className="card" style={{ marginTop: "1rem", boxShadow: "none" }}>
-                  <h4>Last recommendation</h4>
-                  <p className="mono">{assessment.recommendedPlaybook}</p>
+                <div className="soft-box" style={{ marginTop: "1rem" }}>
+                  <h4>Last suggestion</h4>
+                  <p>
+                    <strong>{playbookLabel(assessment.recommendedPlaybook)}</strong>
+                  </p>
                   <p className="muted">
-                    Score {assessment.totalScore} · {assessment.blocked ? "blocked → incident" : "allowed"}
+                    {assessment.blocked ? "Blocked → alert opened" : "Allowed"} · score {assessment.totalScore}
                   </p>
                 </div>
               )}
               <div className="evidence-grid" style={{ marginTop: "1rem" }}>
                 <article>
-                  <h4>0–29 · Monitor</h4>
-                  <p className="mono">allow-with-monitoring</p>
+                  <h4>Low risk</h4>
+                  <p>Allow with monitoring</p>
                 </article>
                 <article>
-                  <h4>30–59 · Confirm</h4>
-                  <p className="mono">request-secondary-signer-confirmation</p>
+                  <h4>Medium</h4>
+                  <p>Ask a second signer</p>
                 </article>
                 <article>
-                  <h4>60–79 · Hold</h4>
-                  <p className="mono">hold-transaction-and-require-admin-review</p>
+                  <h4>High</h4>
+                  <p>Hold for admin review</p>
                 </article>
                 <article>
-                  <h4>≥80 · Freeze</h4>
-                  <p className="mono">freeze-wallet-and-revoke-approvals → pause()</p>
+                  <h4>Critical</h4>
+                  <p>Freeze guild spending (officer-approved)</p>
                 </article>
               </div>
             </section>
-            <section className="card">
-              <h3>Eval harness</h3>
+            <section className="surface">
+              <h3>Policy check accuracy</h3>
               {agentEval ? (
                 <>
                   <p className="muted">
-                    {agentEval.total} scenarios · accuracy {agentEval.accuracy} · precision{" "}
-                    {agentEval.blockedPrecision} · recall {agentEval.blockedRecall}
+                    {agentEval.total} scenarios · accuracy {(agentEval.accuracy * 100).toFixed(0)}% · precision{" "}
+                    {(agentEval.blockedPrecision * 100).toFixed(0)}% · recall{" "}
+                    {(agentEval.blockedRecall * 100).toFixed(0)}%
                   </p>
-                  <p className="mono">
-                    passed {agentEval.passed}/{agentEval.total}
+                  <p>
+                    Passed {agentEval.passed}/{agentEval.total}
                   </p>
                 </>
               ) : (
-                <>
-                  <p className="muted">12 scenarios · accuracy 1.0 · precision/recall tracked in CI.</p>
-                  <p className="mono">GET /api/agent/eval</p>
-                </>
+                <p className="muted">12 scenarios · accuracy 100% in the automated harness.</p>
               )}
             </section>
-            <section className="card">
-              <h3>Hard bounds</h3>
+            <section className="surface">
+              <h3>Hard limits</h3>
               <ul className="clean">
-                <li>Cannot move funds</li>
-                <li>Cannot change allowlists</li>
-                <li>Cannot grant admin roles</li>
-                <li>Pause only after human mitigate</li>
+                <li>Cannot move guild funds</li>
+                <li>Cannot change approved payout lists</li>
+                <li>Cannot grant officer admin access</li>
+                <li>Freeze only after an officer clicks Freeze guild spending</li>
               </ul>
             </section>
           </div>
         )}
 
-        {tab === "evidence" && (
+        {tab === "security" && (
           <div className="grid">
-            <section className="card span-2">
-              <h3>Judging alignment</h3>
-              <div className="evidence-grid">
-                <article>
-                  <h4>Smart contract quality</h4>
-                  <p>OZ AccessControl + Pausable, custom errors, RBAC, Hardhat tests.</p>
+            <section className="surface span-2">
+              <h3>
+                <IconSecurity size={18} /> Guild Vault
+              </h3>
+              <p className="muted section-lead">
+                Live networks and contract links for your guild bank. Day-to-day play stays in Quests and Alerts.
+              </p>
+              <div className="asset-grid">
+                <article className="asset-card">
+                  <strong>Prize pot</strong>
+                  <span>{policyPaused ? "Frozen" : "Guarded"}</span>
+                  <p>Shared bank funds protected by allowlist + daily budget.</p>
                 </article>
-                <article>
-                  <h4>Product-market fit</h4>
-                  <p>Safe multisig guard + treasury ops console for DAOs on Arbitrum.</p>
+                <article className="asset-card">
+                  <strong>Spend guard</strong>
+                  <span>Onchain</span>
+                  <p>Unsafe spends can revert before they clear.</p>
                 </article>
-                <article>
-                  <h4>Innovation</h4>
-                  <p>Evidence-first scoring + policy-bounded agentic playbooks.</p>
+                <article className="asset-card">
+                  <strong>Freeze</strong>
+                  <span>Officer gated</span>
+                  <p>Pause only after an officer confirms from Alerts.</p>
                 </article>
-                <article>
-                  <h4>Real problem solving</h4>
-                  <p>Blocks unsafe approvals/transfers before execution with audit trail + onchain pause.</p>
+                <article className="asset-card">
+                  <strong>Playbooks</strong>
+                  <span>Bounded</span>
+                  <p>Automation never moves guild funds or changes the payout list.</p>
+                </article>
+                <article className="asset-card">
+                  <strong>Arbitrum</strong>
+                  <span>Live</span>
+                  <p>Sepolia policy + guard + enrolled guild wallet.</p>
+                </article>
+                <article className="asset-card">
+                  <strong>Robinhood</strong>
+                  <span>{RH_READY ? "Live" : "Pending"}</span>
+                  <p>{RH_READY ? "Testnet twin deploy for the same guild loop." : "Deployment pending."}</p>
                 </article>
               </div>
             </section>
-            <section className="card">
-              <h3>Onchain proof</h3>
+            <section className="surface">
+              <h3>Arbitrum</h3>
               <ul className="clean">
                 <li>
                   <a href={addressUrl(POLICY_MANAGER)} target="_blank" rel="noreferrer">
-                    PolicyManager
+                    Policy controls
                   </a>
                 </li>
                 <li>
                   <a href={addressUrl(EXECUTION_GUARD)} target="_blank" rel="noreferrer">
-                    ExecutionGuard
+                    Spend guard
                   </a>
                 </li>
                 {SAFE_TREASURY_GUARD && (
                   <li>
                     <a href={addressUrl(SAFE_TREASURY_GUARD)} target="_blank" rel="noreferrer">
-                      SafeTreasuryGuard
+                      Multisig guard
                     </a>
                   </li>
                 )}
                 {TREASURY_SAFE && (
                   <li>
                     <a href={addressUrl(TREASURY_SAFE)} target="_blank" rel="noreferrer">
-                      Enrolled Treasury Safe
-                    </a>
-                  </li>
-                )}
-                <li>
-                  <a href={txUrl(POLICY_MANAGER_TX)} target="_blank" rel="noreferrer">
-                    Deploy tx · Policy
-                  </a>
-                </li>
-                <li>
-                  <a href={txUrl(EXECUTION_GUARD_TX)} target="_blank" rel="noreferrer">
-                    Deploy tx · Guard
-                  </a>
-                </li>
-                {SAFE_TREASURY_GUARD_TX && (
-                  <li>
-                    <a href={txUrl(SAFE_TREASURY_GUARD_TX)} target="_blank" rel="noreferrer">
-                      Deploy tx · Safe Guard
-                    </a>
-                  </li>
-                )}
-                {TREASURY_SAFE_TX && (
-                  <li>
-                    <a href={txUrl(TREASURY_SAFE_TX)} target="_blank" rel="noreferrer">
-                      Deploy tx · Treasury Safe
-                    </a>
-                  </li>
-                )}
-                {SAFE_SET_GUARD_TX && (
-                  <li>
-                    <a href={txUrl(SAFE_SET_GUARD_TX)} target="_blank" rel="noreferrer">
-                      setGuard tx
-                    </a>
-                  </li>
-                )}
-                {SAFE_ENROLLMENT_TX && (
-                  <li>
-                    <a href={txUrl(SAFE_ENROLLMENT_TX)} target="_blank" rel="noreferrer">
-                      Enrollment tx
-                    </a>
-                  </li>
-                )}
-                {SAFE_ALLOWED_EXEC_TX && (
-                  <li>
-                    <a href={txUrl(SAFE_ALLOWED_EXEC_TX)} target="_blank" rel="noreferrer">
-                      Allowed Safe exec tx
+                      Enrolled guild wallet
                     </a>
                   </li>
                 )}
               </ul>
             </section>
-            <section className="card">
+            <section className="surface">
+              <h3>Robinhood</h3>
+              {RH_READY ? (
+                <ul className="clean">
+                  <li>
+                    <a href={rhAddressUrl(RH_POLICY_MANAGER)} target="_blank" rel="noreferrer">
+                      Policy controls
+                    </a>
+                  </li>
+                  <li>
+                    <a href={rhAddressUrl(RH_EXECUTION_GUARD)} target="_blank" rel="noreferrer">
+                      Spend guard
+                    </a>
+                  </li>
+                  {RH_SAFE_TREASURY_GUARD && (
+                    <li>
+                      <a href={rhAddressUrl(RH_SAFE_TREASURY_GUARD)} target="_blank" rel="noreferrer">
+                        Multisig guard
+                      </a>
+                    </li>
+                  )}
+                  {RH_TREASURY_SAFE && (
+                    <li>
+                      <a href={rhAddressUrl(RH_TREASURY_SAFE)} target="_blank" rel="noreferrer">
+                        Enrolled guild wallet
+                      </a>
+                    </li>
+                  )}
+                  <li>
+                    <a href="https://explorer.testnet.chain.robinhood.com" target="_blank" rel="noreferrer">
+                      Explorer
+                    </a>
+                  </li>
+                </ul>
+              ) : (
+                <p className="muted">Robinhood network coming online.</p>
+              )}
+            </section>
+            <section className="surface">
               <h3>Links</h3>
               <ul className="clean">
                 <li>
-                  <a href="https://github.com/thesithunyein/arb-guardian" target="_blank" rel="noreferrer">
-                    Public repository
+                  <a href="https://arb-guardian.vercel.app" target="_blank" rel="noreferrer">
+                    Live app
                   </a>
                 </li>
                 <li>
-                  <a href="https://arb-guardian.vercel.app" target="_blank" rel="noreferrer">
-                    Live product
+                  <a href="https://github.com/thesithunyein/arb-guardian" target="_blank" rel="noreferrer">
+                    Source
                   </a>
                 </li>
-                <li>Qualified: Arbitrum Sepolia</li>
               </ul>
             </section>
           </div>
         )}
       </div>
+          </>
+      )}
 
       <footer className="footer">
         <div>
-          Arb Guardian · <strong>Arbitrum</strong> treasury risk ops
+          Arb Guardian — guild bank protection that plays like a quest.
         </div>
         <div>
           <a href="https://github.com/thesithunyein/arb-guardian" target="_blank" rel="noreferrer">
             Repo
           </a>
           {" · "}
-          <a href={addressUrl(POLICY_MANAGER)} target="_blank" rel="noreferrer">
-            Contracts
-          </a>
+          <button
+            type="button"
+            className="linkish inline"
+            onClick={() => {
+              if (!entered) enterWorld();
+              void sfxClick();
+              setTab("security");
+            }}
+          >
+            Security
+          </button>
+          {runtime === "api" ? " · Connected" : null}
         </div>
       </footer>
-    </div>
+      </div>
+    </>
   );
 }

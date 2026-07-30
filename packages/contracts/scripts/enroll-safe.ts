@@ -41,14 +41,19 @@ async function main() {
   await (await policy.setWalletDailyLimit(shellAddress, ethers.parseEther("5"))).wait();
   console.log(`Seeded allowlist + daily limit for Safe shell`);
 
-  // Fund shell so value transfers can succeed in demos
+  // Fund shell so value transfers can succeed in demos.
+  // Keep this small so a single Robinhood faucet claim (0.01 ETH) still covers deploy+seed+enroll.
+  const fundAmount =
+    network.name === "robinhoodTestnet" ? ethers.parseEther("0.0005") : ethers.parseEther("0.002");
+  const demoTransfer =
+    network.name === "robinhoodTestnet" ? ethers.parseEther("0.0001") : ethers.parseEther("0.0005");
   const fundTx = await deployer.sendTransaction({
     to: shellAddress,
-    value: ethers.parseEther("0.002")
+    value: fundAmount
   });
   await fundTx.wait();
 
-  const okTx = await shell.execTransaction(PAYROLL, ethers.parseEther("0.0005"), "0x", 0);
+  const okTx = await shell.execTransaction(PAYROLL, demoTransfer, "0x", 0);
   const okReceipt = await okTx.wait();
   console.log(`Demo allowed Safe exec tx: ${okReceipt?.hash}`);
 

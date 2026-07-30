@@ -10,7 +10,11 @@
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network arbitrumSepolia",
     "seed:sepolia": "hardhat run scripts/seed.ts --network arbitrumSepolia",
     "enroll:safe:sepolia": "hardhat run scripts/enroll-safe.ts --network arbitrumSepolia",
-    "deploy:sepolia:full": "hardhat run scripts/deploy.ts --network arbitrumSepolia && hardhat run scripts/seed.ts --network arbitrumSepolia && hardhat run scripts/enroll-safe.ts --network arbitrumSepolia"
+    "deploy:sepolia:full": "hardhat run scripts/deploy.ts --network arbitrumSepolia && hardhat run scripts/seed.ts --network arbitrumSepolia && hardhat run scripts/enroll-safe.ts --network arbitrumSepolia",
+    "deploy:robinhood": "hardhat run scripts/deploy.ts --network robinhoodTestnet",
+    "seed:robinhood": "hardhat run scripts/seed.ts --network robinhoodTestnet",
+    "enroll:safe:robinhood": "hardhat run scripts/enroll-safe.ts --network robinhoodTestnet",
+    "deploy:robinhood:full": "hardhat run scripts/deploy.ts --network robinhoodTestnet && hardhat run scripts/seed.ts --network robinhoodTestnet && hardhat run scripts/enroll-safe.ts --network robinhoodTestnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

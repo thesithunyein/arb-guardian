@@ -39,12 +39,43 @@ export const SAFE_ALLOWED_EXEC_TX =
   import.meta.env.VITE_SAFE_ALLOWED_EXEC_TX?.trim() ||
   "0xd4ec25f77a9ea06d053997ea2d7e68e87a91518f8fa4d7b60618d2ca80a6978a";
 
+/** Robinhood Chain Testnet (Overall reserved-lane proof). */
+export const RH_EXPLORER = "https://explorer.testnet.chain.robinhood.com";
+export const RH_CHAIN_ID = 46630;
+export const RH_POLICY_MANAGER =
+  import.meta.env.VITE_RH_POLICY_MANAGER_ADDRESS?.trim() ||
+  "0x57077DA6DEFCAAB83aEAbE080641D5D1Ed66758F";
+export const RH_EXECUTION_GUARD =
+  import.meta.env.VITE_RH_EXECUTION_GUARD_ADDRESS?.trim() ||
+  "0x4019C445bbc593eA5eb13D319Ca427aA8aDc7613";
+export const RH_SAFE_TREASURY_GUARD =
+  import.meta.env.VITE_RH_SAFE_TREASURY_GUARD_ADDRESS?.trim() ||
+  "0xa168227dB7a3340e988Dbf9Cd01894840617E729";
+export const RH_TREASURY_SAFE =
+  import.meta.env.VITE_RH_TREASURY_SAFE_ADDRESS?.trim() ||
+  "0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124";
+export const RH_POLICY_MANAGER_TX =
+  import.meta.env.VITE_RH_POLICY_MANAGER_TX?.trim() ||
+  "0x77159f282e6720d6c1258c4cd19b3ade9cb2565a2fe9008041ba1be41c33b584";
+export const RH_EXECUTION_GUARD_TX =
+  import.meta.env.VITE_RH_EXECUTION_GUARD_TX?.trim() ||
+  "0xa69a6fc66b926006de43ff009aff9fc91f24775891f6d90d167f4ee6d358adcd";
+export const RH_SAFE_TREASURY_GUARD_TX =
+  import.meta.env.VITE_RH_SAFE_TREASURY_GUARD_TX?.trim() ||
+  "0x8b00eb58f8ddc11191bae43083582f465fd5b5c6e4d36c08938e31e8ab549b64";
+export const RH_TREASURY_SAFE_TX =
+  import.meta.env.VITE_RH_TREASURY_SAFE_TX?.trim() ||
+  "0xf6968bded0810f6c9ba52db5b17c4c5fa5def1467df92af55cfd7561b5ee7a2f";
+export const RH_READY = /^0x[a-fA-F0-9]{40}$/.test(RH_POLICY_MANAGER) && /^0x[a-fA-F0-9]{40}$/.test(RH_EXECUTION_GUARD);
+
 /** Same-origin Vercel serverless API by default. */
 export const API_BASE = import.meta.env.VITE_API_BASE_URL?.trim() || "/api";
 export const API_KEY = import.meta.env.VITE_API_KEY?.trim() || undefined;
 
 export const addressUrl = (addr: string) => `${EXPLORER}/address/${addr}`;
 export const txUrl = (hash: string) => `${EXPLORER}/tx/${hash}`;
+export const rhAddressUrl = (addr: string) => `${RH_EXPLORER}/address/${addr}`;
+export const rhTxUrl = (hash: string) => `${RH_EXPLORER}/tx/${hash}`;
 
 export const DEPLOYMENT_READY =
   /^0x[a-fA-F0-9]{40}$/.test(POLICY_MANAGER) && /^0x[a-fA-F0-9]{40}$/.test(EXECUTION_GUARD);

@@ -1,0 +1,29 @@
+{
+  "network": "robinhoodTestnet",
+  "chainId": 46630,
+  "deployedAt": "2026-07-30T14:52:40.069Z",
+  "deployer": "0x61a79efe7Acc6fBD23E24B0d7deCFAcb169404Ce",
+  "policyManager": {
+    "address": "0x57077DA6DEFCAAB83aEAbE080641D5D1Ed66758F",
+    "txHash": "0x77159f282e6720d6c1258c4cd19b3ade9cb2565a2fe9008041ba1be41c33b584"
+  },
+  "executionGuard": {
+    "address": "0x4019C445bbc593eA5eb13D319Ca427aA8aDc7613",
+    "txHash": "0xa69a6fc66b926006de43ff009aff9fc91f24775891f6d90d167f4ee6d358adcd"
+  },
+  "safeTreasuryGuard": {
+    "address": "0xa168227dB7a3340e988Dbf9Cd01894840617E729",
+    "txHash": "0x8b00eb58f8ddc11191bae43083582f465fd5b5c6e4d36c08938e31e8ab549b64"
+  },
+  "treasurySafeShell": {
+    "address": "0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124",
+    "deployTxHash": "0xf6968bded0810f6c9ba52db5b17c4c5fa5def1467df92af55cfd7561b5ee7a2f",
+    "setGuardTxHash": "0x05b37a249a4b419252d4ed20da2e0c34474875529eb49a3a3a7abe79b23ee6fc",
+    "enrollmentTxHash": "0x7dcf6d744885b6cd81c3f49a2e47b18f4eb8ec58f36eef7bce3dc4c1a303e1d6",
+    "fundTxHash": "0x8ce4ae71f87334b61eae88694090240764a78ac6d20d6ac38ce7c2eb386593d8",
+    "allowedExecTxHash": "0xe2bd112cc61731cd339e7e950560d2b512ac5b6fac97b2157bda5c01e5faa903",
+    "blockedExecProven": true,
+    "guard": "0xa168227dB7a3340e988Dbf9Cd01894840617E729",
+    "owner": "0x61a79efe7Acc6fBD23E24B0d7deCFAcb169404Ce"
+  }
+}

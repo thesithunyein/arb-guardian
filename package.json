@@ -22,6 +22,7 @@
     "demo:smoke": "node scripts/demo-smoke.mjs",
     "env:create": "node scripts/create-real-env.mjs",
     "deploy:p0": "node scripts/deploy-p0.mjs",
+    "deploy:robinhood:wait": "node scripts/deploy-robinhood-when-funded.mjs",
     "preflight": "npm run quality:gate && npm run submission:check && npm run push:audit"
   },
   "engines": {

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 export type ThemeMode = "light" | "dark";
 
-const STORAGE_KEY = "arb-guardian-theme-v2";
+const STORAGE_KEY = "arb-guardian-theme-v6";
 
 function getPreferredTheme(): ThemeMode {
   const saved = localStorage.getItem(STORAGE_KEY);
