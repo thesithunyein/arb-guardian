@@ -9,8 +9,13 @@ import {
   EXECUTION_GUARD_TX,
   POLICY_MANAGER,
   POLICY_MANAGER_TX,
+  SAFE_ALLOWED_EXEC_TX,
+  SAFE_ENROLLMENT_TX,
+  SAFE_SET_GUARD_TX,
   SAFE_TREASURY_GUARD,
   SAFE_TREASURY_GUARD_TX,
+  TREASURY_SAFE,
+  TREASURY_SAFE_TX,
   addressUrl,
   txUrl
 } from "./config";
@@ -23,6 +28,23 @@ type IncidentItem = {
   severity: string;
   recommendedPlaybook: string;
   status: string;
+};
+
+type PlaybookExecution = {
+  playbook: string;
+  executed: boolean;
+  action: string | null;
+  txHash: string | null;
+  error: string | null;
+  note?: string;
+};
+
+type AgentEvalSummary = {
+  total: number;
+  passed: number;
+  accuracy: number;
+  blockedPrecision: number;
+  blockedRecall: number;
 };
 
 type IntentId = "risky-approve" | "limit-breach" | "safe-transfer";
@@ -116,6 +138,9 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [runtime, setRuntime] = useState<"api" | "onchain-console">("onchain-console");
   const [rpcLive, setRpcLive] = useState(false);
+  const [lastPlaybook, setLastPlaybook] = useState<PlaybookExecution | null>(null);
+  const [agentEval, setAgentEval] = useState<AgentEvalSummary | null>(null);
+  const [policyPaused, setPolicyPaused] = useState<boolean | null>(null);
 
   const payload = useMemo(() => {
     const base = INTENTS[intent].payload;
@@ -168,10 +193,16 @@ export function App() {
         setRuntime("api");
         return Promise.all([
           fetch(`${API_BASE}/incidents`).then((r) => r.json()),
-          fetch(`${API_BASE}/kpi`).then((r) => r.json())
+          fetch(`${API_BASE}/kpi`).then((r) => r.json()),
+          fetch(`${API_BASE}/agent/eval`)
+            .then((r) => r.json())
+            .catch(() => null),
+          fetch(`${API_BASE}/policy`)
+            .then((r) => r.json())
+            .catch(() => null)
         ]);
       })
-      .then(([incidentsData, kpiData]) => {
+      .then(([incidentsData, kpiData, evalData, policyData]) => {
         setIncidents((incidentsData as { items: IncidentItem[] }).items ?? []);
         const k = kpiData as {
           totalAssessments: number;
@@ -185,6 +216,8 @@ export function App() {
           blockedRate: k.blockedRate,
           criticalIncidentCount: k.criticalIncidentCount
         });
+        if (evalData?.summary) setAgentEval(evalData.summary as AgentEvalSummary);
+        if (policyData && typeof policyData.paused === "boolean") setPolicyPaused(policyData.paused);
       })
       .catch(() => setRuntime("onchain-console"));
   }, []);
@@ -203,7 +236,10 @@ export function App() {
             wallet: payload.wallet,
             destination: payload.destination,
             method: payload.method,
-            amountWei: payload.amountWei
+            amountWei: payload.amountWei,
+            allowlisted: payload.allowlisted,
+            dailyLimitWei: payload.dailyLimitWei,
+            spentTodayWei: payload.spentTodayWei
           })
         });
         if (!res.ok) throw new Error(`Assessment failed (${res.status})`);
@@ -283,6 +319,13 @@ export function App() {
           body: JSON.stringify({ action, actor: "treasury-operator" })
         });
         if (!actionRes.ok) throw new Error(`Action failed (${actionRes.status})`);
+        const actionBody = (await actionRes.json()) as { playbookExecution?: PlaybookExecution | null };
+        if (actionBody.playbookExecution) {
+          setLastPlaybook(actionBody.playbookExecution);
+          if (actionBody.playbookExecution.action === "policy_manager.pause") {
+            setPolicyPaused(true);
+          }
+        }
         const incidentsRes = await fetch(`${API_BASE}/incidents`);
         const body = (await incidentsRes.json()) as { items: IncidentItem[] };
         setIncidents(body.items);
@@ -305,6 +348,30 @@ export function App() {
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
+    }
+  }
+
+  async function unpausePolicy() {
+    if (!API_BASE) return;
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE}/policy`, {
+        method: "POST",
+        headers: buildHeaders(true),
+        body: JSON.stringify({ op: "unpause" })
+      });
+      if (!res.ok) throw new Error(`Unpause failed (${res.status})`);
+      const body = (await res.json()) as { txHash?: string };
+      setPolicyPaused(false);
+      setLastPlaybook({
+        playbook: "operator-unpause",
+        executed: true,
+        action: "policy_manager.unpause",
+        txHash: body.txHash ?? null,
+        error: null
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unpause failed");
     }
   }
 
@@ -437,9 +504,25 @@ export function App() {
                     </dd>
                   </div>
                 )}
+                {TREASURY_SAFE && (
+                  <div>
+                    <dt>Treasury Safe (enrolled)</dt>
+                    <dd className="mono">
+                      <a href={addressUrl(TREASURY_SAFE)} target="_blank" rel="noreferrer">
+                        {TREASURY_SAFE}
+                      </a>
+                    </dd>
+                  </div>
+                )}
                 <div>
                   <dt>Status</dt>
-                  <dd>{DEPLOYMENT_READY ? "Qualified · Arbitrum + Safe-ready" : "Pending"}</dd>
+                  <dd>
+                    {DEPLOYMENT_READY
+                      ? policyPaused
+                        ? "Qualified · Policy paused"
+                        : "Qualified · Safe enrolled"
+                      : "Pending"}
+                  </dd>
                 </div>
               </dl>
             </section>
@@ -607,7 +690,27 @@ export function App() {
             </section>
             <section className="card">
               <h3>Audit trail</h3>
-              {auditLog.length === 0 ? (
+              {lastPlaybook && (
+                <p className="playbook" style={{ marginBottom: "0.75rem" }}>
+                  Last playbook: <span className="mono">{lastPlaybook.action}</span>
+                  {lastPlaybook.txHash ? (
+                    <>
+                      {" · "}
+                      <a href={txUrl(lastPlaybook.txHash)} target="_blank" rel="noreferrer">
+                        onchain tx
+                      </a>
+                    </>
+                  ) : null}
+                  {lastPlaybook.error ? <span className="muted"> · {lastPlaybook.error}</span> : null}
+                  {lastPlaybook.note ? <span className="muted"> · {lastPlaybook.note}</span> : null}
+                </p>
+              )}
+              {policyPaused && (
+                <button type="button" className="secondary" onClick={unpausePolicy} style={{ marginBottom: "0.75rem" }}>
+                  Unpause PolicyManager (demo reset)
+                </button>
+              )}
+              {auditLog.length === 0 && !lastPlaybook ? (
                 <p className="muted">Operator actions appear here after acknowledge / mitigate / ignore.</p>
               ) : (
                 <ul className="clean">
@@ -677,8 +780,22 @@ export function App() {
             </section>
             <section className="card">
               <h3>Eval harness</h3>
-              <p className="muted">12 scenarios · accuracy 1.0 · precision/recall tracked in CI.</p>
-              <p className="mono">npm run eval:agent -w apps/api</p>
+              {agentEval ? (
+                <>
+                  <p className="muted">
+                    {agentEval.total} scenarios · accuracy {agentEval.accuracy} · precision{" "}
+                    {agentEval.blockedPrecision} · recall {agentEval.blockedRecall}
+                  </p>
+                  <p className="mono">
+                    passed {agentEval.passed}/{agentEval.total}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="muted">12 scenarios · accuracy 1.0 · precision/recall tracked in CI.</p>
+                  <p className="mono">GET /api/agent/eval</p>
+                </>
+              )}
             </section>
             <section className="card">
               <h3>Hard bounds</h3>
@@ -711,7 +828,7 @@ export function App() {
                 </article>
                 <article>
                   <h4>Real problem solving</h4>
-                  <p>Blocks unsafe approvals/transfers before execution with audit trail.</p>
+                  <p>Blocks unsafe approvals/transfers before execution with audit trail + onchain pause.</p>
                 </article>
               </div>
             </section>
@@ -735,6 +852,13 @@ export function App() {
                     </a>
                   </li>
                 )}
+                {TREASURY_SAFE && (
+                  <li>
+                    <a href={addressUrl(TREASURY_SAFE)} target="_blank" rel="noreferrer">
+                      Enrolled Treasury Safe
+                    </a>
+                  </li>
+                )}
                 <li>
                   <a href={txUrl(POLICY_MANAGER_TX)} target="_blank" rel="noreferrer">
                     Deploy tx · Policy
@@ -749,6 +873,34 @@ export function App() {
                   <li>
                     <a href={txUrl(SAFE_TREASURY_GUARD_TX)} target="_blank" rel="noreferrer">
                       Deploy tx · Safe Guard
+                    </a>
+                  </li>
+                )}
+                {TREASURY_SAFE_TX && (
+                  <li>
+                    <a href={txUrl(TREASURY_SAFE_TX)} target="_blank" rel="noreferrer">
+                      Deploy tx · Treasury Safe
+                    </a>
+                  </li>
+                )}
+                {SAFE_SET_GUARD_TX && (
+                  <li>
+                    <a href={txUrl(SAFE_SET_GUARD_TX)} target="_blank" rel="noreferrer">
+                      setGuard tx
+                    </a>
+                  </li>
+                )}
+                {SAFE_ENROLLMENT_TX && (
+                  <li>
+                    <a href={txUrl(SAFE_ENROLLMENT_TX)} target="_blank" rel="noreferrer">
+                      Enrollment tx
+                    </a>
+                  </li>
+                )}
+                {SAFE_ALLOWED_EXEC_TX && (
+                  <li>
+                    <a href={txUrl(SAFE_ALLOWED_EXEC_TX)} target="_blank" rel="noreferrer">
+                      Allowed Safe exec tx
                     </a>
                   </li>
                 )}
