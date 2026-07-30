@@ -241,7 +241,7 @@ function vendorName(addr: string) {
 
 export function App() {
   const { theme, toggleTheme } = useTheme();
-  const [tab, setTab] = useState<TabId>("review");
+  const [tab, setTab] = useState<TabId>("home");
   const [intent, setIntent] = useState<IntentId>("risky-approve");
   const [assessment, setAssessment] = useState<RiskAssessment | null>(null);
   const [policyState, setPolicyState] = useState<OnchainPolicy | null>(null);
@@ -309,7 +309,7 @@ export function App() {
 
   function enterWorld() {
     setEntered(true);
-    setTab("review");
+    setTab("home");
     setIntent("risky-approve");
     setSpendPickerOpen(false);
     setAssessment(null);
@@ -751,11 +751,6 @@ export function App() {
           <p className="hero-lead">
             Real guild assets. Real onchain rules. Played like a quest — not a spreadsheet.
           </p>
-          <div className="chain-row" aria-label="Live networks">
-            <span className="chain-chip ok">Arbitrum</span>
-            {RH_READY && <span className="chain-chip ok">Robinhood</span>}
-            <span className="chain-chip">Guild bank protection</span>
-          </div>
           <div className="cta-row">
             <button type="button" className="primary" onClick={enterWorld}>
               Press start
