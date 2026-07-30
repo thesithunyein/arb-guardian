@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { JsonRpcProvider, Wallet, Contract } from "ethers";
-import { cors } from "../_store";
+import { cors } from "./_store";
 
 const POLICY_ABI = ["function pause() external", "function unpause() external", "function paused() view returns (bool)"];
 
