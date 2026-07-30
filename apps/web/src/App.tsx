@@ -326,6 +326,20 @@ export function App() {
     void sfxClick();
   }
 
+  async function skipToFirstQuest() {
+    setEntered(true);
+    setTab("review");
+    setIntent("risky-approve");
+    setSpendPickerOpen(false);
+    try {
+      localStorage.setItem("arb-guardian-entered-v1", "1");
+    } catch {
+      // ignore
+    }
+    void sfxClick();
+    await runAssessment();
+  }
+
   function goCheck(next: IntentId = "risky-approve") {
     void sfxClick();
     setIntent(next);
@@ -662,7 +676,7 @@ export function App() {
 
   return (
     <>
-      <BrandBackdrop quiet={entered} />
+      <BrandBackdrop />
       {xpToast && <div className="xp-toast">{xpToast}</div>}
       <div className={`app-shell ${entered ? "entered product-mode" : "title-screen"}`}>
       <header className="topbar">
@@ -701,7 +715,7 @@ export function App() {
                   </button>
                 )
               ) : (
-                "Guild bank protection"
+                "Guild Quest"
               )}
             </p>
           </div>
@@ -746,14 +760,27 @@ export function App() {
           <h2>
             <span className="accent">Arb</span> Guardian
           </h2>
-          <p className="hero-lead plain-lead">
-            Review guild spends before anyone signs.
-            <br />
-            Block risky approvals. Freeze when needed.
+          <p className="hero-lead">
+            Real guild assets. Real onchain rules. Played like a quest — not a spreadsheet.
           </p>
+          <div className="chain-row" aria-label="Live networks">
+            <span className="chain-chip ok">Arbitrum</span>
+            {RH_READY && <span className="chain-chip ok">Robinhood</span>}
+            <span className="chain-chip">Guild bank protection</span>
+          </div>
           <div className="cta-row">
             <button type="button" className="primary" onClick={enterWorld}>
-              Open Arb Guardian
+              Press start
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => {
+                void skipToFirstQuest();
+              }}
+              disabled={loading}
+            >
+              {loading ? "Checking…" : "Skip to first quest"}
             </button>
           </div>
           {error && <p className="error">{error}</p>}
