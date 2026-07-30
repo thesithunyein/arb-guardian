@@ -279,8 +279,15 @@ export function App() {
       return false;
     }
   });
-  const [openPane, setOpenPane] = useState<"log" | "howto" | "badges" | "lands" | "stats" | "assets" | null>(null);
-  const [whyOpenHero, setWhyOpenHero] = useState(false);
+  const [storySeen, setStorySeen] = useState(() => {
+    try {
+      return localStorage.getItem("arb-guardian-story-v1") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [openPane, setOpenPane] = useState<"log" | "howto" | "badges" | "assets" | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const level = Math.floor(xp / 100) + 1;
   const xpIntoLevel = xp % 100;
@@ -317,6 +324,21 @@ export function App() {
       // ignore
     }
     void sfxClick();
+  }
+
+  function finishStory() {
+    setStorySeen(true);
+    try {
+      localStorage.setItem("arb-guardian-story-v1", "1");
+    } catch {
+      // ignore
+    }
+    void sfxClick();
+  }
+
+  function startFirstCheck() {
+    finishStory();
+    goQuests("risky-approve");
   }
 
   function togglePane(id: typeof openPane) {
@@ -619,12 +641,14 @@ export function App() {
   }
 
   const openIncidents = incidents.filter((i) => i.status === "open").length;
-  const statusLabel = policyPaused ? "Paused" : DEPLOYMENT_READY ? "Protected" : "Setup";
+  const statusLabel = policyPaused ? "Frozen" : DEPLOYMENT_READY ? "Online" : "Ready";
 
-  const tabMeta: Array<[TabId, string, ReactElement]> = [
-    ["home", "Base Camp", <IconHome key="h" size={16} />],
-    ["review", "Quests", <IconReview key="r" size={16} />],
-    ["alerts", openIncidents ? `Alerts (${openIncidents})` : "Alerts", <IconAlerts key="a" size={16} />],
+  const coreTabs: Array<[TabId, string, ReactElement]> = [
+    ["home", "Home", <IconHome key="h" size={16} />],
+    ["review", "Check spend", <IconReview key="r" size={16} />],
+    ["alerts", openIncidents ? `Alerts (${openIncidents})` : "Alerts", <IconAlerts key="a" size={16} />]
+  ];
+  const moreTabs: Array<[TabId, string, ReactElement]> = [
     ["automation", "Playbooks", <IconAutomation key="u" size={16} />],
     ["security", "Vault", <IconSecurity key="s" size={16} />]
   ];
@@ -710,88 +734,85 @@ export function App() {
       {!entered ? (
         <section className="hero title-hero">
           <img className="hero-logo" src="/logo.png" alt="Arb Guardian" width={112} height={112} />
-          <p className="hero-kicker">GUILD BANK PROTECTION</p>
           <h2>
             <span className="accent">Arb</span> Guardian
           </h2>
-          <p className="hero-lead">
-            Real guild assets. Real onchain rules. Played like a quest — not a spreadsheet.
+          <p className="hero-lead plain-lead">
+            Your guild shares one bank for prizes and payouts.
+            <br />
+            Fake shops try to drain it. Check a spend here <em>before</em> anyone signs.
           </p>
-          <div className="chain-row" aria-label="Live networks">
-            <span className="chain-chip ok">Arbitrum</span>
-            {RH_READY && <span className="chain-chip ok">Robinhood</span>}
-            <span className="chain-chip">Guild bank protection</span>
-          </div>
           <div className="cta-row">
             <button type="button" className="primary" onClick={enterWorld}>
               Press start
             </button>
-            <button type="button" className="ghost" onClick={() => goQuests("risky-approve")} disabled={loading}>
-              {loading ? "Checking…" : "Skip to first quest"}
+          </div>
+          <p className="title-hint muted">Takes about a minute · no wallet needed to try</p>
+          {error && <p className="error">{error}</p>}
+        </section>
+      ) : !storySeen ? (
+        <section className="story-panel" aria-label="How Arb Guardian works">
+          <p className="hero-kicker">60-SECOND STORY</p>
+          <h2 className="compact-title">
+            How this <span className="accent">works</span>
+          </h2>
+          <ol className="story-steps">
+            <li>
+              <strong>1 · Shared bank</strong>
+              <span>The guild keeps prize money and contributor pay in one place.</span>
+            </li>
+            <li>
+              <strong>2 · Someone asks to spend</strong>
+              <span>A marketplace wants approval, or a payout is bigger than today’s budget.</span>
+            </li>
+            <li>
+              <strong>3 · You check it</strong>
+              <span>Safe → green light. Risky → block, then freeze the bank if needed.</span>
+            </li>
+          </ol>
+          <div className="cta-row left">
+            <button type="button" className="primary" onClick={startFirstCheck} disabled={loading}>
+              {loading ? "Checking…" : "Try a scam check"}
+            </button>
+            <button type="button" className="ghost" onClick={finishStory}>
+              Show me home first
             </button>
           </div>
-          {error && <p className="error">{error}</p>}
         </section>
       ) : (
         <>
           <section className="hero compact-hero">
-            <p className="hero-kicker">BASE CAMP</p>
+            <p className="hero-kicker">HOME</p>
             <h2 className="compact-title">
-              Protect the <span className="accent">guild bank</span>
+              Check the next <span className="accent">spend</span>
             </h2>
-            <p className="hero-lead">One path at a time. Open a door only when you need it.</p>
+            <p className="hero-lead">
+              Pick a spend → see allow or block → if blocked, freeze from Alerts.
+            </p>
             <div className="cta-row">
-              <button type="button" className="primary" onClick={() => goQuests()} disabled={loading}>
+              <button type="button" className="primary" onClick={() => goQuests("risky-approve")} disabled={loading}>
                 <IconPayment size={16} />
-                {loading ? "Checking…" : "Start quest"}
+                {loading ? "Checking…" : "Check a spend"}
               </button>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => {
-                  void sfxClick();
-                  setOpenPane("assets");
-                  setTab("home");
-                }}
-              >
-                Guild assets
-              </button>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => {
-                  void sfxClick();
-                  setWhyOpenHero((v) => !v);
-                }}
-              >
-                {whyOpenHero ? "Hide features" : "What’s protected"}
-              </button>
+              {openIncidents > 0 && (
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => {
+                    void sfxClick();
+                    setTab("alerts");
+                  }}
+                >
+                  <IconAlerts size={16} />
+                  {openIncidents} alert{openIncidents === 1 ? "" : "s"}
+                </button>
+              )}
             </div>
-            {whyOpenHero && (
-              <div className="seller-strip" aria-label="What the product protects">
-                <div className="seller-point">
-                  <strong>Scam stop</strong>
-                  <span>Blocks unknown marketplace approvals before the bank drains.</span>
-                </div>
-                <div className="seller-point">
-                  <strong>Prize budget</strong>
-                  <span>Daily limit keeps contributor payouts inside the pot officers set.</span>
-                </div>
-                <div className="seller-point">
-                  <strong>Officer freeze</strong>
-                  <span>Suggestions are automatic — freezing still needs a human click.</span>
-                </div>
-                <div className="seller-point">
-                  <strong>Your progress</strong>
-                  <span>XP and badges save on this device as you protect the bank.</span>
-                </div>
-              </div>
-            )}
             {error && <p className="error">{error}</p>}
           </section>
 
           <nav className="tabs" aria-label="Primary">
-            {tabMeta.map(([id, label, icon]) => (
+            {coreTabs.map(([id, label, icon]) => (
               <button
                 key={id}
                 type="button"
@@ -805,6 +826,39 @@ export function App() {
                 {label}
               </button>
             ))}
+            <div className="more-wrap">
+              <button
+                type="button"
+                className={`tab ${moreOpen || moreTabs.some(([id]) => id === tab) ? "active" : ""}`}
+                onClick={() => {
+                  void sfxClick();
+                  setMoreOpen((v) => !v);
+                }}
+                aria-expanded={moreOpen}
+              >
+                More
+              </button>
+              {moreOpen && (
+                <div className="more-menu" role="menu">
+                  {moreTabs.map(([id, label, icon]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="menuitem"
+                      className={tab === id ? "active" : ""}
+                      onClick={() => {
+                        void sfxClick();
+                        setTab(id);
+                        setMoreOpen(false);
+                      }}
+                    >
+                      {icon}
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </nav>
 
           <div className="panel" key={tab}>
@@ -812,40 +866,39 @@ export function App() {
               <div className="home-stack">
                 <section className="policy-snapshot" aria-label="Guild bank status">
                   <div>
-                    <p className="snapshot-label">Guild bank status</p>
-                    <strong>{policyPaused ? "Bank frozen!" : "Protected & ready"}</strong>
-                    <p className="muted">Rules live · daily prize budget · spend guard online</p>
+                    <p className="snapshot-label">Guild bank</p>
+                    <strong>{policyPaused ? "Frozen — spending stopped" : "Ready to check spends"}</strong>
+                    <p className="muted">Daily prize budget on · scam marketplace checks on</p>
                   </div>
                   <div className="snapshot-actions">
-                    <button type="button" className="primary" onClick={() => goQuests()}>
+                    <button type="button" className="primary" onClick={() => goQuests("risky-approve")}>
                       <IconPayment size={16} />
-                      Continue quest
+                      Check a spend
                     </button>
-                    {openIncidents > 0 && (
-                      <button
-                        type="button"
-                        className="ghost"
-                        onClick={() => {
-                          void sfxClick();
-                          setTab("alerts");
-                        }}
-                      >
-                        <IconAlerts size={16} />
-                        {openIncidents} open alert{openIncidents === 1 ? "" : "s"}
-                      </button>
-                    )}
                   </div>
                 </section>
 
-                <section className="door-row" aria-label="Open when needed">
+                <section className="section reveal always-on">
+                  <h3>Start here</h3>
+                  <p className="muted section-lead">Three practice spends. Do the first one — it’s the scam guilds hit most.</p>
+                  <div className="retain-grid">
+                    {(Object.keys(INTENTS) as IntentId[]).map((id) => (
+                      <button key={id} type="button" className="retain-card" onClick={() => goQuests(id)}>
+                        <strong>{INTENTS[id].label}</strong>
+                        <span>{INTENTS[id].blurb}</span>
+                        <em>{id === "risky-approve" ? "Best first try →" : "Try this →"}</em>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="door-row" aria-label="Optional details">
                   {(
                     [
-                      ["assets", "Guild assets", "Bank · budget"],
-                      ["log", "Quest log", "First wins"],
                       ["howto", "How it works", "3 steps"],
-                      ["badges", "Badges", `${Object.values(badges).filter(Boolean).length}/4`],
-                      ["lands", "Featured quests", "3 lands"],
-                      ["stats", "This session", `${kpi.totalAssessments} checks`]
+                      ["assets", "What’s protected", "Bank items"],
+                      ["log", "Your wins", "Checklist"],
+                      ["badges", "Badges", `${Object.values(badges).filter(Boolean).length}/4`]
                     ] as const
                   ).map(([id, title, hint]) => (
                     <button
@@ -893,12 +946,12 @@ export function App() {
                       <article className="asset-card">
                         <strong>Freeze switch</strong>
                         <span>Officer gated</span>
-                        <p>Agent suggests; a human still clicks Freeze.</p>
+                        <p>Suggestions appear automatically — freezing still needs your click.</p>
                       </article>
                       <article className="asset-card">
                         <strong>Networks</strong>
-                        <span>{RH_READY ? "Arb + Robinhood" : "Arbitrum"}</span>
-                        <p>Open Vault for live contract links when you need them.</p>
+                        <span>Live</span>
+                        <p>Protection runs on live networks — details in More → Vault.</p>
                       </article>
                     </div>
                     <div className="cta-row left" style={{ marginTop: "0.85rem" }}>
@@ -1019,57 +1072,6 @@ export function App() {
                     </div>
                   </section>
                 )}
-
-                {openPane === "lands" && (
-                  <section className="section reveal">
-                    <h3>Featured lands · quests</h3>
-                    <div className="retain-grid">
-                      {(Object.keys(INTENTS) as IntentId[]).map((id) => (
-                        <button key={id} type="button" className="retain-card" onClick={() => goQuests(id)}>
-                          <strong>{INTENTS[id].label}</strong>
-                          <span>{INTENTS[id].whyUsersCare}</span>
-                          <em>Play quest →</em>
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                {openPane === "stats" && (
-                  <section className="section reveal">
-                    <h3>This session</h3>
-                    <div className="kpi-row">
-                      <div className="kpi">
-                        <strong>{kpi.totalAssessments}</strong>
-                        <span>Checks</span>
-                      </div>
-                      <div className="kpi">
-                        <strong>{kpi.blockedCount}</strong>
-                        <span>Blocked</span>
-                      </div>
-                      <div className="kpi">
-                        <strong>{(kpi.blockedRate * 100).toFixed(0)}%</strong>
-                        <span>Block rate</span>
-                      </div>
-                      <div className="kpi">
-                        <strong>{openIncidents}</strong>
-                        <span>Open alerts</span>
-                      </div>
-                    </div>
-                    {kpi.totalAssessments === 0 ? (
-                      <p className="empty-hint">
-                        No checks yet. Start with <strong>Unknown marketplace approval</strong>.
-                        <button type="button" className="linkish" onClick={() => goQuests("risky-approve")}>
-                          Check it now
-                        </button>
-                      </p>
-                    ) : (
-                      <p className="muted" style={{ marginTop: "0.75rem" }}>
-                        Keep checking from Quests — Alerts saves actions for other officers.
-                      </p>
-                    )}
-                  </section>
-                )}
               </div>
             )}
 
@@ -1077,10 +1079,10 @@ export function App() {
           <div className="grid">
             <section className="surface">
               <h3>
-                <IconReview size={18} /> Quest board · is this spend safe?
+                <IconReview size={18} /> Is this spend safe?
               </h3>
               <p className="muted" style={{ marginBottom: "0.85rem" }}>
-                Pick a quest. Complete the check to earn XP — just like clearing a stage.
+                Choose one practice spend, then tap Check. You’ll get Allow or Block in plain language.
               </p>
               <div className="scenario-list">
                 {(Object.keys(INTENTS) as IntentId[]).map((id) => (
@@ -1111,7 +1113,7 @@ export function App() {
                 disabled={loading}
               >
                 <IconCheck size={16} />
-                {loading ? "Checking…" : "Complete quest check"}
+                {loading ? "Checking…" : "Check this spend"}
               </button>
             </section>
 
@@ -1165,7 +1167,7 @@ export function App() {
                 <div className="empty-state">
                   <IconPayment size={28} />
                   <p>
-                    Choose a scenario on the left, then click <strong>Complete quest check</strong>.
+                    Choose a practice spend, then tap <strong>Check this spend</strong>.
                   </p>
                   <p className="muted">
                     Start with Unknown marketplace approval — that’s the common guild scam path.

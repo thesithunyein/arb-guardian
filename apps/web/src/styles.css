@@ -115,116 +115,51 @@ a:hover {
     radial-gradient(1px 1px at 15% 48%, #fff 50%, transparent 51%),
     radial-gradient(2px 2px at 64% 42%, #9fcbff 50%, transparent 51%),
     radial-gradient(1px 1px at 92% 55%, #fff 50%, transparent 51%);
-  opacity: 0.75;
+  opacity: 0.65;
   animation: twinkle 5s ease-in-out infinite alternate;
 }
 
 [data-theme="light"] .pw-stars {
-  opacity: 0.2;
+  opacity: 0.15;
 }
 
 .pw-moon {
   position: absolute;
-  top: 8%;
-  right: 12%;
-  width: 48px;
-  height: 48px;
+  top: 9%;
+  right: 14%;
+  width: 40px;
+  height: 40px;
   background: #f4f0d8;
-  box-shadow:
-    8px 4px 0 #d8d0a8,
-    0 0 0 4px rgba(244, 240, 216, 0.15),
-    0 0 40px rgba(244, 240, 216, 0.25);
   border-radius: 2px;
-  clip-path: polygon(20% 0, 100% 0, 100% 80%, 80% 100%, 0 100%, 0 20%);
+  box-shadow: 6px 4px 0 #d8d0a8, 0 0 28px rgba(244, 240, 216, 0.2);
 }
 
-[data-theme="light"] .pw-moon {
-  background: #fff8c8;
-  box-shadow: 8px 4px 0 #f0e090, 0 0 32px rgba(255, 220, 100, 0.45);
-}
-
-.pw-cloud {
+.pw-hill {
   position: absolute;
-  height: 18px;
-  background: #3a4f78;
-  box-shadow:
-    12px 0 0 #3a4f78,
-    24px 0 0 #3a4f78,
-    6px -8px 0 #3a4f78,
-    18px -8px 0 #3a4f78,
-    0 0 0 2px #2a3a58;
-  opacity: 0.55;
-  animation: cloudDrift 28s linear infinite;
-}
-
-[data-theme="light"] .pw-cloud {
-  background: #fff;
-  box-shadow:
-    12px 0 0 #fff,
-    24px 0 0 #fff,
-    6px -8px 0 #fff,
-    18px -8px 0 #fff,
-    0 0 0 2px #d0dceb;
-  opacity: 0.85;
-}
-
-.pw-cloud-a {
-  top: 18%;
-  left: -10%;
-  width: 28px;
-}
-.pw-cloud-b {
-  top: 28%;
-  left: 40%;
-  width: 22px;
-  animation-duration: 36s;
-  animation-delay: -12s;
-  opacity: 0.4;
-}
-
-.pw-mountains {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 14vh;
-  height: 22vh;
-  background:
-    linear-gradient(135deg, transparent 49%, #152040 49%, #152040 51%, transparent 51%) 0 100% / 18% 100%,
-    linear-gradient(135deg, transparent 49%, #1a2a52 49%, #1a2a52 51%, transparent 51%) 18% 100% / 22% 85%,
-    linear-gradient(135deg, transparent 49%, #12203e 49%, #12203e 51%, transparent 51%) 40% 100% / 28% 110%,
-    linear-gradient(135deg, transparent 49%, #183058 49%, #183058 51%, transparent 51%) 68% 100% / 20% 90%,
-    linear-gradient(135deg, transparent 49%, #142448 49%, #142448 51%, transparent 51%) 88% 100% / 16% 75%;
-  background-repeat: no-repeat;
+  bottom: 11vh;
+  height: 16vh;
+  border-radius: 50% 50% 0 0;
+  background: #152040;
   opacity: 0.9;
 }
 
-[data-theme="light"] .pw-mountains {
-  background:
-    linear-gradient(135deg, transparent 49%, #7a9ad0 49%, #7a9ad0 51%, transparent 51%) 0 100% / 18% 100%,
-    linear-gradient(135deg, transparent 49%, #8aabd8 49%, #8aabd8 51%, transparent 51%) 18% 100% / 22% 85%,
-    linear-gradient(135deg, transparent 49%, #6a8ec4 49%, #6a8ec4 51%, transparent 51%) 40% 100% / 28% 110%,
-    linear-gradient(135deg, transparent 49%, #9bb6e0 49%, #9bb6e0 51%, transparent 51%) 68% 100% / 20% 90%,
-    linear-gradient(135deg, transparent 49%, #7a9ad0 49%, #7a9ad0 51%, transparent 51%) 88% 100% / 16% 75%;
-  background-repeat: no-repeat;
+.pw-hill-a {
+  left: -8%;
+  width: 55%;
 }
 
-.pw-trees {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 10vh;
-  height: 10vh;
-  background:
-    linear-gradient(#1e4a38, #1e4a38) 6% 100% / 10px 55%,
-    linear-gradient(#2d7a52, #2d7a52) 5% 40% / 22px 22px,
-    linear-gradient(#1e4a38, #1e4a38) 22% 100% / 8px 40%,
-    linear-gradient(#246848, #246848) 21% 50% / 18px 18px,
-    linear-gradient(#1e4a38, #1e4a38) 78% 100% / 10px 60%,
-    linear-gradient(#2d7a52, #2d7a52) 77% 35% / 24px 24px,
-    linear-gradient(#1e4a38, #1e4a38) 92% 100% / 8px 45%,
-    linear-gradient(#246848, #246848) 91% 48% / 16px 16px;
-  background-repeat: no-repeat;
-  opacity: 0.85;
+.pw-hill-b {
+  right: -10%;
+  width: 62%;
+  height: 20vh;
+  background: #1a2a52;
+}
+
+[data-theme="light"] .pw-hill-a {
+  background: #8aabd8;
+}
+[data-theme="light"] .pw-hill-b {
+  background: #7a9ad0;
 }
 
 .pw-ground {
@@ -232,16 +167,9 @@ a:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 12vh;
-  background:
-    repeating-linear-gradient(
-      90deg,
-      #1a3a28 0 12px,
-      #224a32 12px 24px
-    ),
-    linear-gradient(#163222, #0e2418);
+  height: 11vh;
+  background: repeating-linear-gradient(90deg, #1a3a28 0 12px, #224a32 12px 24px);
   border-top: 4px solid #2d7a52;
-  box-shadow: inset 0 8px 0 rgba(0, 0, 0, 0.25);
 }
 
 [data-theme="light"] .pw-ground {
@@ -253,37 +181,34 @@ a:hover {
   position: absolute;
   left: 50%;
   bottom: 0;
-  width: 18vw;
-  height: 12vh;
+  width: 16vw;
+  height: 11vh;
   transform: translateX(-50%);
   background: repeating-linear-gradient(90deg, #6b5438 0 10px, #7a6344 10px 20px);
-  clip-path: polygon(35% 0, 65% 0, 100% 100%, 0 100%);
-  opacity: 0.85;
+  clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
+  opacity: 0.9;
 }
 
 .pw-campfire {
   position: absolute;
   left: 50%;
-  bottom: 11vh;
-  width: 10px;
-  height: 10px;
-  margin-left: -5px;
+  bottom: 10vh;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
   background: #ff8a3d;
-  box-shadow:
-    0 -6px 0 #ffd166,
-    0 -12px 0 #e5ff5d,
-    0 0 16px #ff8a3d;
+  box-shadow: 0 -5px 0 #ffd166, 0 -10px 0 #e5ff5d, 0 0 14px #ff8a3d;
   animation: fireFlicker 0.8s steps(2) infinite;
 }
 
 .pw-vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 35%, transparent 35%, rgba(4, 8, 18, 0.55) 100%);
+  background: radial-gradient(ellipse at 50% 40%, transparent 42%, rgba(4, 8, 18, 0.5) 100%);
 }
 
 [data-theme="light"] .pw-vignette {
-  background: radial-gradient(ellipse at 50% 35%, transparent 40%, rgba(180, 200, 230, 0.35) 100%);
+  background: radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(180, 200, 230, 0.3) 100%);
 }
 
 /* Pixel border helper */
@@ -538,9 +463,104 @@ a:hover {
   color: var(--lime);
 }
 
+.plain-lead {
+  max-width: 34ch !important;
+  font-size: 1.08rem !important;
+  line-height: 1.55 !important;
+}
+
+.plain-lead em {
+  font-style: normal;
+  color: var(--lime);
+  font-weight: 800;
+}
+
+.title-hint {
+  margin: 1rem 0 0;
+  font-size: 0.82rem !important;
+}
+
+.story-panel {
+  padding: 1.25rem 0 1.5rem;
+  animation: rise 480ms var(--ease) both;
+  max-width: 560px;
+}
+
+.story-steps {
+  margin: 1rem 0 1.25rem;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.story-steps li {
+  padding: 0.95rem 1rem;
+  border: 3px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 0.25rem;
+}
+
+.story-steps strong {
+  font-family: var(--font-pixel);
+  font-size: 0.9rem;
+  color: var(--lime);
+}
+
+.story-steps span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.more-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 160px;
+  padding: 0.35rem;
+  border: 3px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 0.25rem;
+}
+
+.more-menu button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 0.7rem;
+  border: 3px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 0.84rem;
+}
+
+.more-menu button:hover,
+.more-menu button.active {
+  border-color: var(--lime);
+  color: var(--lime);
+}
+
 .door-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.5rem;
 }
 
@@ -1580,7 +1600,6 @@ button:disabled {
   .result-line,
   .howto li,
   .pw-stars,
-  .pw-cloud,
   .pw-campfire,
   .xp-toast,
   .cutscene,
