@@ -9,6 +9,8 @@ import {
   EXECUTION_GUARD_TX,
   POLICY_MANAGER,
   POLICY_MANAGER_TX,
+  SAFE_TREASURY_GUARD,
+  SAFE_TREASURY_GUARD_TX,
   addressUrl,
   txUrl
 } from "./config";
@@ -425,9 +427,19 @@ export function App() {
                     </a>
                   </dd>
                 </div>
+                {SAFE_TREASURY_GUARD && (
+                  <div>
+                    <dt>SafeTreasuryGuard</dt>
+                    <dd className="mono">
+                      <a href={addressUrl(SAFE_TREASURY_GUARD)} target="_blank" rel="noreferrer">
+                        {SAFE_TREASURY_GUARD}
+                      </a>
+                    </dd>
+                  </div>
+                )}
                 <div>
                   <dt>Status</dt>
-                  <dd>{DEPLOYMENT_READY ? "Qualified · Arbitrum chain" : "Pending"}</dd>
+                  <dd>{DEPLOYMENT_READY ? "Qualified · Arbitrum + Safe-ready" : "Pending"}</dd>
                 </div>
               </dl>
             </section>
@@ -438,6 +450,7 @@ export function App() {
                 <li>Counterparty allowlist enforced onchain</li>
                 <li>Per-wallet daily spend ceiling</li>
                 <li>RBAC + pausable circuit breaker</li>
+                <li>Gnosis Safe Transaction Guard path</li>
                 <li>Approve surface requires review</li>
               </ul>
             </section>
@@ -619,6 +632,30 @@ export function App() {
                 Deterministic playbook selection from risk score. No free-form tool use. Critical mitigations can
                 pause PolicyManager onchain when operator key is configured.
               </p>
+              <button
+                type="button"
+                className="primary"
+                style={{ marginTop: "0.75rem" }}
+                onClick={async () => {
+                  setIntent("risky-approve");
+                  setTab("assess");
+                  await new Promise((r) => setTimeout(r, 50));
+                  await runAssessment();
+                  setTab("agent");
+                }}
+                disabled={loading}
+              >
+                {loading ? "Running agent loop…" : "Simulate agent loop (risky approval)"}
+              </button>
+              {assessment && (
+                <div className="card" style={{ marginTop: "1rem", boxShadow: "none" }}>
+                  <h4>Last recommendation</h4>
+                  <p className="mono">{assessment.recommendedPlaybook}</p>
+                  <p className="muted">
+                    Score {assessment.totalScore} · {assessment.blocked ? "blocked → incident" : "allowed"}
+                  </p>
+                </div>
+              )}
               <div className="evidence-grid" style={{ marginTop: "1rem" }}>
                 <article>
                   <h4>0–29 · Monitor</h4>
@@ -666,7 +703,7 @@ export function App() {
                 </article>
                 <article>
                   <h4>Product-market fit</h4>
-                  <p>Treasury ops console for DAOs and onchain startups on Arbitrum.</p>
+                  <p>Safe multisig guard + treasury ops console for DAOs on Arbitrum.</p>
                 </article>
                 <article>
                   <h4>Innovation</h4>
@@ -691,6 +728,13 @@ export function App() {
                     ExecutionGuard
                   </a>
                 </li>
+                {SAFE_TREASURY_GUARD && (
+                  <li>
+                    <a href={addressUrl(SAFE_TREASURY_GUARD)} target="_blank" rel="noreferrer">
+                      SafeTreasuryGuard
+                    </a>
+                  </li>
+                )}
                 <li>
                   <a href={txUrl(POLICY_MANAGER_TX)} target="_blank" rel="noreferrer">
                     Deploy tx · Policy
@@ -701,6 +745,13 @@ export function App() {
                     Deploy tx · Guard
                   </a>
                 </li>
+                {SAFE_TREASURY_GUARD_TX && (
+                  <li>
+                    <a href={txUrl(SAFE_TREASURY_GUARD_TX)} target="_blank" rel="noreferrer">
+                      Deploy tx · Safe Guard
+                    </a>
+                  </li>
+                )}
               </ul>
             </section>
             <section className="card">

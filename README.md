@@ -21,8 +21,9 @@
 <p align="center">
   <a href="https://arb-guardian.vercel.app">Live product</a> ·
   <a href="https://github.com/thesithunyein/arb-guardian">GitHub</a> ·
-  <a href="https://sepolia.arbiscan.io/address/0x57077DA6DEFCAAB83aEAbE080641D5D1Ed66758F">PolicyManager</a> ·
-  <a href="https://sepolia.arbiscan.io/address/0x4019C445bbc593eA5eb13D319Ca427aA8aDc7613">ExecutionGuard</a>
+  <a href="https://sepolia.arbiscan.io/address/0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76">PolicyManager</a> ·
+  <a href="https://sepolia.arbiscan.io/address/0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124">ExecutionGuard</a> ·
+  <a href="https://sepolia.arbiscan.io/address/0xcba30F60BE3FB0fB0e9db0C816c4ab9Fa2f7b211">SafeTreasuryGuard</a>
 </p>
 
 ---
@@ -42,12 +43,16 @@ Built for **Overall Prize** + **Best Agentic** judging: smart contract quality, 
 
 | Contract | Address | Explorer |
 | --- | --- | --- |
-| PolicyManager | `0x57077DA6DEFCAAB83aEAbE080641D5D1Ed66758F` | [Arbiscan](https://sepolia.arbiscan.io/address/0x57077DA6DEFCAAB83aEAbE080641D5D1Ed66758F) |
-| ExecutionGuard | `0x4019C445bbc593eA5eb13D319Ca427aA8aDc7613` | [Arbiscan](https://sepolia.arbiscan.io/address/0x4019C445bbc593eA5eb13D319Ca427aA8aDc7613) |
+| PolicyManager | `0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76` | [Arbiscan](https://sepolia.arbiscan.io/address/0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76) |
+| ExecutionGuard | `0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124` | [Arbiscan](https://sepolia.arbiscan.io/address/0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124) |
+| SafeTreasuryGuard | `0xcba30F60BE3FB0fB0e9db0C816c4ab9Fa2f7b211` | [Arbiscan](https://sepolia.arbiscan.io/address/0xcba30F60BE3FB0fB0e9db0C816c4ab9Fa2f7b211) |
 
 Deploy txs:
-- PolicyManager: [`0xefab…967c`](https://sepolia.arbiscan.io/tx/0xefab9b6deda8a1556eab898878b121dae2502172ddb2b2f956fc68921743967c)
-- ExecutionGuard: [`0xb3c8…9ec9`](https://sepolia.arbiscan.io/tx/0xb3c8b3a866a1f0cf8f9bcfcd29389fe4bc42131fcb9866cd7dc9ac5624819ec9)
+- PolicyManager: [`0x9400…afc2`](https://sepolia.arbiscan.io/tx/0x9400d2f97914093c516c38242d86d6368d4e352dc867cc9ef735a6c6bd00afc2)
+- ExecutionGuard: [`0xad9c…c1a0`](https://sepolia.arbiscan.io/tx/0xad9c6ca6b58c06e10b34701776cf135d97cb5c11a534ce02bb781df189afc1a0)
+- SafeTreasuryGuard: [`0x809c…3f1b`](https://sepolia.arbiscan.io/tx/0x809ca1051a8997a307c8e9d0bc66348e01eb51c45564e6425fb59c9fa14c3f1b)
+
+**Safe path:** set `SafeTreasuryGuard` as the Safe’s transaction guard, then `setSafeEnrollment(safe, true)`.
 
 ## Architecture
 
@@ -70,7 +75,9 @@ flowchart TB
 
   subgraph Onchain["Arbitrum Sepolia"]
     policy[PolicyManager<br/>allowlist · limits · pause · RBAC]
-    guard[ExecutionGuard<br/>validateAndRecord · spend · events]
+    guard[ExecutionGuard<br/>operator validateAndRecord]
+    safeGuard[SafeTreasuryGuard<br/>Gnosis Safe ITransactionGuard]
+    safe[Treasury Safe Multisig]
   end
 
   signer --> ui
@@ -86,7 +93,10 @@ flowchart TB
   agent -->|recommended playbook| ui
   api -.->|operator role| guard
   policy --> guard
+  policy --> safeGuard
+  safe --> safeGuard
   guard -->|TransactionValidated| api
+  safeGuard -->|SafeTxChecked| api
 ```
 
 ### Shield decision loop
@@ -165,9 +175,9 @@ npm run quality:gate
 | --- | --- |
 | Deployed on Arbitrum | Live Sepolia addresses above |
 | Smart contract quality | OZ RBAC/Pausable, custom errors, Hardhat tests |
-| Product-market fit | Treasury signer / ops console workflows |
+| Product-market fit | Safe multisig guard + treasury ops console |
 | Innovation | Deterministic evidence + bounded agentic playbooks |
-| Real problem solving | Pre-execution block + incident lifecycle |
+| Real problem solving | Pre-execution block in Safe + ops incident lifecycle |
 | Best agentic | Eval harness (12 scenarios, accuracy 1.0) + permissions matrix |
 
 ## Brand

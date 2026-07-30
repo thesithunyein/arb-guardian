@@ -34,6 +34,7 @@ if (missing.length > 0) {
 
 const network = process.env.SUBMISSION_NETWORK ?? "Arbitrum Sepolia";
 const explorerBase = process.env.SUBMISSION_EXPLORER_BASE_URL ?? "https://sepolia.arbiscan.io/tx/";
+const addressBase = explorerBase.replace(/\/tx\/?$/, "/address/");
 
 const evidence = {
   generatedAt: new Date().toISOString(),
@@ -41,14 +42,35 @@ const evidence = {
   policyManager: {
     address: process.env.SUBMISSION_POLICY_MANAGER_ADDRESS,
     txHash: process.env.SUBMISSION_POLICY_MANAGER_TX,
-    txUrl: `${explorerBase}${process.env.SUBMISSION_POLICY_MANAGER_TX}`
+    txUrl: `${explorerBase}${process.env.SUBMISSION_POLICY_MANAGER_TX}`,
+    addressUrl: `${addressBase}${process.env.SUBMISSION_POLICY_MANAGER_ADDRESS}`
   },
   executionGuard: {
     address: process.env.SUBMISSION_EXECUTION_GUARD_ADDRESS,
     txHash: process.env.SUBMISSION_EXECUTION_GUARD_TX,
-    txUrl: `${explorerBase}${process.env.SUBMISSION_EXECUTION_GUARD_TX}`
-  }
+    txUrl: `${explorerBase}${process.env.SUBMISSION_EXECUTION_GUARD_TX}`,
+    addressUrl: `${addressBase}${process.env.SUBMISSION_EXECUTION_GUARD_ADDRESS}`
+  },
+  safeTreasuryGuard: process.env.SUBMISSION_SAFE_TREASURY_GUARD_ADDRESS
+    ? {
+        address: process.env.SUBMISSION_SAFE_TREASURY_GUARD_ADDRESS,
+        txHash: process.env.SUBMISSION_SAFE_TREASURY_GUARD_TX ?? null,
+        txUrl: process.env.SUBMISSION_SAFE_TREASURY_GUARD_TX
+          ? `${explorerBase}${process.env.SUBMISSION_SAFE_TREASURY_GUARD_TX}`
+          : null,
+        addressUrl: `${addressBase}${process.env.SUBMISSION_SAFE_TREASURY_GUARD_ADDRESS}`
+      }
+    : null
 };
+
+const safeMd = evidence.safeTreasuryGuard
+  ? `
+## SafeTreasuryGuard
+- Address: \`${evidence.safeTreasuryGuard.address}\`
+- Tx hash: \`${evidence.safeTreasuryGuard.txHash ?? "n/a"}\`
+- Tx link: ${evidence.safeTreasuryGuard.txUrl ?? "n/a"}
+`
+  : "";
 
 const md = `# Deployment Evidence
 
@@ -64,7 +86,7 @@ const md = `# Deployment Evidence
 - Address: \`${evidence.executionGuard.address}\`
 - Tx hash: \`${evidence.executionGuard.txHash}\`
 - Tx link: ${evidence.executionGuard.txUrl}
-`;
+${safeMd}`;
 
 writeFileSync(resolve(process.cwd(), "docs", "deployment-evidence.json"), JSON.stringify(evidence, null, 2), "utf8");
 writeFileSync(resolve(process.cwd(), "docs", "deployment-evidence.md"), md, "utf8");

@@ -16,7 +16,6 @@ async function main() {
   const policy = await policyFactory.deploy(deployer.address);
   await policy.waitForDeployment();
   const policyReceipt = await policy.deploymentTransaction()?.wait();
-
   const policyAddress = await policy.getAddress();
   console.log(`PolicyManager deployed: ${policyAddress}`);
 
@@ -26,6 +25,13 @@ async function main() {
   const guardReceipt = await guard.deploymentTransaction()?.wait();
   const guardAddress = await guard.getAddress();
   console.log(`ExecutionGuard deployed: ${guardAddress}`);
+
+  const safeGuardFactory = await ethers.getContractFactory("SafeTreasuryGuard");
+  const safeGuard = await safeGuardFactory.deploy(deployer.address, policyAddress);
+  await safeGuard.waitForDeployment();
+  const safeGuardReceipt = await safeGuard.deploymentTransaction()?.wait();
+  const safeGuardAddress = await safeGuard.getAddress();
+  console.log(`SafeTreasuryGuard deployed: ${safeGuardAddress}`);
 
   const evidence = {
     network: network.name,
@@ -39,6 +45,10 @@ async function main() {
     executionGuard: {
       address: guardAddress,
       txHash: guardReceipt?.hash ?? null
+    },
+    safeTreasuryGuard: {
+      address: safeGuardAddress,
+      txHash: safeGuardReceipt?.hash ?? null
     }
   };
 
@@ -52,8 +62,10 @@ async function main() {
   console.log("Copy into root .env for submission finalize:");
   console.log(`SUBMISSION_POLICY_MANAGER_ADDRESS=${policyAddress}`);
   console.log(`SUBMISSION_EXECUTION_GUARD_ADDRESS=${guardAddress}`);
+  console.log(`SUBMISSION_SAFE_TREASURY_GUARD_ADDRESS=${safeGuardAddress}`);
   if (policyReceipt?.hash) console.log(`SUBMISSION_POLICY_MANAGER_TX=${policyReceipt.hash}`);
   if (guardReceipt?.hash) console.log(`SUBMISSION_EXECUTION_GUARD_TX=${guardReceipt.hash}`);
+  if (safeGuardReceipt?.hash) console.log(`SUBMISSION_SAFE_TREASURY_GUARD_TX=${safeGuardReceipt.hash}`);
 }
 
 main().catch((error) => {

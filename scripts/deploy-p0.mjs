@@ -48,8 +48,10 @@ if (hasDeployerKey) {
     SUBMISSION_CHAIN_ID: String(deployment.chainId ?? 421614),
     SUBMISSION_POLICY_MANAGER_ADDRESS: deployment.policyManager.address,
     SUBMISSION_EXECUTION_GUARD_ADDRESS: deployment.executionGuard.address,
+    SUBMISSION_SAFE_TREASURY_GUARD_ADDRESS: deployment.safeTreasuryGuard?.address ?? "",
     SUBMISSION_POLICY_MANAGER_TX: deployment.policyManager.txHash ?? "",
     SUBMISSION_EXECUTION_GUARD_TX: deployment.executionGuard.txHash ?? "",
+    SUBMISSION_SAFE_TREASURY_GUARD_TX: deployment.safeTreasuryGuard?.txHash ?? "",
     SUBMISSION_EXPLORER_BASE_URL: "https://sepolia.arbiscan.io/tx/",
     SUBMISSION_REPO_URL: "https://github.com/thesithunyein/arb-guardian",
     SUBMISSION_WEB_URL: process.env.SUBMISSION_WEB_URL ?? "https://arb-guardian.vercel.app"
