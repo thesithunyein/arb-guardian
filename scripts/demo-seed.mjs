@@ -31,33 +31,24 @@ function headers() {
 const scenarios = [
   {
     txHash: "0xdemo-seed-1",
-    wallet: "0xTreasuryWalletA",
-    destination: "0xUnlistedVendorA",
+    wallet: "0x1111111111111111111111111111111111111111",
+    destination: "0x5555555555555555555555555555555555555555",
     method: "approve",
-    amountWei: "1000000000000000000",
-    allowlisted: false,
-    dailyLimitWei: "500000000000000000",
-    spentTodayWei: "0"
+    amountWei: "1000000000000000000"
   },
   {
     txHash: "0xdemo-seed-2",
-    wallet: "0xTreasuryWalletB",
-    destination: "0xListedVendorB",
+    wallet: "0x2222222222222222222222222222222222222222",
+    destination: "0x4444444444444444444444444444444444444444",
     method: "transfer",
-    amountWei: "4000000000000000000",
-    allowlisted: true,
-    dailyLimitWei: "3000000000000000000",
-    spentTodayWei: "0"
+    amountWei: "4000000000000000000"
   },
   {
     txHash: "0xdemo-seed-3",
-    wallet: "0xTreasuryWalletC",
-    destination: "0xListedVendorC",
+    wallet: "0x3333333333333333333333333333333333333333",
+    destination: "0x4444444444444444444444444444444444444444",
     method: "transfer",
-    amountWei: "1000000000000000000",
-    allowlisted: true,
-    dailyLimitWei: "5000000000000000000",
-    spentTodayWei: "0"
+    amountWei: "1000000000000000000"
   }
 ];
 

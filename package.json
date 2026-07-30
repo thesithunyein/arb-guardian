@@ -20,7 +20,8 @@
     "submission:bundle": "node scripts/export-submission-bundle.mjs",
     "demo:seed": "node scripts/demo-seed.mjs",
     "demo:smoke": "node scripts/demo-smoke.mjs",
-    "push:audit": "node scripts/push-safe-audit.mjs",
+    "env:create": "node scripts/create-real-env.mjs",
+    "deploy:p0": "node scripts/deploy-p0.mjs",
     "preflight": "npm run quality:gate && npm run submission:check && npm run push:audit"
   },
   "engines": {

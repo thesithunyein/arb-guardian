@@ -35,8 +35,8 @@ Arbitrum provides scalable EVM-compatible infrastructure where treasury operatio
 
 ## Live/demo links
 - Web app URL: `https://arb-guardian.vercel.app`
-- API URL: `<fill_api_url>`
-- Demo video: `<fill_demo_url>`
+- API URL: `<fill_api_url>` (deploy via `render.yaml` — see `docs/deploy-sepolia.md`)
+- Demo video: `<fill_demo_url>` (record after Sepolia + API live)
 - Repo URL: `https://github.com/thesithunyein/arb-guardian`
 
 ## Contract addresses (Arbitrum chain)

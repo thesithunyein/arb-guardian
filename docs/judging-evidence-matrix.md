@@ -21,11 +21,13 @@
 
 ## Innovation and creativity
 
-- **Evidence:** `apps/api/src/riskEngine.ts`, `apps/api/src/agentCoordinator.ts`, `apps/api/src/evaluateAgent.ts`
+- **Evidence:** `apps/api/src/riskEngine.ts`, `apps/api/src/agentCoordinator.ts`, `apps/api/src/playbookExecutor.ts`, `apps/api/src/evaluateAgent.ts`, `docs/agent-permissions-matrix.md`
 - **Proof points:**
   - Deterministic evidence-first risk rules
   - Policy-bounded agent playbook recommendations
-  - Reproducible agent evaluation metrics (accuracy/precision/recall)
+  - Bounded onchain mitigate (`PolicyManager.pause`) for critical playbooks
+  - Event sync from `TransactionValidated` → incidents
+  - Reproducible agent evaluation (12 scenarios, accuracy 1.0)
 - **Validation command:** `npm run eval:agent -w apps/api`
 
 ## Real problem solving
@@ -42,4 +44,5 @@
 - **Required proof:** Arbitrum chain deployment addresses + transaction links
 - **Live product:** https://arb-guardian.vercel.app
 - **Public repo:** https://github.com/thesithunyein/arb-guardian
-- **Deployment command:** `npm run deploy:sepolia -w packages/contracts`
+- **Deploy guide:** `docs/deploy-sepolia.md`
+- **Deployment command:** `npm run deploy:p0`

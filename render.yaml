@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: arb-guardian-api
+    runtime: docker
+    plan: free
+    dockerfilePath: apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8787
+      - key: API_KEY
+        generateValue: true
+      - key: ARBITRUM_SEPOLIA_RPC_URL
+        value: https://sepolia-rollup.arbitrum.io/rpc
+      - key: SUBMISSION_NETWORK
+        value: Arbitrum Sepolia
+      - key: SUBMISSION_CHAIN_ID
+        value: "421614"
+      - key: SUBMISSION_EXPLORER_BASE_URL
+        value: https://sepolia.arbiscan.io/tx/
+      - key: SUBMISSION_POLICY_MANAGER_ADDRESS
+        sync: false
+      - key: SUBMISSION_EXECUTION_GUARD_ADDRESS
+        sync: false
+      - key: SUBMISSION_POLICY_MANAGER_TX
+        sync: false
+      - key: SUBMISSION_EXECUTION_GUARD_TX
+        sync: false
+      - key: OPERATOR_PRIVATE_KEY
+        sync: false

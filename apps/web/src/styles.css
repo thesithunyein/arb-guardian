@@ -152,6 +152,12 @@ a:hover {
   background: rgba(43, 107, 255, 0.1);
 }
 
+.chip.ok {
+  color: var(--ok);
+  border-color: rgba(61, 214, 165, 0.45);
+  background: rgba(61, 214, 165, 0.1);
+}
+
 .icon-btn {
   cursor: pointer;
 }
@@ -215,7 +221,7 @@ a:hover {
 
 .tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.65rem;
   margin: 0 0 1.25rem;
   animation: rise 560ms ease both;

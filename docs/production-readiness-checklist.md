@@ -24,13 +24,15 @@
 ## Go-live gate for judging
 - [x] Public staging URL: https://arb-guardian.vercel.app
 - [x] Public repository: https://github.com/thesithunyein/arb-guardian
-- [ ] Arbitrum chain deployment complete with addresses + tx links
-- [ ] Demo video with full workflow and tx evidence
+- [x] Arbitrum Sepolia deployment — PolicyManager + ExecutionGuard live
+- [x] Public product on Vercel with onchain addresses
+- [ ] Public API on Render (optional; console works with onchain reads)
+- [ ] Demo video with onchain tx evidence on Arbiscan
 
 ## Bounty criteria map
 | Criterion | Status |
 | --- | --- |
-| Deployed on Arbitrum chain | Pending funded Sepolia deploy |
+| Deployed on Arbitrum chain | Live Sepolia — see `docs/live-deployment.md` |
 | Smart contract quality | Ready (tests + RBAC + pause) |
 | Product-market fit | Ready (treasury ops console) |
 | Innovation / creativity | Ready (deterministic agent playbooks) |

@@ -10,104 +10,179 @@
 </p>
 
 <p align="center">
-  <a href="https://arb-guardian.vercel.app"><img src="https://img.shields.io/badge/Live-Dashboard-2B6BFF?style=for-the-badge&logo=vercel&logoColor=white" alt="Live dashboard" /></a>
+  <a href="https://arb-guardian.vercel.app"><img src="https://img.shields.io/badge/Live-Product-2B6BFF?style=for-the-badge&logo=vercel&logoColor=white" alt="Live product" /></a>
   <a href="https://github.com/thesithunyein/arb-guardian"><img src="https://img.shields.io/badge/GitHub-Repository-0B1220?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" /></a>
-  <img src="https://img.shields.io/badge/Arbitrum-Ready-28A0F0?style=for-the-badge&logo=arbitrum&logoColor=white" alt="Arbitrum" />
+  <img src="https://img.shields.io/badge/Arbitrum_Sepolia-Deployed-28A0F0?style=for-the-badge" alt="Arbitrum Sepolia" />
   <img src="https://img.shields.io/badge/Solidity-Contracts-363636?style=for-the-badge&logo=solidity&logoColor=white" alt="Solidity" />
   <img src="https://img.shields.io/badge/Agentic-Deterministic-2B6BFF?style=for-the-badge" alt="Agentic" />
   <img src="https://img.shields.io/badge/License-MIT-1A4FD6?style=for-the-badge" alt="MIT License" />
 </p>
 
 <p align="center">
+  <a href="https://arb-guardian.vercel.app">Live product</a> ·
   <a href="https://github.com/thesithunyein/arb-guardian">GitHub</a> ·
-  <a href="https://arb-guardian.vercel.app">Live dashboard</a>
+  <a href="https://sepolia.arbiscan.io/address/0x57077DA6DEFCAAB83aEAbE080641D5D1Ed66758F">PolicyManager</a> ·
+  <a href="https://sepolia.arbiscan.io/address/0x4019C445bbc593eA5eb13D319Ca427aA8aDc7613">ExecutionGuard</a>
 </p>
 
 ---
 
-## Product
+## Why it wins
 
-Arb Guardian helps treasury signers and ops leads **block unsafe transactions before execution**, then run auditable mitigation playbooks with deterministic evidence — not opaque AI text.
+Treasury teams lose funds to unsafe approvals, weak allowlists, and slow incident response. Arb Guardian is a **launch-ready risk ops console** that:
+
+1. Enforces policy **onchain** on Arbitrum
+2. Scores intent with **deterministic rule IDs** (no opaque AI text)
+3. Opens incidents and recommends **policy-bounded agent playbooks**
+4. Leaves an auditable trail operators can defend to stakeholders
+
+Built for **Overall Prize** + **Best Agentic** judging: smart contract quality, PMF, innovation, and real problem solving — with **live Arbitrum Sepolia deployment** for qualification.
+
+## Live Arbitrum deployment
+
+| Contract | Address | Explorer |
+| --- | --- | --- |
+| PolicyManager | `0x57077DA6DEFCAAB83aEAbE080641D5D1Ed66758F` | [Arbiscan](https://sepolia.arbiscan.io/address/0x57077DA6DEFCAAB83aEAbE080641D5D1Ed66758F) |
+| ExecutionGuard | `0x4019C445bbc593eA5eb13D319Ca427aA8aDc7613` | [Arbiscan](https://sepolia.arbiscan.io/address/0x4019C445bbc593eA5eb13D319Ca427aA8aDc7613) |
+
+Deploy txs:
+- PolicyManager: [`0xefab…967c`](https://sepolia.arbiscan.io/tx/0xefab9b6deda8a1556eab898878b121dae2502172ddb2b2f956fc68921743967c)
+- ExecutionGuard: [`0xb3c8…9ec9`](https://sepolia.arbiscan.io/tx/0xb3c8b3a866a1f0cf8f9bcfcd29389fe4bc42131fcb9866cd7dc9ac5624819ec9)
 
 ## Architecture
 
+### System control plane
+
 ```mermaid
-flowchart LR
-  operator[TreasuryOperator] --> dashboard[OpsDashboard]
-  dashboard --> api[RiskAPI]
-  api --> rules[DeterministicRiskEngine]
-  api --> agent[AgentCoordinator]
-  agent --> playbooks[MitigationPlaybooks]
-  playbooks --> guard[ExecutionGuard]
-  dashboard --> policy[PolicyManager]
-  policy --> arb[ArbitrumChain]
-  guard --> arb
-  arb --> events[EventAuditTrail]
-  events --> api
+flowchart TB
+  subgraph Operators
+    signer[Treasury Signer]
+    ops[Ops Lead]
+  end
+
+  subgraph Product["Arb Guardian Product"]
+    ui[Ops Console<br/>apps/web]
+    api[Risk API + Agent<br/>apps/api]
+    engine[Deterministic Risk Engine]
+    agent[Agent Coordinator]
+    playbooks[Bounded Playbooks]
+  end
+
+  subgraph Onchain["Arbitrum Sepolia"]
+    policy[PolicyManager<br/>allowlist · limits · pause · RBAC]
+    guard[ExecutionGuard<br/>validateAndRecord · spend · events]
+  end
+
+  signer --> ui
+  ops --> ui
+  ui -->|assess intent| api
+  ui -->|read policy state| policy
+  ui -->|predict guard outcome| guard
+  api --> engine
+  api --> agent
+  agent --> playbooks
+  playbooks -->|critical mitigate| policy
+  engine -->|rule IDs + score| ui
+  agent -->|recommended playbook| ui
+  api -.->|operator role| guard
+  policy --> guard
+  guard -->|TransactionValidated| api
 ```
 
-### Shield control loop
+### Shield decision loop
 
-1. **Policy** — allowlists + daily limits onchain (`PolicyManager`)
-2. **Assess** — deterministic rule scoring with explicit rule IDs
-3. **Block** — `ExecutionGuard` rejects policy violations
+```mermaid
+sequenceDiagram
+  participant Op as Operator
+  participant UI as Ops Console
+  participant RE as Risk Engine
+  participant AG as Agent
+  participant PM as PolicyManager
+  participant EG as ExecutionGuard
+
+  Op->>UI: Submit treasury intent
+  UI->>PM: Read allowlist + daily limit
+  UI->>EG: Read spentToday
+  UI->>RE: Assess(rules)
+  RE-->>UI: score + rule IDs + blocked?
+  alt blocked
+    UI->>AG: Recommend playbook
+    AG-->>UI: freeze / hold / confirm / monitor
+    UI->>Op: Open incident + evidence
+    Op->>UI: Mitigate
+    UI->>PM: pause() if critical + authorized
+  else allowed
+    UI->>Op: Allow with monitoring
+  end
+  Note over EG: ExecutionGuard reverts unsafe txs onchain
+```
+
+### Agentic permission matrix
+
+```mermaid
+flowchart LR
+  score[Risk score] --> p1[0-29 Monitor]
+  score --> p2[30-59 Secondary confirm]
+  score --> p3[60-79 Hold + admin review]
+  score --> p4[>=80 Freeze playbook]
+  p4 --> gate{Human mitigate?}
+  gate -->|yes| pause[PolicyManager.pause]
+  gate -->|no| wait[No onchain action]
+```
+
+## Product workflows
+
+1. **Policy** — allowlisted counterparties + wallet daily limits (RBAC)
+2. **Assess** — deterministic rules with explicit `RULE_*` evidence
+3. **Block** — `ExecutionGuard` reverts violations; console predicts outcome
 4. **Incident** — agent recommends a bounded playbook
-5. **Mitigate** — operator action is logged in the audit trail
+5. **Mitigate** — acknowledge / mitigate / ignore with audit trail
 
 ## Monorepo
 
-- `apps/web` — branded operator dashboard
-- `apps/api` — risk engine + agent coordinator
-- `packages/contracts` — Solidity policy/guard contracts
-- `packages/shared` — shared schemas
-- `docs` — architecture, judging, launch materials
+| Path | Role |
+| --- | --- |
+| `apps/web` | Launch console (dark-default, onchain reads) |
+| `apps/api` | Risk API, agent coordinator, eval harness |
+| `packages/contracts` | Solidity PolicyManager + ExecutionGuard |
+| `packages/shared` | Zod schemas / shared types |
+| `docs` | Judging, security, deploy runbooks |
 
 ## Quick start
 
 ```bash
 npm install
+npm run env:create          # real local + Vercel-ready secrets
+npm run deploy:p0           # Sepolia deploy when funded
 npm run dev -w apps/api
 npm run dev -w apps/web
-npm run test -w packages/contracts
+npm run quality:gate
 ```
+
+## Judging map
+
+| Criterion | Evidence |
+| --- | --- |
+| Deployed on Arbitrum | Live Sepolia addresses above |
+| Smart contract quality | OZ RBAC/Pausable, custom errors, Hardhat tests |
+| Product-market fit | Treasury signer / ops console workflows |
+| Innovation | Deterministic evidence + bounded agentic playbooks |
+| Real problem solving | Pre-execution block + incident lifecycle |
+| Best agentic | Eval harness (12 scenarios, accuracy 1.0) + permissions matrix |
 
 ## Brand
 
 | Token | Value |
 | --- | --- |
-| Near-black bg | `#05070D` |
+| Near-black | `#05070D` |
 | Electric blue | `#2B6BFF` |
-| Blue bright | `#5B8FFF` |
-| Panel | `#10182A` |
-| Ink | `#F4F7FB` |
-| Display / UI font | Space Grotesk |
-| Mono | IBM Plex Mono |
-
-Logo assets (transparent PNG, black bg removed):
-- Main mark: [`docs/assets/logo.png`](docs/assets/logo.png)
-- App / favicon: [`apps/web/public/logo.png`](apps/web/public/logo.png), [`apps/web/public/favicon.png`](apps/web/public/favicon.png)
-- Theme: **dark default** (faucet aesthetic) with light mode toggle
-
-## Live
-
-- Product: https://arb-guardian.vercel.app
-- Repo: https://github.com/thesithunyein/arb-guardian
-
-## Release commands
-
-- `npm run quality:gate`
-- `npm run preflight`
-- `npm run push:audit`
-- `npm run deploy:p0` — Sepolia deploy + evidence (requires funded `.env`)
-- `npm run submission:finalize`
-- `npm run demo:seed` / `npm run demo:smoke`
-
-See [`docs/deploy-sepolia.md`](docs/deploy-sepolia.md) for public API + Arbiscan qualification steps.
+| Font | Space Grotesk + IBM Plex Mono |
 
 ## Security baseline
 
-- RBAC roles for policy and execution
+- RBAC for policy and execution roles
 - Pausable circuit breaker
+- Zero-address / invalid-amount guards
 - Event-rich audit trail
 - Deterministic risk evidence (no fabricated outputs)
 

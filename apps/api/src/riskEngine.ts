@@ -27,12 +27,12 @@ export function assessTransaction(tx: PendingTransaction): RiskAssessment {
 
   const projectedSpend = tx.spentTodayWei + tx.amountWei;
   if (tx.dailyLimitWei > 0n && projectedSpend > tx.dailyLimitWei) {
-    totalScore += 40;
+    totalScore += 60;
     matches.push({
       ruleId: "RULE_DAILY_LIMIT",
       reason: "Daily wallet limit would be exceeded",
       severity: "high" as const,
-      scoreDelta: 40
+      scoreDelta: 60
     });
   }
 

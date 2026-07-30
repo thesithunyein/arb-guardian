@@ -3,7 +3,10 @@ import { z } from "zod";
 const envSchema = z.object({
   PORT: z.string().regex(/^\d+$/).default("8787"),
   API_KEY: z.string().min(12).optional(),
-  NODE_ENV: z.enum(["development", "test", "production"]).optional()
+  NODE_ENV: z.enum(["development", "test", "production"]).optional(),
+  ARBITRUM_SEPOLIA_RPC_URL: z.string().optional(),
+  OPERATOR_PRIVATE_KEY: z.string().optional(),
+  DEPLOYER_PRIVATE_KEY: z.string().optional()
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

@@ -40,9 +40,9 @@ export const riskAssessmentInputSchema = z.object({
   destination: z.string().min(3),
   method: z.string().min(1),
   amountWei: z.string().regex(/^\d+$/),
-  allowlisted: z.boolean(),
-  dailyLimitWei: z.string().regex(/^\d+$/),
-  spentTodayWei: z.string().regex(/^\d+$/)
+  allowlisted: z.boolean().optional(),
+  dailyLimitWei: z.string().regex(/^\d+$/).optional(),
+  spentTodayWei: z.string().regex(/^\d+$/).optional()
 });
 
 export const incidentActionSchema = z.object({

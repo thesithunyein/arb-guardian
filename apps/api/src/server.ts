@@ -10,6 +10,10 @@ import { applyIncidentAction, listIncidentAuditLog, listIncidents } from "./inci
 import { getKpis } from "./kpi.js";
 import { getEnv } from "./env.js";
 import { getDeploymentStatus } from "./deploymentStatus.js";
+import { resolvePolicyState } from "./policyResolver.js";
+import { validateOnchain, syncBlockedEvents } from "./chainActions.js";
+import { executeBoundedPlaybook } from "./playbookExecutor.js";
+import { getChainConfig } from "./chainClient.js";
 
 export function createApp() {
   const app = express();
@@ -44,14 +48,33 @@ export function createApp() {
   app.get("/status", (_req, res) => {
     const deployment = getDeploymentStatus();
     const kpis = getKpis();
+    const chain = getChainConfig();
     res.json({
       service: "arb-guardian-api",
       version: "0.1.0",
       healthy: true,
       deployment,
-      productReady: deployment.ready,
+      chainConnected: Boolean(chain),
+      productReady: deployment.ready && deployment.network !== "hardhat" && deployment.network !== "local",
       kpis
     });
+  });
+
+  app.get("/policy/state", async (req, res) => {
+    const wallet = String(req.query.wallet ?? "");
+    const destination = String(req.query.destination ?? "");
+    if (!wallet || !destination) {
+      return res.status(400).json({ error: "wallet_and_destination_required" });
+    }
+    try {
+      const state = await resolvePolicyState({ wallet, destination });
+      return res.json({ wallet, destination, ...state });
+    } catch (error) {
+      return res.status(500).json({
+        error: "policy_state_failed",
+        message: error instanceof Error ? error.message : "unknown_error"
+      });
+    }
   });
 
   app.get("/incidents", (_req, res) => {
@@ -62,34 +85,85 @@ export function createApp() {
     res.json(getKpis());
   });
 
-  app.post("/risk/assess", requireApiKey, (req, res) => {
+  app.post("/risk/assess", requireApiKey, async (req, res) => {
     const parsedBody = riskAssessmentInputSchema.safeParse(req.body);
     if (!parsedBody.success) {
       return res.status(400).json({ error: "invalid_request", details: parsedBody.error.flatten() });
     }
     const body = parsedBody.data;
 
-    const assessment = assessTransaction({
-      txHash: body.txHash,
-      wallet: body.wallet,
-      destination: body.destination,
-      method: body.method,
-      amountWei: BigInt(body.amountWei),
-      allowlisted: body.allowlisted,
-      dailyLimitWei: BigInt(body.dailyLimitWei),
-      spentTodayWei: BigInt(body.spentTodayWei)
-    });
+    try {
+      const policyState = await resolvePolicyState({
+        wallet: body.wallet,
+        destination: body.destination,
+        allowlisted: body.allowlisted,
+        dailyLimitWei: body.dailyLimitWei,
+        spentTodayWei: body.spentTodayWei
+      });
 
-    recordAssessment(assessment);
-    const incident = createIncidentFromAssessment(assessment);
-    res.json({ assessment, incident });
+      const assessment = assessTransaction({
+        txHash: body.txHash,
+        wallet: body.wallet,
+        destination: body.destination,
+        method: body.method,
+        amountWei: BigInt(body.amountWei),
+        allowlisted: policyState.allowlisted,
+        dailyLimitWei: BigInt(policyState.dailyLimitWei),
+        spentTodayWei: BigInt(policyState.spentTodayWei)
+      });
+
+      recordAssessment(assessment);
+      const incident = createIncidentFromAssessment(assessment);
+      return res.json({ assessment, incident, policyState });
+    } catch (error) {
+      return res.status(500).json({
+        error: "assessment_failed",
+        message: error instanceof Error ? error.message : "unknown_error"
+      });
+    }
+  });
+
+  app.post("/chain/validate", requireApiKey, async (req, res) => {
+    const parsedBody = riskAssessmentInputSchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return res.status(400).json({ error: "invalid_request", details: parsedBody.error.flatten() });
+    }
+    const body = parsedBody.data;
+    try {
+      const result = await validateOnchain({
+        wallet: body.wallet,
+        destination: body.destination,
+        method: body.method,
+        amountWei: body.amountWei,
+        txHash: body.txHash
+      });
+      return res.json(result);
+    } catch (error) {
+      return res.status(500).json({
+        error: "chain_validate_failed",
+        message: error instanceof Error ? error.message : "unknown_error"
+      });
+    }
+  });
+
+  app.post("/chain/sync-events", requireApiKey, async (req, res) => {
+    const sinceBlock = Number(req.body?.sinceBlock ?? 0);
+    try {
+      const result = await syncBlockedEvents(sinceBlock);
+      return res.json(result);
+    } catch (error) {
+      return res.status(500).json({
+        error: "chain_sync_failed",
+        message: error instanceof Error ? error.message : "unknown_error"
+      });
+    }
   });
 
   app.get("/incidents/audit", (_req, res) => {
     res.json({ items: listIncidentAuditLog() });
   });
 
-  app.post("/incidents/:incidentId/action", requireApiKey, (req, res) => {
+  app.post("/incidents/:incidentId/action", requireApiKey, async (req, res) => {
     const parsedAction = incidentActionSchema.safeParse(req.body);
     if (!parsedAction.success) {
       return res.status(400).json({ error: "invalid_request", details: parsedAction.error.flatten() });
@@ -101,7 +175,12 @@ export function createApp() {
       return res.status(404).json({ error: "incident_not_found" });
     }
 
-    res.json({ incident: updated });
+    let playbookExecution = null;
+    if (parsedAction.data.action === "mitigate") {
+      playbookExecution = await executeBoundedPlaybook(updated);
+    }
+
+    return res.json({ incident: updated, playbookExecution });
   });
 
   return { app, env };
