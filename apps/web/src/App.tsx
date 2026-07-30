@@ -313,10 +313,27 @@ export function App() {
     setError(null);
     try {
       if (runtime === "api" && API_BASE) {
+        const target = incidents.find((i) => i.id === incidentId);
         const actionRes = await fetch(`${API_BASE}/incidents/${incidentId}/action`, {
           method: "POST",
           headers: buildHeaders(true),
-          body: JSON.stringify({ action, actor: "treasury-operator" })
+          body: JSON.stringify({
+            action,
+            actor: "treasury-operator",
+            incident: target
+              ? {
+                  id: target.id,
+                  title: target.title,
+                  severity: target.severity,
+                  status: target.status,
+                  recommendedPlaybook: target.recommendedPlaybook,
+                  wallet: "",
+                  details: "",
+                  evidence: [],
+                  createdAt: new Date().toISOString()
+                }
+              : undefined
+          })
         });
         if (!actionRes.ok) throw new Error(`Action failed (${actionRes.status})`);
         const actionBody = (await actionRes.json()) as { playbookExecution?: PlaybookExecution | null };

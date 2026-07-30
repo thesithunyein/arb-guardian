@@ -39,7 +39,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const s = store();
-  const incident = s.incidents.find((i) => i.id === incidentId);
+  let incident = s.incidents.find((i) => i.id === incidentId);
+
+  // Serverless instances do not share memory — accept client-provided incident snapshot.
+  if (!incident && req.body?.incident && typeof req.body.incident === "object") {
+    const incoming = req.body.incident as {
+      id?: string;
+      title?: string;
+      details?: string;
+      wallet?: string;
+      severity?: string;
+      status?: string;
+      recommendedPlaybook?: string;
+      evidence?: string[];
+      createdAt?: string;
+    };
+    incident = {
+      id: incoming.id || incidentId,
+      title: incoming.title || `Incident ${incidentId}`,
+      details: incoming.details || "",
+      wallet: incoming.wallet || "",
+      severity: incoming.severity || "high",
+      status: incoming.status || "open",
+      recommendedPlaybook: incoming.recommendedPlaybook || "hold-transaction-and-require-admin-review",
+      evidence: Array.isArray(incoming.evidence) ? incoming.evidence : [],
+      createdAt: incoming.createdAt || new Date().toISOString()
+    };
+    s.incidents = [incident, ...s.incidents.filter((i) => i.id !== incident!.id)].slice(0, 50);
+  }
+
   if (!incident) return res.status(404).json({ error: "incident_not_found" });
 
   if (action === "mitigate") incident.status = "mitigated";
