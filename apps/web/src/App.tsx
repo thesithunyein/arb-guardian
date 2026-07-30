@@ -424,12 +424,13 @@ export function App() {
       </header>
 
       <section className="hero">
-        <p className="eyebrow">Live on Arbitrum Sepolia · Policy-bounded agentic ops</p>
+        <p className="eyebrow">Arbitrum Sepolia · Live treasury console</p>
         <h2>
-          <span className="accent">Stop</span> unsafe treasury execution
+          <span className="accent">Arb</span> Guardian
         </h2>
         <p className="hero-lead">
-          Onchain allowlists and limits. Deterministic risk evidence. Bounded playbooks operators can trust.
+          Treasury risk operations for Arbitrum teams — onchain policy, clear risk evidence, and bounded incident
+          response.
         </p>
         <div className="cta-row">
           <button type="button" className="primary" onClick={runAssessment} disabled={loading}>
