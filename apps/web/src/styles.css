@@ -21,10 +21,12 @@
   --ok: #5dffb0;
   --warn: #ffd166;
   --shadow: 4px 4px 0 rgba(0, 0, 0, 0.45);
+  --shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.28);
   --font-sans: "Mulish", "Segoe UI", sans-serif;
   --font-pixel: "Pixelify Sans", "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
   --radius: 4px;
+  --radius-product: 10px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   color-scheme: dark;
 }
@@ -51,7 +53,26 @@
   --ok: #12a56a;
   --warn: #e6a800;
   --shadow: 4px 4px 0 rgba(30, 60, 140, 0.12);
+  --shadow-soft: 0 10px 28px rgba(30, 60, 140, 0.1);
   color-scheme: light;
+}
+
+/* Quiet backdrop once officers are inside the product */
+.pixel-world.quiet .pw-sky {
+  background:
+    radial-gradient(900px 420px at 12% -10%, rgba(61, 139, 255, 0.16), transparent 55%),
+    radial-gradient(700px 360px at 88% 0%, rgba(229, 255, 93, 0.06), transparent 50%),
+    linear-gradient(180deg, #070d1a 0%, #0b1220 55%, #0d1526 100%);
+}
+
+[data-theme="light"] .pixel-world.quiet .pw-sky {
+  background:
+    radial-gradient(900px 420px at 12% -10%, rgba(43, 107, 255, 0.12), transparent 55%),
+    linear-gradient(180deg, #dce7ff 0%, #e8eefc 100%);
+}
+
+.pixel-world.quiet .pw-vignette {
+  opacity: 0.35;
 }
 
 * {
@@ -270,6 +291,21 @@ a:hover {
   overflow: hidden;
 }
 
+.app-shell.product-mode .brand-mark-frame {
+  width: 42px;
+  height: 42px;
+  border-width: 1px;
+  border-color: rgba(229, 255, 93, 0.45);
+  border-radius: 10px;
+  box-shadow: none;
+  background: rgba(11, 18, 32, 0.85);
+}
+
+.app-shell.product-mode .brand-mark-frame img {
+  width: 34px;
+  height: 34px;
+}
+
 .brand-mark-frame img {
   width: 40px;
   height: 40px;
@@ -298,6 +334,13 @@ a:hover {
   line-height: 1.15;
 }
 
+.app-shell.product-mode .brand-title {
+  font-family: var(--font-sans);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
 .brand-title .accent {
   color: var(--lime);
 }
@@ -307,6 +350,13 @@ a:hover {
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 700;
+}
+
+.app-shell.product-mode .brand-sub {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--muted);
 }
 
 .topbar-actions {
@@ -329,6 +379,15 @@ a:hover {
   min-width: 148px;
 }
 
+.app-shell.product-mode .xp-hud {
+  border-width: 1px;
+  border-radius: 999px;
+  box-shadow: none;
+  background: rgba(20, 28, 46, 0.88);
+  min-width: 132px;
+  padding: 0.28rem 0.55rem 0.28rem 0.28rem;
+}
+
 .level-badge {
   width: 34px;
   height: 34px;
@@ -341,6 +400,17 @@ a:hover {
   background: var(--lime);
   border: 2px solid #fff8b0;
   box-shadow: 2px 2px 0 var(--lime-deep);
+}
+
+.app-shell.product-mode .level-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: none;
+  box-shadow: none;
+  font-family: var(--font-sans);
+  font-size: 0.62rem;
+  font-weight: 800;
 }
 
 .xp-meta strong {
@@ -394,6 +464,27 @@ a:hover {
   color: #3a2a00;
   background: var(--gold);
   border-color: #fff3c4;
+}
+
+.app-shell.product-mode .chip,
+.app-shell.product-mode .icon-btn {
+  border-width: 1px;
+  border-radius: 999px;
+  box-shadow: none;
+  font-weight: 700;
+  background: rgba(20, 28, 46, 0.88);
+}
+
+.app-shell.product-mode .chip.status-chip.ok {
+  color: var(--ok);
+  background: rgba(93, 255, 176, 0.1);
+  border-color: rgba(93, 255, 176, 0.35);
+}
+
+.app-shell.product-mode .chip.status-chip.warn {
+  color: var(--gold);
+  background: rgba(255, 209, 102, 0.12);
+  border-color: rgba(255, 209, 102, 0.4);
 }
 
 .chip .pulse-dot {
@@ -535,6 +626,13 @@ a:hover {
   box-shadow: var(--shadow);
   display: grid;
   gap: 0.25rem;
+}
+
+.app-shell.product-mode .more-menu {
+  border-width: 1px;
+  border-radius: var(--radius-product);
+  box-shadow: var(--shadow-soft);
+  background: rgba(20, 28, 46, 0.98);
 }
 
 .more-menu button {
@@ -845,6 +943,19 @@ a:hover {
   background: rgba(255, 255, 255, 0.7);
 }
 
+.app-shell.product-mode .tabs {
+  margin: 0;
+  border-width: 1px;
+  border-radius: var(--radius-product);
+  box-shadow: none;
+  background: rgba(14, 22, 38, 0.82);
+  backdrop-filter: blur(10px);
+}
+
+[data-theme="light"] .app-shell.product-mode .tabs {
+  background: rgba(255, 255, 255, 0.86);
+}
+
 .tab {
   flex: 1 0 auto;
   min-width: 6.2rem;
@@ -875,6 +986,18 @@ a:hover {
   background: var(--lime);
   border-color: #fff8b0;
   box-shadow: 3px 3px 0 var(--lime-deep);
+}
+
+.app-shell.product-mode .tab {
+  border-width: 1px;
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
+  font-weight: 700;
+}
+
+.app-shell.product-mode .tab.active {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .tab:focus-visible,
@@ -909,6 +1032,14 @@ button:focus-visible,
   gap: 0.4rem;
 }
 
+.app-shell.product-mode .section h3,
+.app-shell.product-mode .surface h3 {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
 .section h3 svg,
 .surface h3 svg {
   color: var(--lime);
@@ -938,6 +1069,41 @@ button:focus-visible,
   box-shadow: var(--shadow);
 }
 
+.app-shell.product-mode .section.soft,
+.app-shell.product-mode .soft-box,
+.app-shell.product-mode .surface,
+.app-shell.product-mode .policy-snapshot,
+.app-shell.product-mode .retain-card,
+.app-shell.product-mode .badge-pill,
+.app-shell.product-mode .howto li,
+.app-shell.product-mode .kpi,
+.app-shell.product-mode .incident-item,
+.app-shell.product-mode .evidence-grid article,
+.app-shell.product-mode .empty-state,
+.app-shell.product-mode .quest-check li,
+.app-shell.product-mode .seller-point {
+  border-width: 1px;
+  border-radius: var(--radius-product);
+  box-shadow: var(--shadow-soft);
+  background: rgba(20, 28, 46, 0.92);
+}
+
+[data-theme="light"] .app-shell.product-mode .section.soft,
+[data-theme="light"] .app-shell.product-mode .soft-box,
+[data-theme="light"] .app-shell.product-mode .surface,
+[data-theme="light"] .app-shell.product-mode .policy-snapshot,
+[data-theme="light"] .app-shell.product-mode .retain-card,
+[data-theme="light"] .app-shell.product-mode .badge-pill,
+[data-theme="light"] .app-shell.product-mode .howto li,
+[data-theme="light"] .app-shell.product-mode .kpi,
+[data-theme="light"] .app-shell.product-mode .incident-item,
+[data-theme="light"] .app-shell.product-mode .evidence-grid article,
+[data-theme="light"] .app-shell.product-mode .empty-state,
+[data-theme="light"] .app-shell.product-mode .quest-check li,
+[data-theme="light"] .app-shell.product-mode .seller-point {
+  background: rgba(255, 255, 255, 0.94);
+}
+
 .section.soft,
 .soft-box {
   padding: 1rem 1.1rem;
@@ -961,6 +1127,15 @@ button:focus-visible,
   color: var(--lime);
   font-family: var(--font-pixel);
   font-size: 0.7rem;
+}
+
+.app-shell.product-mode .snapshot-label {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .policy-snapshot strong {
@@ -1115,6 +1290,27 @@ button.primary:active:not(:disabled) {
   box-shadow: 2px 2px 0 var(--lime-deep);
 }
 
+.app-shell.product-mode button.primary,
+.app-shell.product-mode button.ghost {
+  border-width: 1px;
+  border-radius: 9px;
+  box-shadow: none;
+}
+
+.app-shell.product-mode button.primary {
+  border-color: transparent;
+}
+
+.app-shell.product-mode button.primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(229, 255, 93, 0.18);
+}
+
+.app-shell.product-mode button.primary:active:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
 button.primary.full,
 button.ghost.full {
   width: 100%;
@@ -1127,6 +1323,10 @@ button.ghost {
   border-color: var(--line-strong);
   padding: 0.78rem 1.15rem;
   box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.25);
+}
+
+.app-shell.product-mode button.ghost {
+  background: rgba(180, 210, 255, 0.06);
 }
 
 button.ghost:hover {
@@ -1355,6 +1555,19 @@ button:disabled {
 
 [data-theme="light"] .scenario {
   background: rgba(255, 255, 255, 0.8);
+}
+
+.app-shell.product-mode .scenario {
+  border-width: 1px;
+  border-radius: 10px;
+  box-shadow: none;
+  background: rgba(8, 14, 28, 0.28);
+}
+
+.app-shell.product-mode .scenario.active {
+  border-color: rgba(229, 255, 93, 0.7);
+  background: rgba(229, 255, 93, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(229, 255, 93, 0.18);
 }
 
 .scenario strong {
@@ -1663,6 +1876,17 @@ button:disabled {
   margin: 0 0 0.85rem;
 }
 
+.workspace-chrome {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0 0 1rem;
+}
+
+.app-shell.product-mode .product-bar {
+  margin: 0;
+  padding: 0 0.15rem;
+}
+
 .practice-pill {
   display: inline-flex;
   align-items: center;
@@ -1676,10 +1900,28 @@ button:disabled {
   font-family: var(--font-pixel);
 }
 
+.app-shell.product-mode .practice-pill {
+  border-width: 1px;
+  border-radius: 999px;
+  border-color: rgba(180, 210, 255, 0.22);
+  background: rgba(180, 210, 255, 0.08);
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.28rem 0.65rem;
+}
+
 .guild-chip {
   color: var(--muted);
   font-size: 0.84rem;
   font-weight: 700;
+}
+
+.app-shell.product-mode .guild-chip {
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 
 .guild-input {
@@ -1691,6 +1933,12 @@ button:disabled {
   border-radius: var(--radius);
   padding: 0.25rem 0.5rem;
   min-width: 10rem;
+}
+
+.app-shell.product-mode .guild-input {
+  border-width: 1px;
+  border-radius: 8px;
+  font-weight: 700;
 }
 
 .coach-strip {
@@ -1705,6 +1953,15 @@ button:disabled {
   background: rgba(229, 255, 93, 0.08);
   box-shadow: var(--shadow);
   grid-column: 1 / -1;
+}
+
+.app-shell.product-mode .coach-strip {
+  border-width: 1px;
+  border-radius: var(--radius-product);
+  border-color: rgba(61, 139, 255, 0.28);
+  background: rgba(61, 139, 255, 0.08);
+  box-shadow: none;
+  padding: 0.65rem 0.85rem;
 }
 
 .coach-strip strong {
@@ -1723,6 +1980,19 @@ button:disabled {
   max-width: 62ch;
 }
 
+.app-shell.product-mode .coach-strip p {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.app-shell.product-mode .coach-dismiss {
+  border-width: 1px;
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+}
+
 .decision-copy {
   margin: 0 0 0.85rem;
   font-weight: 700;
@@ -1737,11 +2007,22 @@ button:disabled {
   margin-bottom: 0.65rem;
 }
 
+.app-shell.product-mode .officer-ai {
+  border-width: 1px;
+  border-radius: var(--radius-product);
+}
+
 .officer-ai strong {
   display: block;
   font-family: var(--font-pixel);
   color: var(--accent-bright);
   margin-bottom: 0.25rem;
+}
+
+.app-shell.product-mode .officer-ai strong {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .officer-ai p {
@@ -1765,9 +2046,20 @@ button:disabled {
   box-shadow: var(--shadow);
 }
 
+.app-shell.product-mode .freeze-success {
+  border-width: 1px;
+  border-radius: var(--radius-product);
+  box-shadow: none;
+}
+
 .freeze-success strong {
   display: block;
   font-family: var(--font-pixel);
   color: var(--gold);
   margin-bottom: 0.3rem;
+}
+
+.app-shell.product-mode .freeze-success strong {
+  font-family: var(--font-sans);
+  font-weight: 800;
 }

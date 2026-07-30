@@ -505,6 +505,7 @@ export function App() {
     setError(null);
     setWhyOpen(false);
     setTab("review");
+    if (!coachDismissed) dismissCoach();
     try {
       if (runtime === "api" && API_BASE) {
         const res = await fetch(`${API_BASE}/risk/assess`, {
@@ -697,14 +698,14 @@ export function App() {
 
   return (
     <>
-      <BrandBackdrop />
+      <BrandBackdrop quiet={entered} />
       {xpToast && <div className="xp-toast">{xpToast}</div>}
       {cutscene && (
         <div className="cutscene" role="dialog" aria-modal="true" aria-label="Badge unlocked">
           <div className="cutscene-card">
-            <h3>Badge unlocked!</h3>
+            <h3>Badge unlocked</h3>
             <p>
-              You earned <strong>{cutscene}</strong>. Progress stays on this device — keep protecting the guild bank.
+              You earned <strong>{cutscene}</strong>. Progress stays on this device.
             </p>
             <button
               type="button"
@@ -714,12 +715,12 @@ export function App() {
                 setCutscene(null);
               }}
             >
-              Continue adventure
+              Continue
             </button>
           </div>
         </div>
       )}
-      <div className={`app-shell ${entered ? "entered" : "title-screen"}`}>
+      <div className={`app-shell ${entered ? "entered product-mode" : "title-screen"}`}>
       <header className="topbar">
         <a className="brand" href="/" aria-label="Arb Guardian home">
           <span className="brand-mark-frame">
@@ -729,7 +730,7 @@ export function App() {
             <h1 className="brand-title">
               <span className="accent">Arb</span> Guardian
             </h1>
-            <p className="brand-sub">{entered ? guildName : "Guild Quest"}</p>
+            <p className="brand-sub">{entered ? "Guild bank protection" : "Gaming · guild bank"}</p>
           </div>
         </a>
         <div className="topbar-actions">
@@ -745,7 +746,10 @@ export function App() {
             </div>
           )}
           {entered && (
-            <span className={`chip ${policyPaused ? "warn" : "ok"}`} title={rpcLive ? "Live" : "Connecting"}>
+            <span
+              className={`chip status-chip ${policyPaused ? "warn" : "ok"}`}
+              title={rpcLive ? "Live rules connected" : "Connecting"}
+            >
               {!policyPaused && <span className="pulse-dot" />}
               {statusLabel}
             </span>
@@ -795,88 +799,89 @@ export function App() {
         </section>
       ) : (
         <>
-          <div className="product-bar">
-            <span className="practice-pill">Practice spends · live bank rules</span>
-            <span className="guild-chip">
-              {editingGuild ? (
-                <input
-                  className="guild-input"
-                  value={guildName}
-                  onChange={(e) => setGuildName(e.target.value.slice(0, 28))}
-                  onBlur={() => setEditingGuild(false)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") setEditingGuild(false);
-                  }}
-                  autoFocus
-                  aria-label="Guild name"
-                />
-              ) : (
+          <div className="workspace-chrome">
+            <nav className="tabs" aria-label="Primary">
+              {coreTabs.map(([id, label, icon]) => (
                 <button
+                  key={id}
                   type="button"
-                  className="linkish inline"
+                  className={`tab ${tab === id ? "active" : ""}`}
                   onClick={() => {
                     void sfxClick();
-                    setEditingGuild(true);
+                    setTab(id);
                   }}
                 >
-                  {guildName}
+                  {icon}
+                  {label}
                 </button>
-              )}
-            </span>
-          </div>
-
-          <nav className="tabs" aria-label="Primary">
-            {coreTabs.map(([id, label, icon]) => (
-              <button
-                key={id}
-                type="button"
-                className={`tab ${tab === id ? "active" : ""}`}
-                onClick={() => {
-                  void sfxClick();
-                  setTab(id);
-                }}
-              >
-                {icon}
-                {label}
-              </button>
-            ))}
-            <div className="more-wrap">
-              <button
-                type="button"
-                className={`tab ${moreOpen || moreTabs.some(([id]) => id === tab) ? "active" : ""}`}
-                onClick={() => {
-                  void sfxClick();
-                  setMoreOpen((v) => !v);
-                }}
-                aria-expanded={moreOpen}
-              >
-                More
-              </button>
-              {moreOpen && (
-                <div className="more-menu" role="menu">
-                  {moreTabs.map(([id, label, icon]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      role="menuitem"
-                      className={tab === id ? "active" : ""}
-                      onClick={() => {
-                        void sfxClick();
-                        setTab(id);
-                        setMoreOpen(false);
-                      }}
-                    >
-                      {icon}
-                      {label}
+              ))}
+              <div className="more-wrap">
+                <button
+                  type="button"
+                  className={`tab ${moreOpen || moreTabs.some(([id]) => id === tab) ? "active" : ""}`}
+                  onClick={() => {
+                    void sfxClick();
+                    setMoreOpen((v) => !v);
+                  }}
+                  aria-expanded={moreOpen}
+                >
+                  More
+                </button>
+                {moreOpen && (
+                  <div className="more-menu" role="menu">
+                    {moreTabs.map(([id, label, icon]) => (
+                      <button
+                        key={id}
+                        type="button"
+                        role="menuitem"
+                        className={tab === id ? "active" : ""}
+                        onClick={() => {
+                          void sfxClick();
+                          setTab(id);
+                          setMoreOpen(false);
+                        }}
+                      >
+                        {icon}
+                        {label}
+                      </button>
+                    ))}
+                    <button type="button" role="menuitem" onClick={resetPractice}>
+                      Reset practice
                     </button>
-                  ))}
-                  <button type="button" role="menuitem" onClick={resetPractice}>
-                    Reset practice
+                  </div>
+                )}
+              </div>
+            </nav>
+            <div className="product-bar">
+              <span className="practice-pill">Practice mode · live bank rules</span>
+              <span className="guild-chip">
+                {editingGuild ? (
+                  <input
+                    className="guild-input"
+                    value={guildName}
+                    onChange={(e) => setGuildName(e.target.value.slice(0, 28))}
+                    onBlur={() => setEditingGuild(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") setEditingGuild(false);
+                    }}
+                    autoFocus
+                    aria-label="Guild name"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className="linkish inline"
+                    onClick={() => {
+                      void sfxClick();
+                      setEditingGuild(true);
+                    }}
+                  >
+                    {guildName}
                   </button>
-                </div>
-              )}
+                )}
+              </span>
             </div>
-          </nav>
+          </div>
 
           <div className="panel" key={tab}>
             {tab === "home" && (
@@ -974,26 +979,22 @@ export function App() {
             {tab === "review" && (
               <div className="grid">
                 {!coachDismissed && (
-                  <section className="coach-strip span-2">
-                    <div>
-                      <strong>Quick coach</strong>
-                      <p>
-                        1) Pick a spend · 2) Tap Check · 3) If blocked, open Alerts and freeze. Officer AI suggests —
-                        you decide.
-                      </p>
-                    </div>
-                    <button type="button" className="ghost" onClick={dismissCoach}>
-                      Got it
+                  <aside className="coach-strip span-2" aria-label="Tip">
+                    <p>
+                      Pick a spend, tap Check. If blocked, open Alerts — Officer AI suggests, you freeze.
+                    </p>
+                    <button type="button" className="ghost coach-dismiss" onClick={dismissCoach}>
+                      Dismiss
                     </button>
-                  </section>
+                  </aside>
                 )}
 
                 <section className="surface">
                   <h3>
                     <IconReview size={18} /> Is this spend safe?
                   </h3>
-                  <p className="muted" style={{ marginBottom: "0.85rem" }}>
-                    Choose one practice spend, then tap Check. You’ll get Allow or Block in plain language.
+                  <p className="muted section-lead">
+                    Choose a practice spend, then check it. You’ll get Allow or Block in plain language.
                   </p>
                   <div className="scenario-list">
                     {(Object.keys(INTENTS) as IntentId[]).map((id) => (
