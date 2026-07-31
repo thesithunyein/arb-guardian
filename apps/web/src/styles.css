@@ -1850,12 +1850,89 @@ button:disabled {
   }
 
   .topbar {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+  }
+
+  .topbar-actions {
+    margin-left: auto;
   }
 
   .tab {
     flex: 0 0 auto;
+  }
+
+  .app-shell {
+    padding: 0.85rem 0.85rem 14vh;
+  }
+
+  .title-hero {
+    min-height: auto;
+    padding: 1.5rem 0 2rem;
+  }
+
+  .hero-logo {
+    width: 88px;
+    height: 88px;
+  }
+
+  .cta-row {
+    width: 100%;
+  }
+
+  .cta-row .primary,
+  .cta-row .ghost {
+    flex: 1 1 100%;
+  }
+
+  .tabs {
+    gap: 0.3rem;
+    padding: 0.3rem;
+  }
+
+  .tab {
+    min-width: auto;
+    padding: 0.55rem 0.65rem;
+    font-size: 0.78rem;
+  }
+
+  .policy-snapshot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .snapshot-actions {
+    width: 100%;
+  }
+
+  .snapshot-actions .primary,
+  .snapshot-actions .ghost {
+    width: 100%;
+  }
+
+  .review-layout {
+    max-width: none;
+  }
+
+  .review-main {
+    padding: 1.05rem 1rem 1.15rem;
+  }
+
+  .review-amount {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .incident-item .actions {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .incident-item .actions button {
+    width: 100%;
   }
 }
 
@@ -1865,6 +1942,19 @@ button:disabled {
   .asset-grid,
   .judge-grid {
     grid-template-columns: 1fr;
+  }
+
+  .brand-title {
+    font-size: 0.98rem;
+  }
+
+  .chip.status-chip {
+    display: none;
+  }
+
+  .footer {
+    font-size: 0.78rem;
+    text-align: center;
   }
 }
 
@@ -2304,11 +2394,25 @@ button:disabled {
 
 @media (max-width: 640px) {
   .quiet-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+    padding: 0.85rem 0.7rem;
+  }
+
+  .quiet-stats strong {
+    font-size: 1.1rem;
+  }
+
+  .quiet-stats span {
+    font-size: 0.68rem;
   }
 
   .review-head {
     flex-direction: column;
+  }
+
+  .review-switch {
+    width: 100%;
   }
 
   .app-shell.product-mode .review-meta {
@@ -2332,6 +2436,15 @@ button:disabled {
   }
 
   .waitlist-form .primary {
+    width: 100%;
+  }
+
+  .decision-card .cta-row {
+    width: 100%;
+  }
+
+  .decision-card .cta-row .primary,
+  .decision-card .cta-row .ghost {
     width: 100%;
   }
 }

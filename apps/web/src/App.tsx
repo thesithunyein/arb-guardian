@@ -912,7 +912,7 @@ export function App() {
                     <p className="snapshot-label">For guild officers</p>
                     <strong>Get notified when we open enroll</strong>
                     <p className="muted">
-                      Real interest only — no fake counters.
+                      Real interest only.
                       {waitlistCount > 0 ? ` ${waitlistCount} guild${waitlistCount === 1 ? "" : "s"} waiting.` : ""}
                     </p>
                   </div>
