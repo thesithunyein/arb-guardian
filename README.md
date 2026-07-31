@@ -5,48 +5,26 @@
 </p>
 
 <p align="center">
-  <strong>The most fun way to protect your guild bank</strong><br/>
-  Your guild shares one bank. Fake shops try to drain it. Check spends before anyone signs.
+  <strong>Guild bank protection for gaming teams</strong><br/>
+  Review spends before anyone signs. Block scams. Freeze when it matters.
 </p>
 
 <p align="center">
-  <a href="https://arb-guardian.vercel.app"><img src="https://img.shields.io/badge/▶_Play_live-E5FF5D?style=for-the-badge&labelColor=0B1220" alt="Play live" /></a>
+  <a href="https://arb-guardian.vercel.app"><img src="https://img.shields.io/badge/Live_app-E5FF5D?style=for-the-badge&labelColor=0B1220" alt="Live app" /></a>
   <img src="https://img.shields.io/badge/Category-Gaming-28A0F0?style=for-the-badge&labelColor=0B1220" alt="Gaming" />
 </p>
 
----
+**Live:** [arb-guardian.vercel.app](https://arb-guardian.vercel.app)
 
-## Launch loop (60 seconds)
+## Product
 
-1. **Press start**  
-2. **Check spend** — unknown marketplace approval  
-3. **Block** — Officer AI suggests freeze (cannot move funds)  
-4. **Alerts → Freeze** — human click  
-5. **Live networks** — Arbitrum + Robinhood explorers  
+Arb Guardian helps guild officers protect a shared prize pot: check a spend, get Allow/Block from bounded Officer AI, and freeze spending with a human click. Live on Arbitrum Sepolia and Robinhood Chain.
 
-**Play → [arb-guardian.vercel.app](https://arb-guardian.vercel.app)** · Practice mode · no wallet needed to try
-
-## How it works
-
-```mermaid
-flowchart LR
-  A[Someone asks the bank to pay] --> B[Officer checks the spend]
-  B --> C{Safe?}
-  C -->|Yes| D[Allow]
-  C -->|No| E[Block + Officer AI suggestion]
-  E --> F[Officer freezes the bank]
-```
-
-## Who it’s for
-
-Guild officers, clan managers, and esports teams that share a prize pot.
-
-## For builders
+## Docs
 
 - [`docs/architecture.md`](docs/architecture.md) — system design  
-- [`docs/live-deployment.md`](docs/live-deployment.md) — Arbitrum + Robinhood addresses  
+- [`docs/live-deployment.md`](docs/live-deployment.md) — contract addresses  
 - [`docs/agent-permissions-matrix.md`](docs/agent-permissions-matrix.md) — Officer AI bounds  
-- [`docs/demo-video-script.md`](docs/demo-video-script.md) — 90s demo  
 
 ```bash
 npm install
