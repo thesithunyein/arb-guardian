@@ -2069,7 +2069,7 @@ button:disabled {
 }
 
 .review-main {
-  padding: 1.35rem 1.45rem 1.5rem;
+  padding: 1.4rem 1.5rem 1.55rem;
 }
 
 .review-head {
@@ -2081,20 +2081,123 @@ button:disabled {
 }
 
 .review-head h3 {
-  margin: 0.15rem 0 0.35rem;
-  font-size: 1.35rem;
-  letter-spacing: -0.02em;
+  margin: 0.4rem 0 0.35rem;
+  font-size: 1.4rem;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.review-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.review-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: rgba(180, 210, 255, 0.08);
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.review-badge.risk {
+  border-color: rgba(255, 107, 138, 0.45);
+  background: rgba(255, 107, 138, 0.12);
+  color: #ff8aa4;
+}
+
+.review-badge.ok {
+  border-color: rgba(93, 255, 176, 0.4);
+  background: rgba(93, 255, 176, 0.1);
+  color: var(--ok);
+}
+
+.review-switch {
+  flex: 0 0 auto;
+  padding: 0.45rem 0.75rem !important;
+  font-size: 0.78rem !important;
+  white-space: nowrap;
+}
+
+.review-amount {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 0.9rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-product);
+  border: 1px solid rgba(229, 255, 93, 0.28);
+  background:
+    linear-gradient(135deg, rgba(229, 255, 93, 0.12), rgba(61, 139, 255, 0.08)),
+    rgba(8, 14, 28, 0.45);
+}
+
+.review-amount span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.review-amount strong {
+  font-size: clamp(1.55rem, 4vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 .review-meta {
-  margin: 0 0 1.2rem;
+  margin: 0 0 1.15rem;
 }
 
 .app-shell.product-mode .review-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-product);
-  padding: 0.35rem 1rem;
-  background: rgba(8, 14, 28, 0.35);
+  padding: 0.15rem 0.15rem;
+  background: rgba(8, 14, 28, 0.4);
+}
+
+.app-shell.product-mode .review-meta > div {
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+}
+
+.app-shell.product-mode .review-meta > div:nth-child(2n) {
+  border-right: none;
+}
+
+.app-shell.product-mode .review-meta > div:nth-last-child(-n + 2) {
+  border-bottom: none;
+}
+
+.app-shell.product-mode .review-meta dt {
+  margin-bottom: 0.2rem;
+  font-size: 0.68rem;
+}
+
+.app-shell.product-mode .review-meta dd {
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+}
+
+.review-cta {
+  margin-top: 0.15rem !important;
+  min-height: 3rem;
+  font-size: 0.95rem;
 }
 
 .spend-switch {
@@ -2206,6 +2309,22 @@ button:disabled {
 
   .review-head {
     flex-direction: column;
+  }
+
+  .app-shell.product-mode .review-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .app-shell.product-mode .review-meta > div {
+    border-right: none;
+  }
+
+  .app-shell.product-mode .review-meta > div:nth-last-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .app-shell.product-mode .review-meta > div:last-child {
+    border-bottom: none;
   }
 
   .waitlist-form {

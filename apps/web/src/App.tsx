@@ -951,13 +951,20 @@ export function App() {
                 <section className="surface review-main">
                   <div className="review-head">
                     <div>
-                      <p className="snapshot-label">Pending review</p>
+                      <div className="review-badges">
+                        <span className="review-badge">Pending</span>
+                        {(policyState?.allowlisted ?? payload.allowlisted) ? (
+                          <span className="review-badge ok">On allowlist</span>
+                        ) : (
+                          <span className="review-badge risk">Not on allowlist</span>
+                        )}
+                      </div>
                       <h3>{currentSpend.label}</h3>
                       <p className="muted">{currentSpend.blurb}</p>
                     </div>
                     <button
                       type="button"
-                      className="linkish"
+                      className="ghost review-switch"
                       onClick={() => {
                         void sfxClick();
                         setSpendPickerOpen((v) => !v);
@@ -993,6 +1000,11 @@ export function App() {
                     </div>
                   )}
 
+                  <div className="review-amount">
+                    <span>Amount</span>
+                    <strong>{formatEth(payload.amountWei)}</strong>
+                  </div>
+
                   <dl className="meta review-meta">
                     <div>
                       <dt>Type</dt>
@@ -1007,25 +1019,27 @@ export function App() {
                       <dd>{currentSpend.vendor}</dd>
                     </div>
                     <div>
-                      <dt>Amount</dt>
-                      <dd>{formatEth(payload.amountWei)}</dd>
-                    </div>
-                    <div>
-                      <dt>Approved list</dt>
-                      <dd>{(policyState?.allowlisted ?? payload.allowlisted) ? "Yes" : "No"}</dd>
-                    </div>
-                    <div>
                       <dt>Daily budget</dt>
                       <dd>
                         {policyState ? `${policyState.dailyLimitEth} ETH` : formatEth(payload.dailyLimitWei)}
                       </dd>
+                    </div>
+                    <div>
+                      <dt>Spent today</dt>
+                      <dd>
+                        {policyState ? `${policyState.spentTodayEth} ETH` : formatEth(payload.spentTodayWei)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Allowlist</dt>
+                      <dd>{(policyState?.allowlisted ?? payload.allowlisted) ? "Yes" : "No"}</dd>
                     </div>
                   </dl>
 
                   {!assessment ? (
                     <button
                       type="button"
-                      className="primary full"
+                      className="primary full review-cta"
                       onClick={() => {
                         void sfxClick();
                         void runAssessment();
