@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from "react";
 import { pingRpc, readOnchainPolicy, type OnchainPolicy } from "./chain";
 import {
   API_BASE,
@@ -50,6 +50,15 @@ type BadgeState = Record<BadgeKey, boolean>;
 const XP_STORAGE = "arb-guardian-xp-v1";
 const BADGE_STORAGE = "arb-guardian-badges-v1";
 const GUILD_STORAGE = "arb-guardian-guild-v1";
+const WAITLIST_STORAGE = "arb-guardian-waitlist-joined-v1";
+
+function loadWaitlistJoined() {
+  try {
+    return localStorage.getItem(WAITLIST_STORAGE) === "1";
+  } catch {
+    return false;
+  }
+}
 
 function loadXp() {
   try {
@@ -274,6 +283,11 @@ export function App() {
   const [guildName, setGuildName] = useState(() => loadGuildName());
   const [editingGuild, setEditingGuild] = useState(false);
   const [spendPickerOpen, setSpendPickerOpen] = useState(false);
+  const [waitlistJoined, setWaitlistJoined] = useState(() => loadWaitlistJoined());
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistCount, setWaitlistCount] = useState(0);
+  const [waitlistBusy, setWaitlistBusy] = useState(false);
+  const [waitlistMsg, setWaitlistMsg] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -365,6 +379,51 @@ export function App() {
     setIntent("risky-approve");
   }
 
+  async function joinWaitlist(e: FormEvent) {
+    e.preventDefault();
+    const email = waitlistEmail.trim().toLowerCase();
+    if (!email.includes("@") || email.length < 5) {
+      setWaitlistMsg("Enter a valid email.");
+      return;
+    }
+    setWaitlistBusy(true);
+    setWaitlistMsg(null);
+    try {
+      const res = await fetch(`${API_BASE}/waitlist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, guild: guildName })
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        count?: number;
+        alreadyJoined?: boolean;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error || "Could not join");
+      setWaitlistJoined(true);
+      if (typeof data.count === "number") setWaitlistCount(data.count);
+      setWaitlistMsg(data.alreadyJoined ? "You're already on the list." : "You're on the list.");
+      try {
+        localStorage.setItem(WAITLIST_STORAGE, "1");
+      } catch {
+        // ignore
+      }
+      void sfxSuccess();
+    } catch {
+      // Offline fallback — still record intent on this device
+      setWaitlistJoined(true);
+      setWaitlistCount((c) => Math.max(c, 1));
+      setWaitlistMsg("Saved on this device. We'll sync when the API is live.");
+      try {
+        localStorage.setItem(WAITLIST_STORAGE, "1");
+      } catch {
+        // ignore
+      }
+    } finally {
+      setWaitlistBusy(false);
+    }
+  }
+
   function awardXp(amount: number, label: string, badgeKey?: BadgeKey, tone: "xp" | "block" | "success" | "freeze" = "xp") {
     setXp((v) => v + amount);
     setXpToast(label);
@@ -424,6 +483,14 @@ export function App() {
 
   useEffect(() => {
     pingRpc().then(setRpcLive);
+    fetch(`${API_BASE}/waitlist`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && typeof data.count === "number") setWaitlistCount(data.count);
+      })
+      .catch(() => {
+        // ignore
+      });
     if (!API_BASE) {
       setRuntime("onchain-console");
       return;
@@ -744,7 +811,7 @@ export function App() {
             <span className="accent">Arb</span> Guardian
           </h2>
           <p className="hero-lead">
-            Real guild assets. Real onchain rules. Played like a quest — not a spreadsheet.
+            Review guild spends before anyone signs. Block scams. Freeze when it matters.
           </p>
           <div className="cta-row">
             <button type="button" className="primary" onClick={enterWorld}>
@@ -758,7 +825,7 @@ export function App() {
               }}
               disabled={loading}
             >
-              {loading ? "Checking…" : "Skip to first quest"}
+              {loading ? "Checking…" : "Jump to review"}
             </button>
           </div>
           {error && <p className="error">{error}</p>}
@@ -788,13 +855,19 @@ export function App() {
                 <section className="policy-snapshot" aria-label="Guild bank status">
                   <div>
                     <p className="snapshot-label">{guildName}</p>
-                    <strong>{policyPaused ? "Spending frozen" : openIncidents > 0 ? `${openIncidents} alert${openIncidents === 1 ? "" : "s"} need attention` : "Bank ready"}</strong>
+                    <strong>
+                      {policyPaused
+                        ? "Spending frozen"
+                        : openIncidents > 0
+                          ? `${openIncidents} alert${openIncidents === 1 ? "" : "s"} need attention`
+                          : "Bank ready"}
+                    </strong>
                     <p className="muted">
                       {policyPaused
                         ? "Unfreeze from Alerts when it is safe"
                         : openIncidents > 0
                           ? "Review the queue and freeze if needed"
-                          : "One pending spend is waiting for review"}
+                          : "Review the pending spend when you're ready"}
                     </p>
                   </div>
                   <div className="snapshot-actions">
@@ -819,7 +892,7 @@ export function App() {
                   </div>
                 </section>
 
-                <section className="surface quiet-stats" aria-label="Activity">
+                <section className="surface quiet-stats" aria-label="This session">
                   <div>
                     <strong>{kpi.totalAssessments}</strong>
                     <span>Reviews</span>
@@ -833,7 +906,39 @@ export function App() {
                     <span>Open alerts</span>
                   </div>
                 </section>
-                <p className="muted" style={{ margin: 0 }}>
+
+                <section className="surface waitlist-card" aria-label="Guild waitlist">
+                  <div className="waitlist-copy">
+                    <p className="snapshot-label">For guild officers</p>
+                    <strong>Get notified when we open enroll</strong>
+                    <p className="muted">
+                      Real interest only — no fake counters.
+                      {waitlistCount > 0 ? ` ${waitlistCount} guild${waitlistCount === 1 ? "" : "s"} waiting.` : ""}
+                    </p>
+                  </div>
+                  {waitlistJoined ? (
+                    <p className="waitlist-done">{waitlistMsg || "You're on the list."}</p>
+                  ) : (
+                    <form className="waitlist-form" onSubmit={joinWaitlist}>
+                      <input
+                        type="email"
+                        name="email"
+                        autoComplete="email"
+                        placeholder="officer@guild.gg"
+                        value={waitlistEmail}
+                        onChange={(e) => setWaitlistEmail(e.target.value)}
+                        aria-label="Email"
+                        required
+                      />
+                      <button type="submit" className="primary" disabled={waitlistBusy}>
+                        {waitlistBusy ? "Joining…" : "Join waitlist"}
+                      </button>
+                    </form>
+                  )}
+                  {waitlistMsg && !waitlistJoined ? <p className="error">{waitlistMsg}</p> : null}
+                </section>
+
+                <p className="home-foot muted">
                   <button type="button" className="linkish" onClick={resetSession}>
                     Reset session
                   </button>

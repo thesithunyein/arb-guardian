@@ -2069,7 +2069,7 @@ button:disabled {
 }
 
 .review-main {
-  padding: 1.25rem 1.35rem;
+  padding: 1.35rem 1.45rem 1.5rem;
 }
 
 .review-head {
@@ -2077,16 +2077,24 @@ button:disabled {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.15rem;
 }
 
 .review-head h3 {
   margin: 0.15rem 0 0.35rem;
-  font-size: 1.25rem;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
 }
 
 .review-meta {
-  margin: 0 0 1.1rem;
+  margin: 0 0 1.2rem;
+}
+
+.app-shell.product-mode .review-meta {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-product);
+  padding: 0.35rem 1rem;
+  background: rgba(8, 14, 28, 0.35);
 }
 
 .spend-switch {
@@ -2116,6 +2124,53 @@ button:disabled {
   font-weight: 600;
 }
 
+.waitlist-card {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.15rem 1.2rem;
+}
+
+.waitlist-copy strong {
+  display: block;
+  font-size: 1.1rem;
+  letter-spacing: -0.015em;
+  margin: 0.15rem 0 0.25rem;
+}
+
+.waitlist-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.waitlist-form input {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  background: rgba(8, 14, 28, 0.45);
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  padding: 0.7rem 0.85rem;
+}
+
+.waitlist-form input:focus {
+  outline: 2px solid rgba(229, 255, 93, 0.45);
+  outline-offset: 1px;
+}
+
+.waitlist-done {
+  margin: 0;
+  font-weight: 700;
+  color: var(--ok);
+}
+
+.home-foot {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
 .app-shell.product-mode .brand-guild,
 .app-shell.product-mode .brand-sub .linkish {
   color: var(--muted);
@@ -2133,6 +2188,17 @@ button:disabled {
   margin-bottom: 1rem;
 }
 
+.app-shell.product-mode .title-hero .hero-lead,
+.title-hero .hero-lead {
+  max-width: 36ch;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.app-shell.product-mode .policy-snapshot strong {
+  letter-spacing: -0.02em;
+}
+
 @media (max-width: 640px) {
   .quiet-stats {
     grid-template-columns: 1fr;
@@ -2140,5 +2206,13 @@ button:disabled {
 
   .review-head {
     flex-direction: column;
+  }
+
+  .waitlist-form {
+    flex-direction: column;
+  }
+
+  .waitlist-form .primary {
+    width: 100%;
   }
 }

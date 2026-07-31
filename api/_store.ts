@@ -25,6 +25,7 @@ const g = globalThis as typeof globalThis & {
     scoreSum: number;
     incidents: Incident[];
     audit: Audit[];
+    waitlist: Array<{ email: string; guild: string; createdAt: string }>;
   };
 };
 
@@ -36,9 +37,11 @@ export function store() {
       critical: 0,
       scoreSum: 0,
       incidents: [],
-      audit: []
+      audit: [],
+      waitlist: []
     };
   }
+  if (!g.__arbGuardianStore.waitlist) g.__arbGuardianStore.waitlist = [];
   return g.__arbGuardianStore;
 }
 
