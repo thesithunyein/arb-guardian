@@ -309,10 +309,33 @@ function methodLabel(method: string) {
   return method;
 }
 
-function formatEth(wei: string) {
+function formatEth(wei: string | undefined | null) {
+  if (wei == null || wei === "" || wei === "undefined") return "—";
   const n = Number(wei) / 1e18;
   if (!Number.isFinite(n)) return "—";
   return `${n.toLocaleString(undefined, { maximumFractionDigits: 4 })} ETH`;
+}
+
+function budgetDisplay(
+  policyState: { dailyLimitWei?: string; dailyLimitEth?: string } | null,
+  fallbackWei: string
+) {
+  if (policyState?.dailyLimitWei) return formatEth(policyState.dailyLimitWei);
+  if (policyState?.dailyLimitEth && policyState.dailyLimitEth !== "undefined") {
+    return `${policyState.dailyLimitEth} ETH`;
+  }
+  return formatEth(fallbackWei);
+}
+
+function spentDisplay(
+  policyState: { spentTodayWei?: string; spentTodayEth?: string } | null,
+  fallbackWei: string
+) {
+  if (policyState?.spentTodayWei) return formatEth(policyState.spentTodayWei);
+  if (policyState?.spentTodayEth && policyState.spentTodayEth !== "undefined") {
+    return `${policyState.spentTodayEth} ETH`;
+  }
+  return formatEth(fallbackWei);
 }
 
 function vendorName(addr: string) {
@@ -491,6 +514,13 @@ export function App() {
     setEnrollMsg(null);
   }
 
+  function ensureWalletConnected() {
+    if (walletAddress) return true;
+    setError("Connect your officer wallet first.");
+    setTab("home");
+    return false;
+  }
+
   async function enrollGuild(e?: FormEvent) {
     e?.preventDefault();
     const name = guildName.trim() || "My Guild";
@@ -611,6 +641,12 @@ export function App() {
   useEffect(() => {
     pingRpc().then(setRpcLive);
     const local = loadLocalEnroll();
+    // Always restore local session first — never flash disconnected while API syncs.
+    if (local?.address) {
+      setWalletAddress(local.address);
+      setEnrolled(true);
+      if (local.guild) setGuildName(local.guild.slice(0, 28));
+    }
     fetch(`${API_BASE}/guilds`)
       .then((r) => (r.ok ? r.json() : null))
       .then(async (data) => {
@@ -620,8 +656,6 @@ export function App() {
         if (local) {
           const mine = list.find((g) => g.ownerFull?.toLowerCase() === local.address.toLowerCase());
           if (mine) {
-            setEnrolled(true);
-            setWalletAddress(local.address);
             if (typeof mine.usageCount === "number") setMyUsage(mine.usageCount);
           } else {
             // Re-publish signed enroll so roster survives serverless cold starts
@@ -638,22 +672,16 @@ export function App() {
               });
               if (res.ok) {
                 const body = (await res.json()) as Partial<GuildStats> & { yours?: { usageCount?: number } };
-                setEnrolled(true);
-                setWalletAddress(local.address);
                 applyGuildStats(body);
               }
             } catch {
-              setEnrolled(true);
-              setWalletAddress(local.address);
+              // keep local session even if sync fails
             }
           }
         }
       })
       .catch(() => {
-        if (local) {
-          setEnrolled(true);
-          setWalletAddress(local.address);
-        }
+        // keep local session
       });
     if (!API_BASE) {
       setRuntime("onchain-console");
@@ -703,6 +731,7 @@ export function App() {
   }, []);
 
   async function runAssessment() {
+    if (!ensureWalletConnected()) return;
     setLoading(true);
     setError(null);
     setWhyOpen(false);
@@ -742,7 +771,19 @@ export function App() {
           result.blocked ? "firstBlock" : intent === "safe-transfer" ? "cleanPayout" : "firstCheck",
           result.blocked ? "block" : "success"
         );
-        if (data.policyState) setPolicyState(data.policyState);
+        if (data.policyState) {
+          const limitWei = data.policyState.dailyLimitWei ?? payload.dailyLimitWei;
+          const spentWei = data.policyState.spentTodayWei ?? payload.spentTodayWei;
+          setPolicyState({
+            allowlisted: data.policyState.allowlisted ?? payload.allowlisted,
+            dailyLimitWei: limitWei,
+            spentTodayWei: spentWei,
+            policyPaused: Boolean((data.policyState as OnchainPolicy).policyPaused),
+            dailyLimitEth: formatEth(limitWei).replace(/ ETH$/, ""),
+            spentTodayEth: formatEth(spentWei).replace(/ ETH$/, ""),
+            source: "onchain"
+          });
+        }
         setGuardPrediction(
           predictGuardOutcome({
             allowlisted: data.policyState?.allowlisted ?? payload.allowlisted,
@@ -980,14 +1021,9 @@ export function App() {
           )}
           {entered &&
             (walletAddress ? (
-              <button
-                type="button"
-                className={`chip wallet-chip ${enrolled ? "ok" : ""}`}
-                title={`${walletAddress} · Click to disconnect`}
-                onClick={disconnectWallet}
-              >
+              <span className={`chip wallet-chip ${enrolled ? "ok" : ""}`} title={walletAddress}>
                 {shortAddress(walletAddress)}
-              </button>
+              </span>
             ) : (
               <button
                 type="button"
@@ -1264,15 +1300,13 @@ export function App() {
                       <dd>{currentSpend.vendor}</dd>
                     </div>
                     <div>
-                      <dt>Daily budget</dt>
-                      <dd>
-                        {policyState ? `${policyState.dailyLimitEth} ETH` : formatEth(payload.dailyLimitWei)}
-                      </dd>
+                      <dt>Day limit</dt>
+                      <dd title="Max the guild bank can send today">{budgetDisplay(policyState, payload.dailyLimitWei)}</dd>
                     </div>
                     <div>
                       <dt>Spent today</dt>
-                      <dd>
-                        {policyState ? `${policyState.spentTodayEth} ETH` : formatEth(payload.spentTodayWei)}
+                      <dd title="Already sent from the bank today">
+                        {spentDisplay(policyState, payload.spentTodayWei)}
                       </dd>
                     </div>
                     <div>
@@ -1280,20 +1314,40 @@ export function App() {
                       <dd>{(policyState?.allowlisted ?? payload.allowlisted) ? "Yes" : "No"}</dd>
                     </div>
                   </dl>
+                  <p className="muted review-budget-hint">
+                    Day limit is the guild rule for how much can leave the bank today. Spent today is the running total
+                    against that rule.
+                  </p>
 
                   {!assessment ? (
-                    <button
-                      type="button"
-                      className="primary full review-cta"
-                      onClick={() => {
-                        void sfxClick();
-                        void runAssessment();
-                      }}
-                      disabled={loading}
-                    >
-                      <IconCheck size={16} />
-                      {loading ? "Reviewing…" : "Review spend"}
-                    </button>
+                    walletAddress ? (
+                      <button
+                        type="button"
+                        className="primary full review-cta"
+                        onClick={() => {
+                          void sfxClick();
+                          void runAssessment();
+                        }}
+                        disabled={loading}
+                      >
+                        <IconCheck size={16} />
+                        {loading ? "Reviewing…" : "Review spend"}
+                      </button>
+                    ) : (
+                      <div className="review-connect-gate">
+                        <p className="muted">Connect your officer wallet to review spends for this guild.</p>
+                        <button
+                          type="button"
+                          className="primary full review-cta"
+                          disabled={enrollBusy}
+                          onClick={() => {
+                            void handleConnectWallet();
+                          }}
+                        >
+                          {enrollBusy ? "Connecting…" : "Connect wallet"}
+                        </button>
+                      </div>
+                    )
                   ) : (
                     <div className={`decision-card ${assessment.blocked ? "is-block" : "is-allow"}`}>
                       <p className="result-line">

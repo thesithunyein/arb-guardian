@@ -2364,6 +2364,18 @@ button:disabled {
   gap: 0.25rem;
 }
 
+.review-budget-hint {
+  margin: 0.15rem 0 0.85rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  max-width: 52ch;
+}
+
+.review-connect-gate {
+  display: grid;
+  gap: 0.65rem;
+}
+
 .enroll-done p {
   margin: 0;
 }
