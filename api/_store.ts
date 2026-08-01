@@ -17,6 +17,15 @@ type Audit = {
   createdAt: string;
 };
 
+export type GuildRecord = {
+  name: string;
+  owner: string;
+  createdAt: string;
+  lastActiveAt: string;
+  usageCount: number;
+  lastEvent: string;
+};
+
 const g = globalThis as typeof globalThis & {
   __arbGuardianStore?: {
     assessments: number;
@@ -26,6 +35,7 @@ const g = globalThis as typeof globalThis & {
     incidents: Incident[];
     audit: Audit[];
     waitlist: Array<{ email: string; guild: string; createdAt: string }>;
+    guilds: GuildRecord[];
   };
 };
 
@@ -38,10 +48,12 @@ export function store() {
       scoreSum: 0,
       incidents: [],
       audit: [],
-      waitlist: []
+      waitlist: [],
+      guilds: []
     };
   }
   if (!g.__arbGuardianStore.waitlist) g.__arbGuardianStore.waitlist = [];
+  if (!g.__arbGuardianStore.guilds) g.__arbGuardianStore.guilds = [];
   return g.__arbGuardianStore;
 }
 

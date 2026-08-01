@@ -43,20 +43,53 @@ import {
   sfxXp
 } from "./sfx";
 import { useTheme } from "./useTheme";
+import { connectWallet, shortAddress, signEnrollMessage } from "./wallet";
 
 type BadgeKey = "firstCheck" | "firstBlock" | "firstFreeze" | "cleanPayout";
 type BadgeState = Record<BadgeKey, boolean>;
 
+type LocalEnroll = {
+  address: string;
+  guild: string;
+  message: string;
+  signature: string;
+  enrolledAt: string;
+};
+
+type GuildStats = {
+  guildCount: number;
+  officerCount: number;
+  totalUsage: number;
+};
+
 const XP_STORAGE = "arb-guardian-xp-v1";
 const BADGE_STORAGE = "arb-guardian-badges-v1";
 const GUILD_STORAGE = "arb-guardian-guild-v1";
-const WAITLIST_STORAGE = "arb-guardian-waitlist-joined-v1";
+const ENROLL_STORAGE = "arb-guardian-guild-enroll-v1";
 
-function loadWaitlistJoined() {
+function loadLocalEnroll(): LocalEnroll | null {
   try {
-    return localStorage.getItem(WAITLIST_STORAGE) === "1";
+    const raw = localStorage.getItem(ENROLL_STORAGE);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<LocalEnroll>;
+    if (!parsed.address || !parsed.signature || !parsed.message) return null;
+    return {
+      address: parsed.address,
+      guild: parsed.guild || "My Guild",
+      message: parsed.message,
+      signature: parsed.signature,
+      enrolledAt: parsed.enrolledAt || new Date().toISOString()
+    };
   } catch {
-    return false;
+    return null;
+  }
+}
+
+function saveLocalEnroll(record: LocalEnroll) {
+  try {
+    localStorage.setItem(ENROLL_STORAGE, JSON.stringify(record));
+  } catch {
+    // ignore
   }
 }
 
@@ -283,11 +316,12 @@ export function App() {
   const [guildName, setGuildName] = useState(() => loadGuildName());
   const [editingGuild, setEditingGuild] = useState(false);
   const [spendPickerOpen, setSpendPickerOpen] = useState(false);
-  const [waitlistJoined, setWaitlistJoined] = useState(() => loadWaitlistJoined());
-  const [waitlistEmail, setWaitlistEmail] = useState("");
-  const [waitlistCount, setWaitlistCount] = useState(0);
-  const [waitlistBusy, setWaitlistBusy] = useState(false);
-  const [waitlistMsg, setWaitlistMsg] = useState<string | null>(null);
+  const [walletAddress, setWalletAddress] = useState<string | null>(() => loadLocalEnroll()?.address ?? null);
+  const [enrolled, setEnrolled] = useState(() => !!loadLocalEnroll());
+  const [enrollBusy, setEnrollBusy] = useState(false);
+  const [enrollMsg, setEnrollMsg] = useState<string | null>(null);
+  const [guildStats, setGuildStats] = useState<GuildStats>({ guildCount: 0, officerCount: 0, totalUsage: 0 });
+  const [myUsage, setMyUsage] = useState(0);
 
   useEffect(() => {
     try {
@@ -379,48 +413,89 @@ export function App() {
     setIntent("risky-approve");
   }
 
-  async function joinWaitlist(e: FormEvent) {
-    e.preventDefault();
-    const email = waitlistEmail.trim().toLowerCase();
-    if (!email.includes("@") || email.length < 5) {
-      setWaitlistMsg("Enter a valid email.");
-      return;
+  function applyGuildStats(data: Partial<GuildStats> & { yours?: { usageCount?: number; name?: string } }) {
+    if (typeof data.guildCount === "number") {
+      setGuildStats({
+        guildCount: data.guildCount,
+        officerCount: typeof data.officerCount === "number" ? data.officerCount : data.guildCount,
+        totalUsage: typeof data.totalUsage === "number" ? data.totalUsage : 0
+      });
     }
-    setWaitlistBusy(true);
-    setWaitlistMsg(null);
+    if (data.yours && typeof data.yours.usageCount === "number") setMyUsage(data.yours.usageCount);
+    if (data.yours?.name) setGuildName(data.yours.name.slice(0, 28));
+  }
+
+  async function handleConnectWallet() {
+    setEnrollMsg(null);
+    setEnrollBusy(true);
     try {
-      const res = await fetch(`${API_BASE}/waitlist`, {
+      const wallet = await connectWallet();
+      setWalletAddress(wallet.address);
+      void sfxClick();
+    } catch (err) {
+      setEnrollMsg(err instanceof Error ? err.message : "Could not connect wallet");
+    } finally {
+      setEnrollBusy(false);
+    }
+  }
+
+  async function enrollGuild(e?: FormEvent) {
+    e?.preventDefault();
+    const name = guildName.trim() || "My Guild";
+    setEnrollBusy(true);
+    setEnrollMsg(null);
+    try {
+      const signed = await signEnrollMessage(name);
+      setWalletAddress(signed.address);
+      const res = await fetch(`${API_BASE}/guilds`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, guild: guildName })
+        body: JSON.stringify({
+          name,
+          address: signed.address,
+          message: signed.message,
+          signature: signed.signature
+        })
       });
-      const data = (await res.json().catch(() => ({}))) as {
-        count?: number;
-        alreadyJoined?: boolean;
+      const data = (await res.json().catch(() => ({}))) as Partial<GuildStats> & {
+        alreadyEnrolled?: boolean;
+        yours?: { usageCount?: number; name?: string };
         error?: string;
       };
-      if (!res.ok) throw new Error(data.error || "Could not join");
-      setWaitlistJoined(true);
-      if (typeof data.count === "number") setWaitlistCount(data.count);
-      setWaitlistMsg(data.alreadyJoined ? "You're already on the list." : "You're on the list.");
-      try {
-        localStorage.setItem(WAITLIST_STORAGE, "1");
-      } catch {
-        // ignore
-      }
+      if (!res.ok) throw new Error(data.error || "Could not enroll");
+      const record: LocalEnroll = {
+        address: signed.address,
+        guild: name,
+        message: signed.message,
+        signature: signed.signature,
+        enrolledAt: new Date().toISOString()
+      };
+      saveLocalEnroll(record);
+      setEnrolled(true);
+      applyGuildStats(data);
+      setEnrollMsg(null);
       void sfxSuccess();
-    } catch {
-      // Offline fallback — still record intent on this device
-      setWaitlistJoined(true);
-      setWaitlistCount((c) => Math.max(c, 1));
-      setWaitlistMsg("Saved on this device. We'll sync when the API is live.");
-      try {
-        localStorage.setItem(WAITLIST_STORAGE, "1");
-      } catch {
-        // ignore
-      }
+    } catch (err) {
+      setEnrollMsg(err instanceof Error ? err.message : "Could not connect guild");
     } finally {
-      setWaitlistBusy(false);
+      setEnrollBusy(false);
+    }
+  }
+
+  async function recordGuildUsage(event: "review" | "freeze") {
+    const address = walletAddress || loadLocalEnroll()?.address;
+    if (!address || !enrolled) return;
+    try {
+      const res = await fetch(`${API_BASE}/guilds`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "usage", address, event })
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as Partial<GuildStats> & { yours?: { usageCount?: number } };
+      applyGuildStats(data);
+    } catch {
+      // ignore — usage proof is best-effort
     }
   }
 
@@ -483,13 +558,50 @@ export function App() {
 
   useEffect(() => {
     pingRpc().then(setRpcLive);
-    fetch(`${API_BASE}/waitlist`)
+    const local = loadLocalEnroll();
+    fetch(`${API_BASE}/guilds`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data && typeof data.count === "number") setWaitlistCount(data.count);
+      .then(async (data) => {
+        if (!data) return;
+        applyGuildStats(data as Partial<GuildStats> & { guilds?: Array<{ ownerFull?: string; usageCount?: number }> });
+        const list = (data as { guilds?: Array<{ ownerFull?: string; usageCount?: number }> }).guilds ?? [];
+        if (local) {
+          const mine = list.find((g) => g.ownerFull?.toLowerCase() === local.address.toLowerCase());
+          if (mine) {
+            setEnrolled(true);
+            setWalletAddress(local.address);
+            if (typeof mine.usageCount === "number") setMyUsage(mine.usageCount);
+          } else {
+            // Re-publish signed enroll so roster survives serverless cold starts
+            try {
+              const res = await fetch(`${API_BASE}/guilds`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  name: local.guild,
+                  address: local.address,
+                  message: local.message,
+                  signature: local.signature
+                })
+              });
+              if (res.ok) {
+                const body = (await res.json()) as Partial<GuildStats> & { yours?: { usageCount?: number } };
+                setEnrolled(true);
+                setWalletAddress(local.address);
+                applyGuildStats(body);
+              }
+            } catch {
+              setEnrolled(true);
+              setWalletAddress(local.address);
+            }
+          }
+        }
       })
       .catch(() => {
-        // ignore
+        if (local) {
+          setEnrolled(true);
+          setWalletAddress(local.address);
+        }
       });
     if (!API_BASE) {
       setRuntime("onchain-console");
@@ -592,6 +704,7 @@ export function App() {
           ]);
           setTab("alerts");
         }
+        void recordGuildUsage("review");
         return;
       }
 
@@ -617,6 +730,7 @@ export function App() {
       const prediction = predictGuardOutcome(policy);
       setGuardPrediction(prediction);
       recordLocal(result, payload.txHash, payload.wallet);
+      void recordGuildUsage("review");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Review failed");
     } finally {
@@ -657,6 +771,7 @@ export function App() {
           if (actionBody.playbookExecution.action === "policy_manager.pause") {
             setPolicyPaused(true);
             awardXp(60, "Froze the guild bank", "firstFreeze", "freeze");
+            void recordGuildUsage("freeze");
           }
         }
         const incidentsRes = await fetch(`${API_BASE}/incidents`);
@@ -682,6 +797,7 @@ export function App() {
       if (action === "mitigate") {
         setPolicyPaused(true);
         awardXp(60, "Froze the guild bank", "firstFreeze", "freeze");
+        void recordGuildUsage("freeze");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
@@ -765,7 +881,7 @@ export function App() {
                   </button>
                 )
               ) : (
-                "Guild Quest"
+                "Guild bank protection"
               )}
             </p>
           </div>
@@ -780,6 +896,23 @@ export function App() {
               {statusLabel}
             </span>
           )}
+          {entered &&
+            (walletAddress ? (
+              <span className={`chip wallet-chip ${enrolled ? "ok" : ""}`} title={walletAddress}>
+                {shortAddress(walletAddress)}
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="chip wallet-chip connect"
+                onClick={() => {
+                  void handleConnectWallet();
+                }}
+                disabled={enrollBusy}
+              >
+                {enrollBusy ? "…" : "Connect"}
+              </button>
+            ))}
           <button
             type="button"
             className={`icon-btn ${sfxMuted ? "" : "active"}`}
@@ -815,7 +948,7 @@ export function App() {
           </p>
           <div className="cta-row">
             <button type="button" className="primary" onClick={enterWorld}>
-              Press start
+              Open console
             </button>
             <button
               type="button"
@@ -825,7 +958,7 @@ export function App() {
               }}
               disabled={loading}
             >
-              {loading ? "Checking…" : "Jump to review"}
+              {loading ? "Checking…" : "Review a spend"}
             </button>
           </div>
           {error && <p className="error">{error}</p>}
@@ -892,14 +1025,14 @@ export function App() {
                   </div>
                 </section>
 
-                <section className="surface quiet-stats" aria-label="This session">
+                <section className="surface quiet-stats" aria-label="Activity">
                   <div>
-                    <strong>{kpi.totalAssessments}</strong>
-                    <span>Reviews</span>
+                    <strong>{enrolled ? myUsage : kpi.totalAssessments}</strong>
+                    <span>{enrolled ? "Your reviews" : "Reviews"}</span>
                   </div>
                   <div>
-                    <strong>{kpi.blockedCount}</strong>
-                    <span>Blocked</span>
+                    <strong>{guildStats.guildCount}</strong>
+                    <span>Guilds</span>
                   </div>
                   <div>
                     <strong>{openIncidents}</strong>
@@ -907,35 +1040,55 @@ export function App() {
                   </div>
                 </section>
 
-                <section className="surface waitlist-card" aria-label="Guild waitlist">
-                  <div className="waitlist-copy">
-                    <p className="snapshot-label">For guild officers</p>
-                    <strong>Get notified when we open enroll</strong>
+                <section className="surface enroll-card" aria-label="Officer wallet">
+                  <div className="enroll-copy">
+                    <p className="snapshot-label">Officer wallet</p>
+                    <strong>{enrolled ? "Guild connected" : "Connect your guild"}</strong>
                     <p className="muted">
-                      Real interest only.
-                      {waitlistCount > 0 ? ` ${waitlistCount} guild${waitlistCount === 1 ? "" : "s"} waiting.` : ""}
+                      {enrolled
+                        ? "This wallet stays linked while you review spends and freeze when needed."
+                        : "Sign once with your officer wallet to keep this guild active across sessions."}
                     </p>
                   </div>
-                  {waitlistJoined ? (
-                    <p className="waitlist-done">{waitlistMsg || "You're on the list."}</p>
+                  {enrolled && walletAddress ? (
+                    <div className="enroll-done">
+                      <p>
+                        <strong>{guildName}</strong>
+                        <span className="muted"> · {shortAddress(walletAddress)}</span>
+                      </p>
+                    </div>
                   ) : (
-                    <form className="waitlist-form" onSubmit={joinWaitlist}>
+                    <form className="enroll-form" onSubmit={enrollGuild}>
                       <input
-                        type="email"
-                        name="email"
-                        autoComplete="email"
-                        placeholder="officer@guild.gg"
-                        value={waitlistEmail}
-                        onChange={(e) => setWaitlistEmail(e.target.value)}
-                        aria-label="Email"
+                        type="text"
+                        name="guild"
+                        maxLength={28}
+                        placeholder="Guild name"
+                        value={guildName === "My Guild" ? "" : guildName}
+                        onChange={(e) => setGuildName(e.target.value.slice(0, 28) || "My Guild")}
+                        aria-label="Guild name"
                         required
                       />
-                      <button type="submit" className="primary" disabled={waitlistBusy}>
-                        {waitlistBusy ? "Joining…" : "Join waitlist"}
+                      {!walletAddress ? (
+                        <button
+                          type="button"
+                          className="ghost"
+                          disabled={enrollBusy}
+                          onClick={() => {
+                            void handleConnectWallet();
+                          }}
+                        >
+                          {enrollBusy ? "Connecting…" : "Connect wallet"}
+                        </button>
+                      ) : (
+                        <span className="chip wallet-chip">{shortAddress(walletAddress)}</span>
+                      )}
+                      <button type="submit" className="primary" disabled={enrollBusy || !guildName.trim()}>
+                        {enrollBusy ? "Confirming…" : "Save guild"}
                       </button>
                     </form>
                   )}
-                  {waitlistMsg && !waitlistJoined ? <p className="error">{waitlistMsg}</p> : null}
+                  {enrollMsg && !enrolled ? <p className="error">{enrollMsg}</p> : null}
                 </section>
 
                 <p className="home-foot muted">

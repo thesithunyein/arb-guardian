@@ -44,6 +44,7 @@ Not a playable mini-game. Not a generic DeFi trading console.
 | **Alerts** | Shared queue — acknowledge, freeze, or dismiss |
 | **Playbooks** | Risk → response mapping with measurable eval accuracy |
 | **Vault** | Live contract proof on Arbitrum Sepolia + Robinhood Chain |
+| **Officer wallet** | Connect + signed guild save; activity stays tied to that officer wallet |
 
 ## How it works
 
