@@ -789,17 +789,21 @@ export function App() {
 
   async function applyAction(incidentId: string, action: "acknowledge" | "mitigate" | "ignore") {
     setError(null);
-    const patchLocal = () => {
-      setIncidents((prev) =>
-        prev.map((item) =>
-          item.id === incidentId ? { ...item, status: nextIncidentStatus(item.status, action) } : item
-        )
-      );
-      setAuditLog((prev) => [
-        { incidentId, action, actor: "guild-officer", createdAt: new Date().toISOString() },
-        ...prev
-      ]);
-    };
+    // Optimistic local update first — serverless GET must never wipe this queue.
+    setIncidents((prev) =>
+      prev.map((item) =>
+        item.id === incidentId ? { ...item, status: nextIncidentStatus(item.status, action) } : item
+      )
+    );
+    setAuditLog((prev) => [
+      { incidentId, action, actor: walletAddress || "guild-officer", createdAt: new Date().toISOString() },
+      ...prev
+    ]);
+    if (action === "mitigate") {
+      setPolicyPaused(true);
+      awardXp(60, "Froze the guild bank", "firstFreeze", "freeze");
+      void recordGuildUsage("freeze");
+    }
 
     try {
       if (runtime === "api" && API_BASE) {
@@ -832,35 +836,33 @@ export function App() {
         };
         if (actionBody.playbookExecution) {
           setLastPlaybook(actionBody.playbookExecution);
-          if (actionBody.playbookExecution.action === "policy_manager.pause") {
+          if (
+            actionBody.playbookExecution.action === "policy_manager.pause" &&
+            actionBody.playbookExecution.executed
+          ) {
             setPolicyPaused(true);
-            awardXp(60, "Froze the guild bank", "firstFreeze", "freeze");
-            void recordGuildUsage("freeze");
           }
         }
-        // Keep local alert queue — do not replace with empty serverless GET.
-        if (actionBody.incident) {
+        if (actionBody.incident?.id) {
           setIncidents((prev) => {
-            const updated = {
+            const updated: IncidentItem = {
               id: actionBody.incident!.id,
-              title: actionBody.incident!.title,
-              severity: actionBody.incident!.severity,
-              recommendedPlaybook: actionBody.incident!.recommendedPlaybook,
-              status: actionBody.incident!.status
+              title: actionBody.incident!.title || target?.title || "Blocked spend",
+              severity: actionBody.incident!.severity || target?.severity || "high",
+              recommendedPlaybook:
+                actionBody.incident!.recommendedPlaybook ||
+                target?.recommendedPlaybook ||
+                "freeze-wallet-and-revoke-approvals",
+              status: actionBody.incident!.status || nextIncidentStatus("open", action)
             };
-            return [updated, ...prev.filter((i) => i.id !== updated.id)].slice(0, 12);
+            const rest = prev.filter((i) => i.id !== updated.id);
+            // If optimistic map missed (stale id), keep the card.
+            if (prev.some((i) => i.id === incidentId) || prev.some((i) => i.id === updated.id)) {
+              return [updated, ...rest.filter((i) => i.id !== incidentId)].slice(0, 12);
+            }
+            return [updated, ...prev].slice(0, 12);
           });
-        } else {
-          patchLocal();
         }
-        return;
-      }
-
-      patchLocal();
-      if (action === "mitigate") {
-        setPolicyPaused(true);
-        awardXp(60, "Froze the guild bank", "firstFreeze", "freeze");
-        void recordGuildUsage("freeze");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
@@ -1060,14 +1062,14 @@ export function App() {
                     </strong>
                     <p className="muted">
                       {policyPaused
-                        ? "Unfreeze from Alerts when it is safe"
+                        ? "Open Alerts to unfreeze when it is safe"
                         : openIncidents > 0
                           ? "Review the queue and freeze if needed"
                           : "Review the pending spend when you're ready"}
                     </p>
                   </div>
                   <div className="snapshot-actions">
-                    {openIncidents > 0 ? (
+                    {policyPaused || openIncidents > 0 ? (
                       <button
                         type="button"
                         className="primary"
@@ -1077,7 +1079,7 @@ export function App() {
                         }}
                       >
                         <IconAlerts size={16} />
-                        Open alerts
+                        {policyPaused ? "Manage freeze" : "Open alerts"}
                       </button>
                     ) : (
                       <button type="button" className="primary" onClick={() => goCheck("risky-approve")}>
@@ -1098,8 +1100,8 @@ export function App() {
                     <span>Guilds</span>
                   </div>
                   <div>
-                    <strong>{openIncidents}</strong>
-                    <span>Open alerts</span>
+                    <strong>{policyPaused ? "On" : openIncidents}</strong>
+                    <span>{policyPaused ? "Freeze" : "Open alerts"}</span>
                   </div>
                 </section>
 
@@ -1340,90 +1342,114 @@ export function App() {
                   <h3>
                     <IconAlerts size={18} /> Alerts
                   </h3>
+                  {policyPaused && (
+                    <div className="freeze-success" style={{ marginBottom: "0.95rem" }}>
+                      <strong>Bank frozen</strong>
+                      <p className="muted">
+                        The alert is resolved. Spending stays paused until you unfreeze.
+                      </p>
+                      <div className="cta-row left">
+                        <button type="button" className="primary" onClick={goVault}>
+                          See live networks
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => {
+                            void sfxClick();
+                            void unpausePolicy();
+                          }}
+                        >
+                          Unfreeze
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {openIncidents > 0 ? (
                     <p className="muted" style={{ marginBottom: "0.85rem" }}>
                       {openIncidents} open · Officer AI suggests, you confirm freeze.
                     </p>
                   ) : null}
-                  {incidents.length === 0 ? (
+                  {incidents.length === 0 && !policyPaused ? (
                     <div className="empty-state">
                       <IconAlerts size={28} />
-                      <p>No open alerts</p>
+                      <p>No alerts yet</p>
                       <p className="muted">Blocked spends appear here for officer action.</p>
                       <button type="button" className="ghost" onClick={() => goCheck("risky-approve")}>
                         Review spend
                       </button>
                     </div>
+                  ) : incidents.length === 0 && policyPaused ? (
+                    <p className="muted">Freeze is active. Use Unfreeze above when it is safe.</p>
                   ) : (
                     <ul className="incident-list">
-                      {incidents.map((incident) => (
-                        <li key={incident.id} className="incident-item">
-                          <div className="incident-head">
-                            <strong>{incident.title}</strong>
-                            <span className={`sev sev-${incident.severity}`}>{incident.severity}</span>
-                          </div>
-                          <p className="muted">
-                            {incident.status} · Officer AI: {playbookLabel(incident.recommendedPlaybook)}
-                          </p>
-                          <div className="actions">
-                            <button
-                              type="button"
-                              className="secondary"
-                              onClick={() => {
-                                void sfxClick();
-                                void applyAction(incident.id, "acknowledge");
-                              }}
-                            >
-                              Acknowledge
-                            </button>
-                            <button
-                              type="button"
-                              className="primary"
-                              onClick={() => {
-                                void sfxClick();
-                                void applyAction(incident.id, "mitigate");
-                              }}
-                            >
-                              <IconFreeze size={14} />
-                              Freeze guild spending
-                            </button>
-                            <button
-                              type="button"
-                              className="secondary"
-                              onClick={() => {
-                                void sfxClick();
-                                void applyAction(incident.id, "ignore");
-                              }}
-                            >
-                              Dismiss
-                            </button>
-                          </div>
-                        </li>
-                      ))}
+                      {incidents.map((incident) => {
+                        const isOpen = incident.status === "open" || incident.status === "acknowledged";
+                        return (
+                          <li key={incident.id} className="incident-item">
+                            <div className="incident-head">
+                              <strong>{incident.title}</strong>
+                              <span className={`sev sev-${incident.severity}`}>
+                                {incident.status === "mitigated" ? "frozen" : incident.severity}
+                              </span>
+                            </div>
+                            <p className="muted">
+                              {incident.status === "mitigated"
+                                ? "Resolved · freeze confirmed"
+                                : `${incident.status} · Officer AI: ${playbookLabel(incident.recommendedPlaybook)}`}
+                            </p>
+                            {isOpen ? (
+                              <div className="actions">
+                                <button
+                                  type="button"
+                                  className="secondary"
+                                  onClick={() => {
+                                    void sfxClick();
+                                    void applyAction(incident.id, "acknowledge");
+                                  }}
+                                >
+                                  Acknowledge
+                                </button>
+                                <button
+                                  type="button"
+                                  className="primary"
+                                  onClick={() => {
+                                    void sfxClick();
+                                    void applyAction(incident.id, "mitigate");
+                                  }}
+                                >
+                                  <IconFreeze size={14} />
+                                  Freeze guild spending
+                                </button>
+                                <button
+                                  type="button"
+                                  className="secondary"
+                                  onClick={() => {
+                                    void sfxClick();
+                                    void applyAction(incident.id, "ignore");
+                                  }}
+                                >
+                                  Dismiss
+                                </button>
+                              </div>
+                            ) : null}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </section>
                 <section className="surface">
                   <h3>Activity log</h3>
-                  {policyPaused && (
-                    <div className="freeze-success">
-                      <strong>Bank frozen</strong>
-                      <p className="muted">Spending is paused. See live networks for contract proof, or unfreeze when safe.</p>
-                      <div className="cta-row left">
-                        <button type="button" className="primary" onClick={goVault}>
-                          See live networks
-                        </button>
-                        <button type="button" className="ghost" onClick={unpausePolicy}>
-                          Unfreeze (reset)
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {lastPlaybook && !policyPaused && (
+                  {lastPlaybook && (
                     <p className="next-step" style={{ marginBottom: "0.75rem" }}>
                       Last action:{" "}
                       <strong>
-                        {lastPlaybook.action?.includes("pause") ? "Freeze guild spending" : lastPlaybook.action}
+                        {lastPlaybook.action?.includes("pause")
+                          ? "Freeze guild spending"
+                          : lastPlaybook.action?.includes("unpause")
+                            ? "Unfreeze"
+                            : lastPlaybook.action}
                       </strong>
                       {lastPlaybook.txHash ? (
                         <>
