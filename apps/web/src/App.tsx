@@ -123,6 +123,14 @@ function saveLocalEnroll(record: LocalEnroll) {
   }
 }
 
+function clearLocalEnroll() {
+  try {
+    localStorage.removeItem(ENROLL_STORAGE);
+  } catch {
+    // ignore
+  }
+}
+
 function loadXp() {
   try {
     const n = Number(localStorage.getItem(XP_STORAGE) ?? "0");
@@ -472,6 +480,15 @@ export function App() {
     } finally {
       setEnrollBusy(false);
     }
+  }
+
+  function disconnectWallet() {
+    void sfxClick();
+    clearLocalEnroll();
+    setWalletAddress(null);
+    setEnrolled(false);
+    setMyUsage(0);
+    setEnrollMsg(null);
   }
 
   async function enrollGuild(e?: FormEvent) {
@@ -963,9 +980,14 @@ export function App() {
           )}
           {entered &&
             (walletAddress ? (
-              <span className={`chip wallet-chip ${enrolled ? "ok" : ""}`} title={walletAddress}>
+              <button
+                type="button"
+                className={`chip wallet-chip ${enrolled ? "ok" : ""}`}
+                title={`${walletAddress} · Click to disconnect`}
+                onClick={disconnectWallet}
+              >
                 {shortAddress(walletAddress)}
-              </span>
+              </button>
             ) : (
               <button
                 type="button"
@@ -1120,6 +1142,11 @@ export function App() {
                       <p>
                         <strong>{guildName}</strong>
                         <span className="muted"> · {shortAddress(walletAddress)}</span>
+                      </p>
+                      <p>
+                        <button type="button" className="linkish" onClick={disconnectWallet}>
+                          Disconnect wallet
+                        </button>
                       </p>
                     </div>
                   ) : (

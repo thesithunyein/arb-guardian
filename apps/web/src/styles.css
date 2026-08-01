@@ -2383,15 +2383,21 @@ button:disabled {
   color: var(--ok);
 }
 
-button.chip.wallet-chip.connect {
+button.chip.wallet-chip {
   cursor: pointer;
   border: 1px solid var(--line-strong);
   background: rgba(8, 14, 28, 0.35);
   color: var(--ink);
 }
 
-button.chip.wallet-chip.connect:hover:not(:disabled) {
+button.chip.wallet-chip.connect:hover:not(:disabled),
+button.chip.wallet-chip:hover:not(:disabled) {
   border-color: var(--accent);
+}
+
+button.chip.wallet-chip.ok:hover:not(:disabled) {
+  border-color: rgba(255, 120, 120, 0.55);
+  color: #ffb4b4;
 }
 
 .home-foot {
