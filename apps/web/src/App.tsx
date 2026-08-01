@@ -379,7 +379,6 @@ export function App() {
   const [policyPaused, setPolicyPaused] = useState<boolean | null>(null);
   const [whyOpen, setWhyOpen] = useState(false);
   const [xp, setXp] = useState(() => loadXp());
-  const [xpToast, setXpToast] = useState<string | null>(null);
   const [badges, setBadges] = useState<BadgeState>(() => loadBadges());
   const [sfxMuted, setSfxMutedState] = useState(() => loadSfxMuted());
   const [entered, setEntered] = useState(false);
@@ -397,6 +396,7 @@ export function App() {
   const [interestCount, setInterestCount] = useState(0);
   const [interestBusy, setInterestBusy] = useState(false);
   const [interestMsg, setInterestMsg] = useState<string | null>(null);
+  const [officerOpen, setOfficerOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -554,19 +554,14 @@ export function App() {
       setInterestMsg(data.alreadyJoined ? "You're already on the list." : "You're on the list.");
       try {
         localStorage.setItem(INTEREST_STORAGE, "1");
+        localStorage.setItem(`${INTEREST_STORAGE}:email`, email);
+        localStorage.setItem(`${INTEREST_STORAGE}:guild`, guildName.trim() || "Guild");
       } catch {
         // ignore
       }
       void sfxSuccess();
-    } catch {
-      setInterestJoined(true);
-      setInterestCount((c) => Math.max(c, 1));
-      setInterestMsg("Saved on this device.");
-      try {
-        localStorage.setItem(INTEREST_STORAGE, "1");
-      } catch {
-        // ignore
-      }
+    } catch (err) {
+      setInterestMsg(err instanceof Error ? err.message : "Could not save. Try again.");
     } finally {
       setInterestBusy(false);
     }
@@ -632,10 +627,9 @@ export function App() {
     }
   }
 
-  function awardXp(amount: number, label: string, badgeKey?: BadgeKey, tone: "xp" | "block" | "success" | "freeze" = "xp") {
+  function awardXp(amount: number, _label: string, badgeKey?: BadgeKey, tone: "xp" | "block" | "success" | "freeze" = "xp") {
     setXp((v) => v + amount);
-    setXpToast(label);
-    window.setTimeout(() => setXpToast(null), 1800);
+    // No toast chrome in product mode — keep subtle sound only.
     if (tone === "block") void sfxBlock();
     else if (tone === "success") void sfxSuccess();
     else if (tone === "freeze") void sfxFreeze();
@@ -1025,7 +1019,6 @@ export function App() {
   return (
     <>
       <BrandBackdrop />
-      {xpToast && <div className="xp-toast">{xpToast}</div>}
       <div className={`app-shell ${entered ? "entered product-mode" : "title-screen"}`}>
       <header className="topbar">
         <a className="brand" href="/" aria-label="Arb Guardian home">
@@ -1170,20 +1163,20 @@ export function App() {
               <div className="home-stack">
                 <section className="policy-snapshot" aria-label="Guild bank status">
                   <div>
-                    <p className="snapshot-label">{guildName}</p>
+                    <p className="snapshot-label">{guildName === "My Guild" ? "Your team" : guildName}</p>
                     <strong>
                       {policyPaused
-                        ? "Spending frozen"
+                        ? "Bank locked"
                         : openIncidents > 0
-                          ? `${openIncidents} alert${openIncidents === 1 ? "" : "s"} need attention`
-                          : "Bank ready"}
+                          ? `${openIncidents} alert${openIncidents === 1 ? "" : "s"} need a decision`
+                          : "Ready to check a spend"}
                     </strong>
                     <p className="muted">
                       {policyPaused
-                        ? "Open Alerts to unfreeze when it is safe"
+                        ? "Unlock from Alerts when it is safe"
                         : openIncidents > 0
-                          ? "Review the queue and freeze if needed"
-                          : "Review the pending spend when you're ready"}
+                          ? "Open Alerts to lock the bank or dismiss"
+                          : "See if a spend is safe before anyone approves it"}
                     </p>
                   </div>
                   <div className="snapshot-actions">
@@ -1197,55 +1190,49 @@ export function App() {
                         }}
                       >
                         <IconAlerts size={16} />
-                        {policyPaused ? "Manage freeze" : "Open alerts"}
+                        {policyPaused ? "Manage lock" : "Open alerts"}
                       </button>
                     ) : (
                       <button type="button" className="primary" onClick={() => goCheck("risky-approve")}>
                         <IconPayment size={16} />
-                        Review spend
+                        Check a spend
                       </button>
                     )}
                   </div>
                 </section>
 
-                <section className="surface problem-card" aria-label="Who this is for">
-                  <p className="snapshot-label">Who it's for</p>
-                  <strong>Guild managers and officers</strong>
-                  <p className="muted">
-                    Teams that share one pot for prizes and payouts. No crypto knowledge needed to understand the risk or
-                    join the list. Officers with a wallet can lock the bank when danger shows up.
-                  </p>
-                </section>
+                {(interestCount > 0 || guildStats.guildCount > 0 || (enrolled ? myUsage : kpi.totalAssessments) > 0) && (
+                  <section className="surface quiet-stats" aria-label="Activity">
+                    {interestCount > 0 ? (
+                      <div>
+                        <strong>{interestCount}</strong>
+                        <span>Teams interested</span>
+                      </div>
+                    ) : null}
+                    {guildStats.guildCount > 0 ? (
+                      <div>
+                        <strong>{guildStats.guildCount}</strong>
+                        <span>Officers linked</span>
+                      </div>
+                    ) : null}
+                    <div>
+                      <strong>{enrolled ? myUsage : kpi.totalAssessments}</strong>
+                      <span>{enrolled ? "Your checks" : "Checks"}</span>
+                    </div>
+                  </section>
+                )}
 
-                <section className="surface quiet-stats" aria-label="Activity">
-                  <div>
-                    <strong>{interestCount}</strong>
-                    <span>Teams interested</span>
-                  </div>
-                  <div>
-                    <strong>{guildStats.guildCount}</strong>
-                    <span>Officers linked</span>
-                  </div>
-                  <div>
-                    <strong>{enrolled ? myUsage : kpi.totalAssessments}</strong>
-                    <span>{enrolled ? "Your checks" : "Checks"}</span>
-                  </div>
-                </section>
-
-                <section className="surface enroll-card" aria-label="For team managers">
+                <section className="surface enroll-card" aria-label="Join for your team">
                   <div className="enroll-copy">
-                    <p className="snapshot-label">No wallet needed</p>
-                    <strong>{interestJoined ? "You're on the list" : "Get updates for your guild"}</strong>
+                    <p className="snapshot-label">For teams</p>
+                    <strong>{interestJoined ? "You're on the list" : "Join with email — no wallet"}</strong>
                     <p className="muted">
-                      For managers and players who want protection without touching crypto yet.
-                      {interestCount > 0
-                        ? ` ${interestCount} team${interestCount === 1 ? "" : "s"} already interested.`
-                        : ""}
+                      Managers and players: leave your team name and email. We'll follow up when enroll opens.
                     </p>
                   </div>
                   {interestJoined ? (
                     <p className="enroll-done">
-                      <strong>{interestMsg || "We'll reach out when enroll opens for your team."}</strong>
+                      <strong>{interestMsg || "Thanks — you're on the list."}</strong>
                     </p>
                   ) : (
                     <form className="enroll-form" onSubmit={joinInterest}>
@@ -1253,10 +1240,10 @@ export function App() {
                         type="text"
                         name="guild"
                         maxLength={28}
-                        placeholder="Guild or team name"
+                        placeholder="Team or guild name"
                         value={guildName === "My Guild" ? "" : guildName}
                         onChange={(e) => setGuildName(e.target.value.slice(0, 28) || "My Guild")}
-                        aria-label="Guild or team name"
+                        aria-label="Team or guild name"
                       />
                       <input
                         type="email"
@@ -1276,67 +1263,78 @@ export function App() {
                   {interestMsg && !interestJoined ? <p className="error">{interestMsg}</p> : null}
                 </section>
 
-                <section className="surface enroll-card" aria-label="Officer wallet">
-                  <div className="enroll-copy">
-                    <p className="snapshot-label">For officers with a wallet</p>
-                    <strong>{enrolled ? "Officer linked" : "Link officer wallet"}</strong>
-                    <p className="muted">
-                      {enrolled
-                        ? "You can review spends and lock the bank. Disconnect anytime from here."
-                        : "Optional. Connect once so checks and freezes count for your guild."}
-                    </p>
-                  </div>
+                <section className="surface enroll-card officer-card" aria-label="Officer wallet">
                   {enrolled && walletAddress ? (
-                    <div className="enroll-done">
-                      <p>
-                        <strong>{guildName}</strong>
-                        <span className="muted"> · {shortAddress(walletAddress)}</span>
-                      </p>
-                      <p>
-                        <button type="button" className="linkish" onClick={disconnectWallet}>
-                          Disconnect wallet
-                        </button>
-                      </p>
-                    </div>
+                    <>
+                      <div className="enroll-copy">
+                        <p className="snapshot-label">Officer</p>
+                        <strong>Wallet linked</strong>
+                        <p className="muted">You can check spends and lock the bank.</p>
+                      </div>
+                      <div className="enroll-done">
+                        <p>
+                          <strong>{guildName}</strong>
+                          <span className="muted"> · {shortAddress(walletAddress)}</span>
+                        </p>
+                        <p>
+                          <button type="button" className="linkish" onClick={disconnectWallet}>
+                            Disconnect wallet
+                          </button>
+                        </p>
+                      </div>
+                    </>
                   ) : (
-                    <form className="enroll-form" onSubmit={enrollGuild}>
-                      <input
-                        type="text"
-                        name="guild-officer"
-                        maxLength={28}
-                        placeholder="Guild name"
-                        value={guildName === "My Guild" ? "" : guildName}
-                        onChange={(e) => setGuildName(e.target.value.slice(0, 28) || "My Guild")}
-                        aria-label="Guild name"
-                        required
-                      />
-                      {!walletAddress ? (
-                        <button
-                          type="button"
-                          className="ghost"
-                          disabled={enrollBusy}
-                          onClick={() => {
-                            void handleConnectWallet();
-                          }}
-                        >
-                          {enrollBusy ? "Connecting…" : "Connect wallet"}
-                        </button>
-                      ) : (
-                        <span className="chip wallet-chip">{shortAddress(walletAddress)}</span>
-                      )}
-                      <button type="submit" className="primary" disabled={enrollBusy || !guildName.trim()}>
-                        {enrollBusy ? "Confirming…" : "Save guild"}
+                    <>
+                      <button
+                        type="button"
+                        className="officer-toggle linkish"
+                        onClick={() => {
+                          void sfxClick();
+                          setOfficerOpen((v) => !v);
+                        }}
+                      >
+                        {officerOpen ? "Hide officer wallet" : "I'm an officer — connect wallet"}
                       </button>
-                    </form>
+                      {officerOpen ? (
+                        <>
+                          <p className="muted" style={{ margin: 0 }}>
+                            Optional. Link once so locks and checks count for your guild.
+                          </p>
+                          <form className="enroll-form" onSubmit={enrollGuild}>
+                            <input
+                              type="text"
+                              name="guild-officer"
+                              maxLength={28}
+                              placeholder="Guild name"
+                              value={guildName === "My Guild" ? "" : guildName}
+                              onChange={(e) => setGuildName(e.target.value.slice(0, 28) || "My Guild")}
+                              aria-label="Guild name"
+                              required
+                            />
+                            {!walletAddress ? (
+                              <button
+                                type="button"
+                                className="ghost"
+                                disabled={enrollBusy}
+                                onClick={() => {
+                                  void handleConnectWallet();
+                                }}
+                              >
+                                {enrollBusy ? "Connecting…" : "Connect wallet"}
+                              </button>
+                            ) : (
+                              <span className="chip wallet-chip">{shortAddress(walletAddress)}</span>
+                            )}
+                            <button type="submit" className="primary" disabled={enrollBusy || !guildName.trim()}>
+                              {enrollBusy ? "Confirming…" : "Save guild"}
+                            </button>
+                          </form>
+                          {enrollMsg ? <p className="error">{enrollMsg}</p> : null}
+                        </>
+                      ) : null}
+                    </>
                   )}
-                  {enrollMsg && !enrolled ? <p className="error">{enrollMsg}</p> : null}
                 </section>
-
-                <p className="home-foot muted">
-                  <button type="button" className="linkish" onClick={resetSession}>
-                    Reset session
-                  </button>
-                </p>
               </div>
             )}
 
@@ -1348,9 +1346,9 @@ export function App() {
                       <div className="review-badges">
                         <span className="review-badge">Pending</span>
                         {(policyState?.allowlisted ?? payload.allowlisted) ? (
-                          <span className="review-badge ok">On allowlist</span>
+                          <span className="review-badge ok">Trusted payee</span>
                         ) : (
-                          <span className="review-badge risk">Not on allowlist</span>
+                          <span className="review-badge risk">Unknown payee</span>
                         )}
                       </div>
                       <h3>{currentSpend.label}</h3>
@@ -1423,13 +1421,13 @@ export function App() {
                       </dd>
                     </div>
                     <div>
-                      <dt>Allowlist</dt>
+                      <dt>Trusted list</dt>
                       <dd>{(policyState?.allowlisted ?? payload.allowlisted) ? "Yes" : "No"}</dd>
                     </div>
                   </dl>
                   <p className="muted review-budget-hint">
-                    Day limit is the guild rule for how much can leave the bank today. Spent today is the running total
-                    against that rule.
+                    Day limit = max the team bank can send today. Spent today = already used. Unknown payee = not on the
+                    trusted list.
                   </p>
 
                   {!assessment ? (
@@ -1597,16 +1595,6 @@ export function App() {
                               <div className="actions">
                                 <button
                                   type="button"
-                                  className="secondary"
-                                  onClick={() => {
-                                    void sfxClick();
-                                    void applyAction(incident.id, "acknowledge");
-                                  }}
-                                >
-                                  Acknowledge
-                                </button>
-                                <button
-                                  type="button"
                                   className="primary"
                                   onClick={() => {
                                     void sfxClick();
@@ -1618,7 +1606,7 @@ export function App() {
                                 </button>
                                 <button
                                   type="button"
-                                  className="secondary"
+                                  className="ghost"
                                   onClick={() => {
                                     void sfxClick();
                                     void applyAction(incident.id, "ignore");
@@ -1666,7 +1654,14 @@ export function App() {
                         <li key={`${log.incidentId}-${idx}`}>
                           <span className="mono">{new Date(log.createdAt).toLocaleString()}</span>
                           <br />
-                          {log.action} by {log.actor}
+                          {log.action === "mitigate"
+                            ? "Locked the bank"
+                            : log.action === "ignore"
+                              ? "Dismissed alert"
+                              : log.action === "acknowledge"
+                                ? "Saw alert"
+                                : log.action}{" "}
+                          · {log.actor.startsWith("0x") ? shortAddress(log.actor) : "officer"}
                         </li>
                       ))}
                     </ul>
@@ -1679,84 +1674,58 @@ export function App() {
               <div className="grid">
                 <section className="surface span-2">
                   <h3>
-                    <IconAutomation size={18} /> Officer AI · playbooks
+                    <IconAutomation size={18} /> Playbooks
                   </h3>
                   <p className="muted">
-                    Risk score maps to a fixed response officers can trust. The AI suggests — freezing still needs your
-                    click on Alerts.
+                    Clear responses for each risk level. The helper only suggests — locking the bank still needs your
+                    click in Alerts.
                   </p>
-                  <button
-                    type="button"
-                    className="primary"
-                    style={{ marginTop: "0.75rem" }}
-                    onClick={async () => {
-                      setIntent("risky-approve");
-                      setTab("review");
-                      await new Promise((r) => setTimeout(r, 50));
-                      await runAssessment();
-                      setTab("automation");
-                    }}
-                    disabled={loading}
-                  >
-                    {loading ? "Running…" : "Run sample review"}
-                  </button>
-                  {assessment && (
-                    <div className="officer-ai" style={{ marginTop: "1rem" }}>
-                      <strong>Last suggestion</strong>
-                      <p>
-                        <em>{playbookLabel(assessment.recommendedPlaybook)}</em>
-                      </p>
-                      <p className="muted">
-                        {assessment.blocked ? "Blocked → alert opened" : "Allowed"} · score {assessment.totalScore}
-                      </p>
-                    </div>
-                  )}
                   <div className="evidence-grid" style={{ marginTop: "1rem" }}>
                     <article>
-                      <h4>Low risk</h4>
-                      <p>Allow with monitoring</p>
+                      <h4>Low</h4>
+                      <p>Allow and keep watching</p>
                     </article>
                     <article>
                       <h4>Medium</h4>
-                      <p>Ask a second signer</p>
+                      <p>Ask a second officer</p>
                     </article>
                     <article>
                       <h4>High</h4>
-                      <p>Hold for admin review</p>
+                      <p>Hold for a manager review</p>
                     </article>
                     <article>
                       <h4>Critical</h4>
-                      <p>Freeze guild spending (officer click)</p>
+                      <p>Lock the shared bank (human click)</p>
                     </article>
                   </div>
                 </section>
                 <section className="surface">
-                  <h3>What Officer AI can do</h3>
+                  <h3>What the helper can do</h3>
                   {agentEval ? (
                     <p className="muted" style={{ marginBottom: "0.65rem" }}>
-                      Trust check: {agentEval.passed}/{agentEval.total} scenarios · accuracy{" "}
-                      {(agentEval.accuracy * 100).toFixed(0)}%
+                      Checked on {agentEval.passed}/{agentEval.total} fixed scenarios (
+                      {(agentEval.accuracy * 100).toFixed(0)}% match).
                     </p>
                   ) : (
                     <p className="muted" style={{ marginBottom: "0.65rem" }}>
-                      Trust check: 12/12 scenarios · accuracy 100% in the automated harness.
+                      Responses follow fixed rules officers can audit.
                     </p>
                   )}
                   <ul className="clean">
-                    <li>Suggest a playbook from the risk score</li>
+                    <li>Suggest the next response from the risk score</li>
                     <li>Open an alert when a spend is blocked</li>
-                    <li>Never move guild funds</li>
-                    <li>Never change approved payout lists</li>
-                    <li>Never freeze without an officer click</li>
+                    <li>Never move team money</li>
+                    <li>Never change the trusted payout list</li>
+                    <li>Never lock the bank without your click</li>
                   </ul>
                 </section>
                 <section className="surface">
                   <h3>Hard limits</h3>
                   <ul className="clean">
-                    <li>Cannot move guild funds</li>
-                    <li>Cannot change approved payout lists</li>
-                    <li>Cannot grant officer admin access</li>
-                    <li>Freeze only after Freeze guild spending is clicked</li>
+                    <li>Cannot move team money</li>
+                    <li>Cannot change the trusted payout list</li>
+                    <li>Cannot grant admin access</li>
+                    <li>Lock only after Lock the shared bank is clicked</li>
                   </ul>
                 </section>
               </div>
@@ -1769,8 +1738,8 @@ export function App() {
                     <IconSecurity size={18} /> Live networks · contract quality
                   </h3>
                   <p className="muted section-lead">
-                    {guildName} protection is live on Arbitrum Sepolia and Robinhood Chain. Day-to-day play stays in Check
-                    spend and Alerts.
+                    Protection is live on Arbitrum Sepolia and Robinhood Chain. Day-to-day work stays in Check a spend and
+                    Alerts.
                   </p>
                   <div className="asset-grid">
                     <article className="asset-card">
@@ -1911,7 +1880,7 @@ export function App() {
           >
             Live networks
           </button>
-          {runtime === "api" ? " · API connected" : null}
+          {runtime === "api" ? " · Live" : null}
         </div>
       </footer>
       </div>

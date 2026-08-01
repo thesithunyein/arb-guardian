@@ -1,6 +1,7 @@
 import { verifyMessage } from "ethers";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { cors, store, type GuildRecord } from "./_store";
+import { durableEnabled, loadDurable, saveDurable } from "./_durable";
+import { cors, snapshotDurable, store, type GuildRecord } from "./_store";
 
 function normalizeGuild(raw: unknown) {
   if (typeof raw !== "string") return "";
@@ -32,6 +33,7 @@ function stats(guilds: GuildRecord[]) {
     guildCount: guilds.length,
     officerCount: guilds.length,
     totalUsage: guilds.reduce((n, g) => n + g.usageCount, 0),
+    durable: durableEnabled(),
     guilds: guilds
       .slice()
       .sort((a, b) => b.lastActiveAt.localeCompare(a.lastActiveAt))
@@ -40,11 +42,23 @@ function stats(guilds: GuildRecord[]) {
   };
 }
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
+async function hydrate() {
+  const s = store();
+  if (s.durableHydrated || !durableEnabled()) return s;
+  const data = await loadDurable();
+  if (data) {
+    if (data.waitlist.length) s.waitlist = data.waitlist;
+    if (data.guilds.length) s.guilds = data.guilds;
+  }
+  s.durableHydrated = true;
+  return s;
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
 
-  const s = store();
+  const s = await hydrate();
 
   if (req.method === "GET") {
     return res.status(200).json(stats(s.guilds));
@@ -70,6 +84,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     guild.lastActiveAt = new Date().toISOString();
     if (event === "freeze") guild.lastEvent = "freeze";
     else guild.lastEvent = "review";
+    await saveDurable(snapshotDurable(s));
     return res.status(200).json({ ok: true, ...stats(s.guilds), yours: publicGuild(guild) });
   }
 
@@ -104,6 +119,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   if (existing) {
     existing.name = name;
     existing.lastActiveAt = now;
+    await saveDurable(snapshotDurable(s));
     return res.status(200).json({
       ok: true,
       alreadyEnrolled: true,
@@ -121,6 +137,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     lastEvent: "enroll"
   };
   s.guilds.push(record);
+  await saveDurable(snapshotDurable(s));
 
   return res.status(200).json({
     ok: true,

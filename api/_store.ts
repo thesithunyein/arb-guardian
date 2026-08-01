@@ -26,6 +26,8 @@ export type GuildRecord = {
   lastEvent: string;
 };
 
+export type WaitlistRecord = { email: string; guild: string; createdAt: string };
+
 const g = globalThis as typeof globalThis & {
   __arbGuardianStore?: {
     assessments: number;
@@ -34,8 +36,9 @@ const g = globalThis as typeof globalThis & {
     scoreSum: number;
     incidents: Incident[];
     audit: Audit[];
-    waitlist: Array<{ email: string; guild: string; createdAt: string }>;
+    waitlist: WaitlistRecord[];
     guilds: GuildRecord[];
+    durableHydrated?: boolean;
   };
 };
 
@@ -49,7 +52,8 @@ export function store() {
       incidents: [],
       audit: [],
       waitlist: [],
-      guilds: []
+      guilds: [],
+      durableHydrated: false
     };
   }
   if (!g.__arbGuardianStore.waitlist) g.__arbGuardianStore.waitlist = [];
@@ -61,4 +65,8 @@ export function cors(res: { setHeader: (k: string, v: string) => void }) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-api-key");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+}
+
+export function snapshotDurable(s: ReturnType<typeof store>) {
+  return { waitlist: s.waitlist, guilds: s.guilds };
 }

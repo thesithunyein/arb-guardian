@@ -2332,6 +2332,16 @@ button:disabled {
   margin: 0.1rem 0 0.2rem;
 }
 
+.officer-card {
+  gap: 0.65rem;
+}
+
+.officer-toggle {
+  justify-self: start;
+  font-weight: 700;
+  text-align: left;
+}
+
 .enroll-copy strong,
 .waitlist-copy strong {
   display: block;
