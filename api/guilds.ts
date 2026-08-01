@@ -1,7 +1,8 @@
 import { verifyMessage } from "ethers";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { durableEnabled, loadDurable, saveDurable } from "./_durable";
-import { cors, snapshotDurable, store, type GuildRecord } from "./_store";
+import { durableEnabled, persistDurable } from "./_durable";
+import { hydrateStore } from "./_hydrate";
+import { cors, snapshotDurable, type GuildRecord } from "./_store";
 
 function normalizeGuild(raw: unknown) {
   if (typeof raw !== "string") return "";
@@ -42,23 +43,11 @@ function stats(guilds: GuildRecord[]) {
   };
 }
 
-async function hydrate() {
-  const s = store();
-  if (s.durableHydrated || !durableEnabled()) return s;
-  const data = await loadDurable();
-  if (data) {
-    if (data.waitlist.length) s.waitlist = data.waitlist;
-    if (data.guilds.length) s.guilds = data.guilds;
-  }
-  s.durableHydrated = true;
-  return s;
-}
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
 
-  const s = await hydrate();
+  const s = await hydrateStore();
 
   if (req.method === "GET") {
     return res.status(200).json(stats(s.guilds));
@@ -82,10 +71,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     guild.usageCount += 1;
     guild.lastActiveAt = new Date().toISOString();
-    if (event === "freeze") guild.lastEvent = "freeze";
-    else guild.lastEvent = "review";
-    await saveDurable(snapshotDurable(s));
-    return res.status(200).json({ ok: true, ...stats(s.guilds), yours: publicGuild(guild) });
+    guild.lastEvent = event === "freeze" ? "freeze" : "review";
+    const merged = await persistDurable(snapshotDurable(s));
+    s.waitlist = merged.waitlist;
+    s.guilds = merged.guilds;
+    const yours = s.guilds.find((g) => g.owner.toLowerCase() === address)!;
+    return res.status(200).json({ ok: true, ...stats(s.guilds), yours: publicGuild(yours) });
   }
 
   const name = normalizeGuild(req.body?.name) || "Guild";
@@ -119,30 +110,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (existing) {
     existing.name = name;
     existing.lastActiveAt = now;
-    await saveDurable(snapshotDurable(s));
-    return res.status(200).json({
-      ok: true,
-      alreadyEnrolled: true,
-      ...stats(s.guilds),
-      yours: publicGuild(existing)
-    });
+  } else {
+    const record: GuildRecord = {
+      name,
+      owner: recovered,
+      createdAt: now,
+      lastActiveAt: now,
+      usageCount: 0,
+      lastEvent: "enroll"
+    };
+    s.guilds.push(record);
   }
 
-  const record: GuildRecord = {
-    name,
-    owner: recovered,
-    createdAt: now,
-    lastActiveAt: now,
-    usageCount: 0,
-    lastEvent: "enroll"
-  };
-  s.guilds.push(record);
-  await saveDurable(snapshotDurable(s));
+  const merged = await persistDurable(snapshotDurable(s));
+  s.waitlist = merged.waitlist;
+  s.guilds = merged.guilds;
+  const yours = s.guilds.find((g) => g.owner.toLowerCase() === address.toLowerCase())!;
 
   return res.status(200).json({
     ok: true,
-    alreadyEnrolled: false,
+    alreadyEnrolled: !!existing,
     ...stats(s.guilds),
-    yours: publicGuild(record)
+    yours: publicGuild(yours)
   });
 }

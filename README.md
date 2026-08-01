@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  <strong>Guild bank protection for gaming teams</strong><br/>
-  Review spends before anyone signs. Block scams. Freeze when it matters.
+  <strong>Shared team bank protection for gaming guilds</strong><br/>
+  Check a spend before anyone approves it. Lock the bank when it looks wrong.
 </p>
 
 <p align="center">

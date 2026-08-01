@@ -1231,9 +1231,30 @@ export function App() {
                     </p>
                   </div>
                   {interestJoined ? (
-                    <p className="enroll-done">
-                      <strong>{interestMsg || "Thanks — you're on the list."}</strong>
-                    </p>
+                    <div className="enroll-done">
+                      <p>
+                        <strong>{interestMsg || "Thanks — you're on the list."}</strong>
+                      </p>
+                      <p>
+                        <button
+                          type="button"
+                          className="linkish"
+                          onClick={async () => {
+                            const text =
+                              "Arb Guardian protects our shared prize pot from fake shop links. Join the list (no wallet needed): https://arb-guardian.vercel.app";
+                            try {
+                              await navigator.clipboard.writeText(text);
+                              setInterestMsg("Invite link copied.");
+                              void sfxSuccess();
+                            } catch {
+                              setInterestMsg("Copy failed — share arb-guardian.vercel.app");
+                            }
+                          }}
+                        >
+                          Copy invite for your team
+                        </button>
+                      </p>
+                    </div>
                   ) : (
                     <form className="enroll-form" onSubmit={joinInterest}>
                       <input
