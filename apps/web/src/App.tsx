@@ -67,6 +67,15 @@ const BADGE_STORAGE = "arb-guardian-badges-v1";
 const GUILD_STORAGE = "arb-guardian-guild-v1";
 const ENROLL_STORAGE = "arb-guardian-guild-enroll-v1";
 const INCIDENTS_STORAGE = "arb-guardian-incidents-v1";
+const INTEREST_STORAGE = "arb-guardian-interest-v1";
+
+function loadInterestJoined() {
+  try {
+    return localStorage.getItem(INTEREST_STORAGE) === "1";
+  } catch {
+    return false;
+  }
+}
 
 function loadIncidents(): IncidentItem[] {
   try {
@@ -222,13 +231,13 @@ const INTENTS: Record<
   }
 > = {
   "risky-approve": {
-    label: "Unknown marketplace approval",
-    blurb: "A random in-game shop asks your guild bank to approve spending",
-    outcomeHint: "unknown marketplace",
+    label: "Unknown shop asks to spend",
+    blurb: "A random shop link wants permission to pull money from the shared team pot",
+    outcomeHint: "unknown shop",
     vendor: "Unknown marketplace",
-    walletLabel: "Guild signer A",
+    walletLabel: "Officer A",
     amountEth: "1.00",
-    whyUsersCare: "Stops scams that drain the guild bank with one bad approve",
+    whyUsersCare: "Stops scams that empty the prize pot with one bad click",
     payload: {
       wallet: TREASURY.a,
       destination: TREASURY.unlisted,
@@ -240,13 +249,13 @@ const INTENTS: Record<
     }
   },
   "limit-breach": {
-    label: "Over daily prize budget",
-    blurb: "Contributor payouts are allowed, but this one is bigger than today’s limit",
-    outcomeHint: "over daily budget",
+    label: "Over today's payout limit",
+    blurb: "Paying a known person, but the amount is bigger than today's team limit",
+    outcomeHint: "over today's limit",
     vendor: "Contributor payouts (approved)",
-    walletLabel: "Guild signer B",
+    walletLabel: "Officer B",
     amountEth: "4.00",
-    whyUsersCare: "Keeps prize / salary payouts inside the budget officers already set",
+    whyUsersCare: "Keeps prize and salary payouts inside the daily limit the team set",
     payload: {
       wallet: TREASURY.b,
       destination: TREASURY.payroll,
@@ -258,13 +267,13 @@ const INTENTS: Record<
     }
   },
   "safe-transfer": {
-    label: "Normal contributor payout",
-    blurb: "Paying a known contributor from the approved payout list",
-    outcomeHint: "within guild rules",
+    label: "Normal team payout",
+    blurb: "Paying someone already on the trusted payout list, inside today's limit",
+    outcomeHint: "within team rules",
     vendor: "Contributor payouts (approved)",
-    walletLabel: "Guild signer C",
+    walletLabel: "Officer C",
     amountEth: "1.00",
-    whyUsersCare: "Fast green light for normal guild ops — no drama when rules are clean",
+    whyUsersCare: "Green light for normal payouts when the rules are clean",
     payload: {
       wallet: TREASURY.c,
       destination: TREASURY.payroll,
@@ -286,9 +295,9 @@ const VENDOR_LABEL: Record<string, string> = {
 };
 
 const PLAYBOOK_LABELS: Record<string, string> = {
-  "freeze-wallet-and-revoke-approvals": "Freeze guild spending",
-  "hold-transaction-and-require-admin-review": "Hold for guild officer review",
-  "request-secondary-signer-confirmation": "Ask a second guild signer",
+  "freeze-wallet-and-revoke-approvals": "Lock the shared bank",
+  "hold-transaction-and-require-admin-review": "Hold for a manager review",
+  "request-secondary-signer-confirmation": "Ask a second officer",
   "allow-with-monitoring": "Allow and keep watching"
 };
 
@@ -297,15 +306,15 @@ function playbookLabel(id: string) {
 }
 
 function plainOutcome(assessment: RiskAssessment, intentId: IntentId) {
-  if (!assessment.blocked) return "Allow — safe for the guild";
+  if (!assessment.blocked) return "Allow — safe for the team";
   const hint = INTENTS[intentId].outcomeHint;
   if (assessment.totalScore >= 80) return `Block — ${hint}`;
   return `Hold — ${hint}`;
 }
 
 function methodLabel(method: string) {
-  if (method === "approve") return "Spend approval";
-  if (method === "transfer") return "Guild payout";
+  if (method === "approve") return "Permission to spend";
+  if (method === "transfer") return "Team payout";
   return method;
 }
 
@@ -383,6 +392,11 @@ export function App() {
   const [enrollMsg, setEnrollMsg] = useState<string | null>(null);
   const [guildStats, setGuildStats] = useState<GuildStats>({ guildCount: 0, officerCount: 0, totalUsage: 0 });
   const [myUsage, setMyUsage] = useState(0);
+  const [interestJoined, setInterestJoined] = useState(() => loadInterestJoined());
+  const [interestEmail, setInterestEmail] = useState("");
+  const [interestCount, setInterestCount] = useState(0);
+  const [interestBusy, setInterestBusy] = useState(false);
+  const [interestMsg, setInterestMsg] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -514,11 +528,48 @@ export function App() {
     setEnrollMsg(null);
   }
 
-  function ensureWalletConnected() {
-    if (walletAddress) return true;
-    setError("Connect your officer wallet first.");
-    setTab("home");
-    return false;
+  async function joinInterest(e: FormEvent) {
+    e.preventDefault();
+    const email = interestEmail.trim().toLowerCase();
+    if (!email.includes("@") || email.length < 5) {
+      setInterestMsg("Enter a real email.");
+      return;
+    }
+    setInterestBusy(true);
+    setInterestMsg(null);
+    try {
+      const res = await fetch(`${API_BASE}/waitlist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, guild: guildName.trim() || "Guild" })
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        count?: number;
+        alreadyJoined?: boolean;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error || "Could not save");
+      setInterestJoined(true);
+      if (typeof data.count === "number") setInterestCount(data.count);
+      setInterestMsg(data.alreadyJoined ? "You're already on the list." : "You're on the list.");
+      try {
+        localStorage.setItem(INTEREST_STORAGE, "1");
+      } catch {
+        // ignore
+      }
+      void sfxSuccess();
+    } catch {
+      setInterestJoined(true);
+      setInterestCount((c) => Math.max(c, 1));
+      setInterestMsg("Saved on this device.");
+      try {
+        localStorage.setItem(INTEREST_STORAGE, "1");
+      } catch {
+        // ignore
+      }
+    } finally {
+      setInterestBusy(false);
+    }
   }
 
   async function enrollGuild(e?: FormEvent) {
@@ -683,6 +734,14 @@ export function App() {
       .catch(() => {
         // keep local session
       });
+    fetch(`${API_BASE}/waitlist`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && typeof data.count === "number") setInterestCount(data.count);
+      })
+      .catch(() => {
+        // ignore
+      });
     if (!API_BASE) {
       setRuntime("onchain-console");
       return;
@@ -731,7 +790,7 @@ export function App() {
   }, []);
 
   async function runAssessment() {
-    if (!ensureWalletConnected()) return;
+    // Anyone can check a spend to learn the risk. Wallet only required to count officer usage.
     setLoading(true);
     setError(null);
     setWhyOpen(false);
@@ -1004,7 +1063,7 @@ export function App() {
                   </button>
                 )
               ) : (
-                "Guild bank protection"
+                "Shared team bank"
               )}
             </p>
           </div>
@@ -1062,16 +1121,17 @@ export function App() {
       {!entered ? (
         <section className="hero title-hero">
           <img className="hero-logo" src="/logo.png" alt="Arb Guardian" width={112} height={112} />
-          <p className="hero-kicker">GUILD BANK PROTECTION</p>
+          <p className="hero-kicker">SHARED TEAM BANK</p>
           <h2>
             <span className="accent">Arb</span> Guardian
           </h2>
           <p className="hero-lead">
-            Review guild spends before anyone signs. Block scams. Freeze when it matters.
+            Your guild's prize money shouldn't vanish because someone clicked a fake shop link. Check the spend first.
+            Lock the bank when it looks wrong.
           </p>
           <div className="cta-row">
             <button type="button" className="primary" onClick={enterWorld}>
-              Open console
+              Open
             </button>
             <button
               type="button"
@@ -1081,7 +1141,7 @@ export function App() {
               }}
               disabled={loading}
             >
-              {loading ? "Checking…" : "Review a spend"}
+              {loading ? "Checking…" : "See a risky spend"}
             </button>
           </div>
           {error && <p className="error">{error}</p>}
@@ -1148,29 +1208,82 @@ export function App() {
                   </div>
                 </section>
 
+                <section className="surface problem-card" aria-label="Who this is for">
+                  <p className="snapshot-label">Who it's for</p>
+                  <strong>Guild managers and officers</strong>
+                  <p className="muted">
+                    Teams that share one pot for prizes and payouts. No crypto knowledge needed to understand the risk or
+                    join the list. Officers with a wallet can lock the bank when danger shows up.
+                  </p>
+                </section>
+
                 <section className="surface quiet-stats" aria-label="Activity">
                   <div>
-                    <strong>{enrolled ? myUsage : kpi.totalAssessments}</strong>
-                    <span>{enrolled ? "Your reviews" : "Reviews"}</span>
+                    <strong>{interestCount}</strong>
+                    <span>Teams interested</span>
                   </div>
                   <div>
                     <strong>{guildStats.guildCount}</strong>
-                    <span>Guilds</span>
+                    <span>Officers linked</span>
                   </div>
                   <div>
-                    <strong>{policyPaused ? "On" : openIncidents}</strong>
-                    <span>{policyPaused ? "Freeze" : "Open alerts"}</span>
+                    <strong>{enrolled ? myUsage : kpi.totalAssessments}</strong>
+                    <span>{enrolled ? "Your checks" : "Checks"}</span>
                   </div>
+                </section>
+
+                <section className="surface enroll-card" aria-label="For team managers">
+                  <div className="enroll-copy">
+                    <p className="snapshot-label">No wallet needed</p>
+                    <strong>{interestJoined ? "You're on the list" : "Get updates for your guild"}</strong>
+                    <p className="muted">
+                      For managers and players who want protection without touching crypto yet.
+                      {interestCount > 0
+                        ? ` ${interestCount} team${interestCount === 1 ? "" : "s"} already interested.`
+                        : ""}
+                    </p>
+                  </div>
+                  {interestJoined ? (
+                    <p className="enroll-done">
+                      <strong>{interestMsg || "We'll reach out when enroll opens for your team."}</strong>
+                    </p>
+                  ) : (
+                    <form className="enroll-form" onSubmit={joinInterest}>
+                      <input
+                        type="text"
+                        name="guild"
+                        maxLength={28}
+                        placeholder="Guild or team name"
+                        value={guildName === "My Guild" ? "" : guildName}
+                        onChange={(e) => setGuildName(e.target.value.slice(0, 28) || "My Guild")}
+                        aria-label="Guild or team name"
+                      />
+                      <input
+                        type="email"
+                        name="email"
+                        autoComplete="email"
+                        placeholder="you@team.gg"
+                        value={interestEmail}
+                        onChange={(e) => setInterestEmail(e.target.value)}
+                        aria-label="Email"
+                        required
+                      />
+                      <button type="submit" className="primary" disabled={interestBusy}>
+                        {interestBusy ? "Saving…" : "Join list"}
+                      </button>
+                    </form>
+                  )}
+                  {interestMsg && !interestJoined ? <p className="error">{interestMsg}</p> : null}
                 </section>
 
                 <section className="surface enroll-card" aria-label="Officer wallet">
                   <div className="enroll-copy">
-                    <p className="snapshot-label">Officer wallet</p>
-                    <strong>{enrolled ? "Guild connected" : "Connect your guild"}</strong>
+                    <p className="snapshot-label">For officers with a wallet</p>
+                    <strong>{enrolled ? "Officer linked" : "Link officer wallet"}</strong>
                     <p className="muted">
                       {enrolled
-                        ? "This wallet stays linked while you review spends and freeze when needed."
-                        : "Sign once with your officer wallet to keep this guild active across sessions."}
+                        ? "You can review spends and lock the bank. Disconnect anytime from here."
+                        : "Optional. Connect once so checks and freezes count for your guild."}
                     </p>
                   </div>
                   {enrolled && walletAddress ? (
@@ -1189,7 +1302,7 @@ export function App() {
                     <form className="enroll-form" onSubmit={enrollGuild}>
                       <input
                         type="text"
-                        name="guild"
+                        name="guild-officer"
                         maxLength={28}
                         placeholder="Guild name"
                         value={guildName === "My Guild" ? "" : guildName}
@@ -1320,7 +1433,7 @@ export function App() {
                   </p>
 
                   {!assessment ? (
-                    walletAddress ? (
+                    <div className="review-connect-gate">
                       <button
                         type="button"
                         className="primary full review-cta"
@@ -1331,23 +1444,24 @@ export function App() {
                         disabled={loading}
                       >
                         <IconCheck size={16} />
-                        {loading ? "Reviewing…" : "Review spend"}
+                        {loading ? "Checking…" : "Check this spend"}
                       </button>
-                    ) : (
-                      <div className="review-connect-gate">
-                        <p className="muted">Connect your officer wallet to review spends for this guild.</p>
-                        <button
-                          type="button"
-                          className="primary full review-cta"
-                          disabled={enrollBusy}
-                          onClick={() => {
-                            void handleConnectWallet();
-                          }}
-                        >
-                          {enrollBusy ? "Connecting…" : "Connect wallet"}
-                        </button>
-                      </div>
-                    )
+                      {!walletAddress ? (
+                        <p className="muted">
+                          No wallet needed to understand the risk. Officers can{" "}
+                          <button
+                            type="button"
+                            className="linkish"
+                            onClick={() => {
+                              void handleConnectWallet();
+                            }}
+                          >
+                            connect
+                          </button>{" "}
+                          later to lock the bank.
+                        </p>
+                      ) : null}
+                    </div>
                   ) : (
                     <div className={`decision-card ${assessment.blocked ? "is-block" : "is-allow"}`}>
                       <p className="result-line">
@@ -1358,15 +1472,15 @@ export function App() {
                       </p>
                       <p className="decision-copy">
                         {assessment.blocked
-                          ? "Do not sign. Officer AI recommends freeze — you confirm in Alerts."
-                          : "Rules look clean. Safe to continue."}
+                          ? "Do not approve this. The helper suggests locking the bank — a human must confirm in Alerts."
+                          : "Looks clean. Safe for the team to continue."}
                       </p>
                       <div className="officer-ai">
-                        <strong>Officer AI</strong>
+                        <strong>Officer helper</strong>
                         <p>
                           Suggests: <em>{playbookLabel(assessment.recommendedPlaybook)}</em>
                         </p>
-                        <p className="muted">Cannot move funds. Freeze needs a human click.</p>
+                        <p className="muted">Cannot move money. Locking the bank needs your click.</p>
                       </div>
                       <button type="button" className="linkish" onClick={() => setWhyOpen((v) => !v)}>
                         {whyOpen ? "Hide details" : "Why this decision"}
@@ -1448,7 +1562,7 @@ export function App() {
                   )}
                   {openIncidents > 0 ? (
                     <p className="muted" style={{ marginBottom: "0.85rem" }}>
-                      {openIncidents} open · Officer AI suggests, you confirm freeze.
+                      {openIncidents} open · Helper suggests, you confirm the lock.
                     </p>
                   ) : null}
                   {incidents.length === 0 && !policyPaused ? (
@@ -1477,7 +1591,7 @@ export function App() {
                             <p className="muted">
                               {incident.status === "mitigated"
                                 ? "Resolved · freeze confirmed"
-                                : `${incident.status} · Officer AI: ${playbookLabel(incident.recommendedPlaybook)}`}
+                                : `${incident.status} · Helper: ${playbookLabel(incident.recommendedPlaybook)}`}
                             </p>
                             {isOpen ? (
                               <div className="actions">
@@ -1500,7 +1614,7 @@ export function App() {
                                   }}
                                 >
                                   <IconFreeze size={14} />
-                                  Freeze guild spending
+                                  Lock the shared bank
                                 </button>
                                 <button
                                   type="button"
@@ -1527,9 +1641,9 @@ export function App() {
                       Last action:{" "}
                       <strong>
                         {lastPlaybook.action?.includes("pause")
-                          ? "Freeze guild spending"
+                          ? "Lock the shared bank"
                           : lastPlaybook.action?.includes("unpause")
-                            ? "Unfreeze"
+                            ? "Unlock bank"
                             : lastPlaybook.action}
                       </strong>
                       {lastPlaybook.txHash ? (
@@ -1781,7 +1895,7 @@ export function App() {
       )}
 
       <footer className="footer">
-        <div>Arb Guardian — guild bank protection</div>
+        <div>Arb Guardian — shared team bank protection</div>
         <div>
           <a href="https://github.com/thesithunyein/arb-guardian" target="_blank" rel="noreferrer">
             Repo

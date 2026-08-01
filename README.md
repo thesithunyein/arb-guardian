@@ -28,11 +28,11 @@ Officer AI suggests the next playbook. It **cannot move funds**, change allowlis
 
 ## Who it’s for
 
-- Guild / clan treasurers and officers  
-- Esports managers running a shared prize pot  
-- Co-signers who need a shared alert + freeze log  
+- Guild / clan managers (email is enough to join interest — no wallet required) 
+- Officers who hold the shared bank keys (optional wallet link to review and lock) 
+- Esports teams running one prize / payout pot 
 
-Not a playable mini-game. Not a generic DeFi trading console.
+Plain language first. Crypto rails underneath. Not a mini-game. Not a trading console.
 
 ## Core capabilities
 

@@ -2318,10 +2318,18 @@ button:disabled {
 }
 
 .enroll-card,
-.waitlist-card {
+.waitlist-card,
+.problem-card {
   display: grid;
   gap: 0.85rem;
   padding: 1.15rem 1.2rem;
+}
+
+.problem-card strong {
+  display: block;
+  font-size: 1.05rem;
+  letter-spacing: -0.015em;
+  margin: 0.1rem 0 0.2rem;
 }
 
 .enroll-copy strong,
