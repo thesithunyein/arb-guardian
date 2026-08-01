@@ -66,6 +66,36 @@ const XP_STORAGE = "arb-guardian-xp-v1";
 const BADGE_STORAGE = "arb-guardian-badges-v1";
 const GUILD_STORAGE = "arb-guardian-guild-v1";
 const ENROLL_STORAGE = "arb-guardian-guild-enroll-v1";
+const INCIDENTS_STORAGE = "arb-guardian-incidents-v1";
+
+function loadIncidents(): IncidentItem[] {
+  try {
+    const raw = sessionStorage.getItem(INCIDENTS_STORAGE);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as IncidentItem[];
+    return Array.isArray(parsed) ? parsed.slice(0, 12) : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistIncidents(items: IncidentItem[]) {
+  try {
+    sessionStorage.setItem(INCIDENTS_STORAGE, JSON.stringify(items.slice(0, 12)));
+  } catch {
+    // ignore
+  }
+}
+
+function nextIncidentStatus(
+  current: string,
+  action: "acknowledge" | "mitigate" | "ignore"
+) {
+  if (action === "mitigate") return "mitigated";
+  if (action === "ignore") return "ignored";
+  if (action === "acknowledge" && current === "open") return "acknowledged";
+  return current;
+}
 
 function loadLocalEnroll(): LocalEnroll | null {
   try {
@@ -290,7 +320,7 @@ export function App() {
   const [guardPrediction, setGuardPrediction] = useState<{ wouldRevert: boolean; reason: string } | null>(
     null
   );
-  const [incidents, setIncidents] = useState<IncidentItem[]>([]);
+  const [incidents, setIncidents] = useState<IncidentItem[]>(() => loadIncidents());
   const [auditLog, setAuditLog] = useState<
     Array<{ incidentId: string; action: string; actor: string; createdAt: string }>
   >([]);
@@ -346,6 +376,10 @@ export function App() {
       // ignore
     }
   }, [guildName]);
+
+  useEffect(() => {
+    persistIncidents(incidents);
+  }, [incidents]);
 
   function toggleMute() {
     const next = !sfxMuted;
@@ -406,6 +440,7 @@ export function App() {
         BADGE_STORAGE,
         JSON.stringify({ firstCheck: false, firstBlock: false, firstFreeze: false, cleanPayout: false })
       );
+      sessionStorage.removeItem(INCIDENTS_STORAGE);
     } catch {
       // ignore
     }
@@ -623,7 +658,15 @@ export function App() {
         ]);
       })
       .then(([incidentsData, kpiData, evalData, policyData]) => {
-        setIncidents((incidentsData as { items: IncidentItem[] }).items ?? []);
+        // Ephemeral serverless memory can be empty on another instance — never wipe local alerts.
+        const remote = ((incidentsData as { items?: IncidentItem[] }).items ?? []).filter(Boolean);
+        if (remote.length > 0) {
+          setIncidents((prev) => {
+            const byId = new Map(prev.map((i) => [i.id, i]));
+            for (const item of remote) byId.set(item.id, item);
+            return Array.from(byId.values()).slice(0, 12);
+          });
+        }
         const k = kpiData as {
           totalAssessments: number;
           blockedCount: number;
@@ -691,16 +734,19 @@ export function App() {
             amountWei: payload.amountWei
           })
         );
-        if (data.incident) {
+        if (result.blocked) {
+          const incidentId = data.incident?.id ?? `inc-${payload.txHash}`;
           setIncidents((prev) => [
             {
-              id: data.incident!.id,
-              title: data.incident!.title,
+              id: incidentId,
+              title:
+                data.incident?.title ??
+                `Blocked · ${INTENTS[intent].vendor} · ${INTENTS[intent].amountEth} ETH`,
               severity: result.totalScore >= 80 ? "critical" : "high",
-              recommendedPlaybook: data.incident!.recommendedPlaybook,
+              recommendedPlaybook: result.recommendedPlaybook,
               status: "open"
             },
-            ...prev.filter((i) => i.id !== data.incident!.id)
+            ...prev.filter((i) => i.id !== incidentId)
           ]);
           setTab("alerts");
         }
@@ -713,10 +759,12 @@ export function App() {
         const onchain = await readOnchainPolicy(payload.wallet, payload.destination);
         if (onchain) {
           setPolicyState(onchain);
+          // Keep intent flags when onchain has no limit configured (0) so risky spends still alert.
           policy = {
             ...payload,
-            allowlisted: onchain.allowlisted,
-            dailyLimitWei: onchain.dailyLimitWei,
+            allowlisted: onchain.allowlisted && payload.allowlisted,
+            dailyLimitWei:
+              onchain.dailyLimitWei !== "0" ? onchain.dailyLimitWei : payload.dailyLimitWei,
             spentTodayWei: onchain.spentTodayWei
           };
         } else {
@@ -730,6 +778,7 @@ export function App() {
       const prediction = predictGuardOutcome(policy);
       setGuardPrediction(prediction);
       recordLocal(result, payload.txHash, payload.wallet);
+      if (result.blocked) setTab("alerts");
       void recordGuildUsage("review");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Review failed");
@@ -740,6 +789,18 @@ export function App() {
 
   async function applyAction(incidentId: string, action: "acknowledge" | "mitigate" | "ignore") {
     setError(null);
+    const patchLocal = () => {
+      setIncidents((prev) =>
+        prev.map((item) =>
+          item.id === incidentId ? { ...item, status: nextIncidentStatus(item.status, action) } : item
+        )
+      );
+      setAuditLog((prev) => [
+        { incidentId, action, actor: "guild-officer", createdAt: new Date().toISOString() },
+        ...prev
+      ]);
+    };
+
     try {
       if (runtime === "api" && API_BASE) {
         const target = incidents.find((i) => i.id === incidentId);
@@ -748,7 +809,7 @@ export function App() {
           headers: buildHeaders(true),
           body: JSON.stringify({
             action,
-            actor: "guild-officer",
+            actor: walletAddress || "guild-officer",
             incident: target
               ? {
                   id: target.id,
@@ -756,7 +817,7 @@ export function App() {
                   severity: target.severity,
                   status: target.status,
                   recommendedPlaybook: target.recommendedPlaybook,
-                  wallet: "",
+                  wallet: walletAddress || "",
                   details: "",
                   evidence: [],
                   createdAt: new Date().toISOString()
@@ -765,7 +826,10 @@ export function App() {
           })
         });
         if (!actionRes.ok) throw new Error(`Action failed (${actionRes.status})`);
-        const actionBody = (await actionRes.json()) as { playbookExecution?: PlaybookExecution | null };
+        const actionBody = (await actionRes.json()) as {
+          incident?: IncidentItem;
+          playbookExecution?: PlaybookExecution | null;
+        };
         if (actionBody.playbookExecution) {
           setLastPlaybook(actionBody.playbookExecution);
           if (actionBody.playbookExecution.action === "policy_manager.pause") {
@@ -774,26 +838,25 @@ export function App() {
             void recordGuildUsage("freeze");
           }
         }
-        const incidentsRes = await fetch(`${API_BASE}/incidents`);
-        const body = (await incidentsRes.json()) as { items: IncidentItem[] };
-        setIncidents(body.items);
+        // Keep local alert queue — do not replace with empty serverless GET.
+        if (actionBody.incident) {
+          setIncidents((prev) => {
+            const updated = {
+              id: actionBody.incident!.id,
+              title: actionBody.incident!.title,
+              severity: actionBody.incident!.severity,
+              recommendedPlaybook: actionBody.incident!.recommendedPlaybook,
+              status: actionBody.incident!.status
+            };
+            return [updated, ...prev.filter((i) => i.id !== updated.id)].slice(0, 12);
+          });
+        } else {
+          patchLocal();
+        }
         return;
       }
 
-      setIncidents((prev) =>
-        prev.map((item) =>
-          item.id === incidentId
-            ? {
-                ...item,
-                status: action === "mitigate" ? "mitigated" : action === "ignore" ? "ignored" : item.status
-              }
-            : item
-        )
-      );
-      setAuditLog((prev) => [
-        { incidentId, action, actor: "guild-officer", createdAt: new Date().toISOString() },
-        ...prev
-      ]);
+      patchLocal();
       if (action === "mitigate") {
         setPolicyPaused(true);
         awardXp(60, "Froze the guild bank", "firstFreeze", "freeze");
