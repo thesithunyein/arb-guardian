@@ -1,15 +1,26 @@
-import { Contract, JsonRpcProvider, formatEther, isAddress } from "ethers";
+/**
+ * Chain access for the app, built on `@arb-guardian/shared`.
+ *
+ * The ABI fragments that used to live here were one of three copies of the same knowledge;
+ * they now come from the shared policy client, which the contracts test suite drives against
+ * the real contracts.
+ *
+ * Note what this module deliberately does *not* do: it never assumes the deployment supports
+ * the policy attestation. The live addresses run a build that predates it, so
+ * `readAttestation` reports that as a fact about the deployment instead of throwing.
+ */
+import { JsonRpcProvider, formatEther, isAddress } from "ethers";
+import {
+  detectPolicyAttestation,
+  executionGuard,
+  policyManager,
+  readPolicyRoles,
+  readWalletPolicy,
+  type PolicyAttestation,
+  type PolicyRoles,
+  type WalletPolicy
+} from "@arb-guardian/shared";
 import { EXECUTION_GUARD, POLICY_MANAGER, RPC_URL } from "./config";
-
-const POLICY_ABI = [
-  "function allowlistedCounterparty(address) view returns (bool)",
-  "function walletDailyLimitWei(address) view returns (uint256)",
-  "function paused() view returns (bool)"
-] as const;
-
-const GUARD_ABI = [
-  "function walletSpentTodayWei(address) view returns (uint256)"
-] as const;
 
 export type OnchainPolicy = {
   allowlisted: boolean;
@@ -23,40 +34,69 @@ export type OnchainPolicy = {
 
 let provider: JsonRpcProvider | null = null;
 
-function getProvider() {
+export function getReadProvider() {
   if (!provider) provider = new JsonRpcProvider(RPC_URL, 421614);
   return provider;
 }
 
-export async function readOnchainPolicy(wallet: string, destination: string): Promise<OnchainPolicy | null> {
+function configured() {
+  return isAddress(POLICY_MANAGER) && isAddress(EXECUTION_GUARD);
+}
+
+/** Everything the Review tab needs about one wallet's exposure, read from the live chain. */
+export async function readOnchainPolicy(
+  wallet: string,
+  destination: string
+): Promise<OnchainPolicy | null> {
   if (!isAddress(wallet) || !isAddress(destination)) return null;
-  if (!isAddress(POLICY_MANAGER) || !isAddress(EXECUTION_GUARD)) return null;
+  if (!configured()) return null;
 
-  const p = getProvider();
-  const policy = new Contract(POLICY_MANAGER, POLICY_ABI, p);
-  const guard = new Contract(EXECUTION_GUARD, GUARD_ABI, p);
+  const p = getReadProvider();
+  const policy = policyManager(POLICY_MANAGER, p);
+  const guard = executionGuard(EXECUTION_GUARD, p);
 
-  const [allowlisted, dailyLimitWei, spentTodayWei, policyPaused] = await Promise.all([
+  const [allowlisted, walletPolicy, paused] = await Promise.all([
     policy.allowlistedCounterparty(destination),
-    policy.walletDailyLimitWei(wallet),
-    guard.walletSpentTodayWei(wallet),
+    readWalletPolicy(policy, guard, wallet),
     policy.paused()
   ]);
 
   return {
     allowlisted: Boolean(allowlisted),
-    dailyLimitWei: dailyLimitWei.toString(),
-    spentTodayWei: spentTodayWei.toString(),
-    policyPaused: Boolean(policyPaused),
-    dailyLimitEth: formatEther(dailyLimitWei),
-    spentTodayEth: formatEther(spentTodayWei),
+    dailyLimitWei: walletPolicy.dailyLimitWei.toString(),
+    spentTodayWei: walletPolicy.spentTodayWei.toString(),
+    policyPaused: Boolean(paused),
+    dailyLimitEth: formatEther(walletPolicy.dailyLimitWei),
+    spentTodayEth: formatEther(walletPolicy.spentTodayWei),
     source: "onchain"
   };
 }
 
+/** The wallet's full policy, for the console that administers it. */
+export async function readPolicyFor(wallet: string): Promise<{
+  policy: WalletPolicy;
+  roles: PolicyRoles;
+  attestation: PolicyAttestation;
+  managerAddress: string;
+} | null> {
+  if (!isAddress(wallet) || !configured()) return null;
+
+  const p = getReadProvider();
+  const policy = policyManager(POLICY_MANAGER, p);
+  const guard = executionGuard(EXECUTION_GUARD, p);
+
+  const [walletPolicy, roles, attestation] = await Promise.all([
+    readWalletPolicy(policy, guard, wallet),
+    readPolicyRoles(policy, wallet),
+    detectPolicyAttestation(policy)
+  ]);
+
+  return { policy: walletPolicy, roles, attestation, managerAddress: POLICY_MANAGER };
+}
+
 export async function pingRpc(): Promise<boolean> {
   try {
-    await getProvider().getBlockNumber();
+    await getReadProvider().getBlockNumber();
     return true;
   } catch {
     return false;

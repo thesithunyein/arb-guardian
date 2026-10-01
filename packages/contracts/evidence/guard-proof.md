@@ -1,6 +1,6 @@
 # Arb Guardian — Guard Proof
 
-Generated 2026-10-01T07:20:01.366Z by `npm run evidence -w packages/contracts` on the in-process `hardhat` chain.
+Generated 2026-10-01T07:57:13.260Z by `npm run evidence -w packages/contracts` on the in-process `hardhat` chain.
 
 This is a reproduction, not a recording. Every row below was produced by executing the transaction against a **real Gnosis Safe v1.4.1** (real singleton, real proxy factory, real fallback handler) with `SafeTreasuryGuard` installed as its guard.
 

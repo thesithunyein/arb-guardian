@@ -605,7 +605,7 @@ export function App() {
     try {
       const signed = await signEnrollMessage(name);
       setWalletAddress(signed.address);
-      const res = await fetch(`${API_BASE}/treasurys`, {
+      const res = await fetch(`${API_BASE}/treasuries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -644,7 +644,7 @@ export function App() {
     const address = walletAddress || loadLocalEnroll()?.address;
     if (!address || !enrolled) return;
     try {
-      const res = await fetch(`${API_BASE}/treasurys`, {
+      const res = await fetch(`${API_BASE}/treasuries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ op: "usage", address, event })
@@ -722,12 +722,12 @@ export function App() {
       setEnrolled(true);
       if (local.treasury) setTreasuryName(local.treasury.slice(0, 28));
     }
-    fetch(`${API_BASE}/treasurys`)
+    fetch(`${API_BASE}/treasuries`)
       .then((r) => (r.ok ? r.json() : null))
       .then(async (data) => {
         if (!data) return;
-        applyTreasuryStats(data as Partial<TreasuryStats> & { treasurys?: Array<{ ownerFull?: string; usageCount?: number }> });
-        const list = (data as { treasurys?: Array<{ ownerFull?: string; usageCount?: number }> }).treasurys ?? [];
+        applyTreasuryStats(data as Partial<TreasuryStats> & { treasuries?: Array<{ ownerFull?: string; usageCount?: number }> });
+        const list = (data as { treasuries?: Array<{ ownerFull?: string; usageCount?: number }> }).treasuries ?? [];
         if (local) {
           const mine = list.find((g) => g.ownerFull?.toLowerCase() === local.address.toLowerCase());
           if (mine) {
@@ -735,7 +735,7 @@ export function App() {
           } else {
             // Re-publish signed enroll so roster survives serverless cold starts
             try {
-              const res = await fetch(`${API_BASE}/treasurys`, {
+              const res = await fetch(`${API_BASE}/treasuries`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

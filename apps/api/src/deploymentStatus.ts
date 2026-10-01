@@ -13,7 +13,7 @@ export type DeploymentStatus = {
   executionGuardTxUrl: string | null;
   policyManagerUrl: string | null;
   executionGuardUrl: string | null;
-  source: "env" | "local-file" | "none";
+  source: "env" | "local-file" | "live-manifest" | "none";
 };
 
 function explorerBaseUrl(network: string | null): string {
@@ -30,7 +30,7 @@ function buildDeploymentStatus(
   executionGuard: string,
   policyManagerTx: string | null,
   executionGuardTx: string | null,
-  source: "env" | "local-file"
+  source: DeploymentStatus["source"]
 ): DeploymentStatus {
   const explorer = explorerBaseUrl(network);
   return {
@@ -71,6 +71,59 @@ function readLocalLatest(): Partial<{
   return null;
 }
 
+type LiveManifest = {
+  networks?: Array<{
+    name?: string;
+    label?: string;
+    chainId?: number;
+    status?: string;
+    contracts?: Array<{ contract?: string; address?: string }>;
+  }>;
+};
+
+/**
+ * The canonical record of what is deployed where.
+ *
+ * The web app hardcoded these addresses and the API did not know them at all, so the same
+ * deployment had two answers depending on which side asked. This file is the one both read
+ * from, and `npm run check:deployed` verifies it against the chain.
+ */
+function readLiveManifest(): {
+  network: string;
+  chainId: number | null;
+  policyManager: string;
+  executionGuard: string;
+} | null {
+  const candidates = [
+    resolve(process.cwd(), "../../packages/contracts/evidence/live-deployments.json"),
+    resolve(process.cwd(), "packages/contracts/evidence/live-deployments.json"),
+    resolve(process.cwd(), "evidence/live-deployments.json")
+  ];
+  for (const path of candidates) {
+    if (!existsSync(path)) continue;
+    try {
+      const manifest = JSON.parse(readFileSync(path, "utf8")) as LiveManifest;
+      const networks = Array.isArray(manifest.networks) ? manifest.networks : [];
+      const chosen = networks.find((n) => n.name === "arbitrumSepolia") ?? networks[0];
+      if (!chosen) continue;
+      const addressOf = (contract: string) =>
+        chosen.contracts?.find((c) => c.contract === contract)?.address ?? null;
+      const policyManager = addressOf("PolicyManager");
+      const executionGuard = addressOf("ExecutionGuard");
+      if (!policyManager || !executionGuard) continue;
+      return {
+        network: chosen.label ?? chosen.name ?? "unknown",
+        chainId: chosen.chainId ?? null,
+        policyManager,
+        executionGuard
+      };
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
 export function getDeploymentStatus(): DeploymentStatus {
   const fromEnvPolicy = process.env.SUBMISSION_POLICY_MANAGER_ADDRESS?.trim() || null;
   const fromEnvGuard = process.env.SUBMISSION_EXECUTION_GUARD_ADDRESS?.trim() || null;
@@ -97,6 +150,19 @@ export function getDeploymentStatus(): DeploymentStatus {
       local.policyManager.txHash ?? null,
       local.executionGuard.txHash ?? null,
       "local-file"
+    );
+  }
+
+  const live = readLiveManifest();
+  if (live) {
+    return buildDeploymentStatus(
+      live.network,
+      live.chainId,
+      live.policyManager,
+      live.executionGuard,
+      null,
+      null,
+      "live-manifest"
     );
   }
 

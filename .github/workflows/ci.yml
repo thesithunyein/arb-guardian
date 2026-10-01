@@ -29,6 +29,13 @@ jobs:
       # Reads the bytecode at every recorded address over public RPC and fails when a
       # network's declared status and the chain disagree. Needs no keys.
       - run: npm run check:deployed
+      # The policy client every surface shares. Its ABI, role hashes, limit semantics and
+      # revert decoding are asserted here, then driven against the real deployment below.
+      # A fetch path is only a string until something checks it against the handlers on disk.
+      - run: npm run check:routes
+      - run: npm run test -w packages/shared
+      # Includes the live suite: read-only eth_call against the deployed PolicyManager, so a
+      # client that no longer matches the chain fails the build instead of failing a user.
       - run: npm run test -w apps/api
       - run: npm run eval:policy -w apps/api
       - run: npm run build -w packages/shared

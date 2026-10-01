@@ -109,6 +109,23 @@ that the Arbitrum Sepolia and Robinhood Chain Testnet addresses run an **earlier
 PolicyManager is 2,098 bytes on-chain against 4,631 here. That is what `docs/live-deployment.md`
 warns about, and it is checked rather than asserted.
 
+## One policy client, not four
+
+The product's knowledge of the contracts lives in `packages/shared/src/policy.ts` — the ABI, the
+role hashes, the limit semantics and the mapping from a revert to a sentence an operator can act
+on. It was previously written out four times, and the copies had already drifted: the API's version
+predated the token lane and the attestation, so it could not see functions the contracts expose.
+
+That client is tested two ways. `packages/shared` asserts the logic — `0` blocks, `UNLIMITED_LIMIT`
+uncaps, `pause` needs a different role from `setWalletDailyLimit`, and reverts become readable
+refusals. `apps/api/src/policyClient.live.test.ts` then drives it against the **deployed contract
+over public RPC**, from a throwaway address with no key and no gas, because a unit test cannot tell
+you that an ABI string names a function that exists. It caught a real defect on its first run.
+
+The client also refuses to assume the deployment is current: `detectPolicyAttestation` probes for
+`policySnapshot` and reports an older deployment as a fact about the deployment rather than
+crashing on it.
+
 The table it generates is the readable version of the claim, including every revert reason:
 
 | # | Case | Expected | Observed | Revert reason |

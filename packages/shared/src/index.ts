@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export * from "./policy.js";
+
 export const severitySchema = z.enum(["low", "medium", "high", "critical"]);
 
 export const riskRuleMatchSchema = z.object({
