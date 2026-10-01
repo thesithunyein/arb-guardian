@@ -1,4 +1,4 @@
-﻿name: ci
+name: ci
 
 on:
   push:
@@ -16,10 +16,24 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm install
+      # Type errors were previously allowed to accumulate here; the workspace is clean now and
+      # this step keeps it that way.
+      - run: npm run typecheck
+      - run: npm run lint
       - run: npm run test -w packages/contracts
+      # Regenerates evidence/guard-proof.{md,json} and fails the build if any case stops
+      # behaving as specified, or if the policy digest chain stops replaying.
       - run: npm run evidence -w packages/contracts
       - run: npm run test -w apps/api
       - run: npm run eval:policy -w apps/api
+      - run: npm run build -w packages/shared
       - run: npm run build -w apps/api
       - run: npm run build -w apps/web
-      - run: npm run build -w packages/shared
+      - name: Publish guard proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: guard-proof
+          path: |
+            packages/contracts/evidence/guard-proof.md
+            packages/contracts/evidence/guard-proof.json
+          if-no-files-found: error

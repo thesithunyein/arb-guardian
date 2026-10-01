@@ -29,7 +29,8 @@
     "node": ">=20.0.0"
   },
   "devDependencies": {
-    "@vercel/node": "^5.9.2"
+    "@vercel/node": "^5.9.2",
+    "typescript-eslint": "^8.71.0"
   },
   "dependencies": {
     "ethers": "^6.13.4"
