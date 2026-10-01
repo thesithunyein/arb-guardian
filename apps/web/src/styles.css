@@ -1534,6 +1534,69 @@ button:disabled {
   font-weight: 800;
 }
 
+/* The policy console: read the rules the guard enforces, then change them. */
+.admin-connect {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+}
+
+.admin-actions {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1.1rem;
+}
+
+.admin-action {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-product, 10px);
+  padding: 0.85rem 0.95rem;
+  background: rgba(8, 14, 28, 0.28);
+}
+
+.admin-action > strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.92rem;
+}
+
+.admin-action p {
+  margin: 0.45rem 0 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.admin-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.admin-row .treasury-input {
+  flex: 1 1 15rem;
+  min-width: 0;
+}
+
+.admin-row .treasury-input.admin-narrow {
+  flex: 0 1 7rem;
+}
+
+.error-block {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(255, 106, 106, 0.55);
+  border-radius: var(--radius-product, 10px);
+  background: rgba(255, 106, 106, 0.08);
+}
+
+.error-block p {
+  margin: 0.35rem 0 0;
+}
+
 /* The spend preflight: the operator enters a real treasury and a real payee. */
 .spend-field {
   display: grid;

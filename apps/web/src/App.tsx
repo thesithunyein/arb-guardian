@@ -1,6 +1,30 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from "react";
-import { isAddress, parseEther } from "ethers";
-import { pingRpc, readOnchainPolicy, type OnchainPolicy } from "./chain";
+import { isAddress, parseEther, type Contract } from "ethers";
+import {
+  UNLIMITED_LIMIT,
+  parseBaseUnits,
+  setCounterparty,
+  // Aliased: this component already has a React state setter by that name.
+  setPolicyPaused as submitPolicyPause,
+  setTokenCounterparty,
+  setTokenDailyLimit,
+  setTokenRegistered,
+  setWalletDailyLimit,
+  type PolicyAction,
+  type PolicyChange
+} from "@arb-guardian/shared";
+import { getReadProvider, pingRpc, readOnchainPolicy, type OnchainPolicy } from "./chain";
+import {
+  canPerform,
+  connectAdmin,
+  explainMissingRole,
+  hasInjectedWallet,
+  isValidAddress,
+  readAdminView,
+  submitChange,
+  type AdminSigner,
+  type AdminView
+} from "./admin";
 import {
   API_BASE,
   API_KEY,
@@ -27,6 +51,7 @@ import {
   IconHome,
   IconMoon,
   IconPayment,
+  IconPolicy,
   IconReview,
   IconSecurity,
   IconSun
@@ -183,7 +208,7 @@ type AgentEvalSummary = {
   blockedRecall: number;
 };
 
-type TabId = "home" | "review" | "alerts" | "automation" | "security";
+type TabId = "home" | "review" | "alerts" | "automation" | "policy" | "security";
 type SpendMethod = "transfer" | "approve";
 
 /**
@@ -332,6 +357,24 @@ export function App() {
   const [interestBusy, setInterestBusy] = useState(false);
   const [interestMsg, setInterestMsg] = useState<string | null>(null);
   const [operatorOpen, setOperatorOpen] = useState(false);
+
+  // ------------------------------------------------- the policy console (administering it)
+  // A wallet only when the operator connects one; reads work without it.
+  const [adminSigner, setAdminSigner] = useState<AdminSigner | null>(null);
+  /** The treasury or wallet whose rules are on screen. */
+  const [adminTarget, setAdminTarget] = useState(TREASURY_SAFE);
+  const [adminView, setAdminView] = useState<AdminView | null>(null);
+  const [adminError, setAdminError] = useState<string | null>(null);
+  const [adminBusy, setAdminBusy] = useState(false);
+  const [adminNotice, setAdminNotice] = useState<{ ok: boolean; text: string; txHash?: string } | null>(
+    null
+  );
+  const [payeeInput, setPayeeInput] = useState("");
+  const [limitInput, setLimitInput] = useState("5");
+  const [tokenInput, setTokenInput] = useState("");
+  const [tokenRecipientInput, setTokenRecipientInput] = useState("");
+  const [tokenLimitInput, setTokenLimitInput] = useState("5000");
+  const [tokenDecimalsInput, setTokenDecimalsInput] = useState("6");
 
   useEffect(() => {
     try {
@@ -818,6 +861,201 @@ export function App() {
     }
   }
 
+  // Read the policy for the address in the field, with the connected wallet's permissions —
+  // not the treasury's, because `hasRole` answers for one address and the operator may hold none.
+  useEffect(() => {
+    if (tab !== "policy") return;
+    if (!isValidAddress(adminTarget)) {
+      setAdminView(null);
+      setAdminError("Enter the address whose policy you want to see.");
+      return;
+    }
+    let cancelled = false;
+    setAdminError(null);
+    (async () => {
+      try {
+        const view = await readAdminView(
+          adminSigner?.signer ?? getReadProvider(),
+          adminTarget,
+          adminSigner?.address ?? null
+        );
+        if (!cancelled) setAdminView(view);
+      } catch (err) {
+        if (!cancelled) {
+          setAdminView(null);
+          setAdminError(err instanceof Error ? err.message : "Could not read the policy from the chain");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, adminTarget, adminSigner]);
+
+  /**
+   * One path for every change: propose it to the wallet, then re-read the contract. The re-read is
+   * what makes the result a fact — the policy head moves, or the change did not land.
+   */
+  async function runChange(label: string, run: (policy: Contract) => Promise<PolicyChange>) {
+    if (!adminSigner) {
+      setAdminNotice({ ok: false, text: "Connect the wallet that administers this treasury first." });
+      return;
+    }
+    setAdminBusy(true);
+    setAdminNotice(null);
+    try {
+      const result = await submitChange(adminSigner.signer, run);
+      if (!result.ok) {
+        setAdminNotice({ ok: false, text: result.refusal.operatorMessage });
+        return;
+      }
+      setAdminNotice({
+        ok: true,
+        text: `${label} — the contract now reports policy version ${result.change.head.version.toString()}, digest ${result.change.head.digest.slice(0, 14)}…`,
+        txHash: result.change.txHash
+      });
+      setAdminView(await readAdminView(adminSigner.signer, adminTarget, adminSigner.address));
+    } catch (err) {
+      setAdminNotice({ ok: false, text: err instanceof Error ? err.message : "That change failed" });
+    } finally {
+      setAdminBusy(false);
+    }
+  }
+
+  /** Whether the connected wallet may make this change, and why not when it may not. */
+  function adminGate(action: PolicyAction) {
+    if (!adminSigner) {
+      return { allowed: false, why: "Connect the wallet that administers this treasury to change anything." };
+    }
+    if (!adminView) {
+      return { allowed: false, why: "The policy has not been read yet." };
+    }
+    if (!canPerform(adminView.roles, action)) {
+      return { allowed: false, why: explainMissingRole(action, adminView.manager) };
+    }
+    return { allowed: true, why: "" };
+  }
+
+  async function connectAdminWallet() {
+    setAdminError(null);
+    setAdminNotice(null);
+    try {
+      const connected = await connectAdmin();
+      setAdminSigner(connected);
+      setWalletAddress((prev) => prev ?? connected.address);
+    } catch (err) {
+      setAdminError(err instanceof Error ? err.message : "Could not connect a wallet");
+    }
+  }
+
+  async function saveLimit() {
+    const gate = adminGate("setWalletDailyLimit");
+    if (!gate.allowed) {
+      setAdminNotice({ ok: false, text: gate.why });
+      return;
+    }
+    let limitWei: bigint;
+    if (limitInput.trim().toLowerCase() === "unlimited") {
+      limitWei = UNLIMITED_LIMIT;
+    } else {
+      try {
+        limitWei = parseEther(limitInput.trim());
+      } catch {
+        setAdminNotice({ ok: false, text: "The limit has to be a number, or the word unlimited." });
+        return;
+      }
+    }
+    const target = adminTarget;
+    await runChange(`Daily limit set on ${shortAddress(target)}`, (policy) =>
+      setWalletDailyLimit(policy, target, limitWei)
+    );
+  }
+
+  async function savePayee(allowed: boolean) {
+    const gate = adminGate("setCounterparty");
+    if (!gate.allowed) {
+      setAdminNotice({ ok: false, text: gate.why });
+      return;
+    }
+    if (!isValidAddress(payeeInput.trim())) {
+      setAdminNotice({ ok: false, text: "That is not a payee address." });
+      return;
+    }
+    const payee = payeeInput.trim();
+    await runChange(`${allowed ? "Allowlisted" : "Removed"} ${shortAddress(payee)}`, (policy) =>
+      setCounterparty(policy, payee, allowed)
+    );
+  }
+
+  async function savePaused(paused: boolean) {
+    const gate = adminGate(paused ? "pause" : "unpause");
+    if (!gate.allowed) {
+      setAdminNotice({ ok: false, text: gate.why });
+      return;
+    }
+    await runChange(paused ? "Policy frozen" : "Policy unfrozen", (policy) =>
+      submitPolicyPause(policy, paused)
+    );
+  }
+
+  async function registerToken() {
+    const gate = adminGate("setTokenRegistered");
+    if (!gate.allowed) {
+      setAdminNotice({ ok: false, text: gate.why });
+      return;
+    }
+    if (!isValidAddress(tokenInput.trim())) {
+      setAdminNotice({ ok: false, text: "That is not a token address." });
+      return;
+    }
+    const token = tokenInput.trim();
+    await runChange(`Registered ${shortAddress(token)} for enforcement`, (policy) =>
+      setTokenRegistered(policy, token, true)
+    );
+  }
+
+  async function saveTokenRecipient(allowed: boolean) {
+    const gate = adminGate("setTokenCounterparty");
+    if (!gate.allowed) {
+      setAdminNotice({ ok: false, text: gate.why });
+      return;
+    }
+    if (!isValidAddress(tokenInput.trim()) || !isValidAddress(tokenRecipientInput.trim())) {
+      setAdminNotice({ ok: false, text: "Give both the token and the recipient address." });
+      return;
+    }
+    const token = tokenInput.trim();
+    const recipient = tokenRecipientInput.trim();
+    await runChange(
+      `${allowed ? "Allowlisted" : "Removed"} ${shortAddress(recipient)} for ${shortAddress(token)}`,
+      (policy) => setTokenCounterparty(policy, token, recipient, allowed)
+    );
+  }
+
+  async function saveTokenLimit() {
+    const gate = adminGate("setTokenDailyLimit");
+    if (!gate.allowed) {
+      setAdminNotice({ ok: false, text: gate.why });
+      return;
+    }
+    if (!isValidAddress(tokenInput.trim())) {
+      setAdminNotice({ ok: false, text: "That is not a token address." });
+      return;
+    }
+    const decimals = Number(tokenDecimalsInput.trim());
+    const parsed = parseBaseUnits(tokenLimitInput.trim(), Number.isInteger(decimals) ? decimals : 6);
+    if (!parsed.ok) {
+      setAdminNotice({ ok: false, text: parsed.error });
+      return;
+    }
+    const token = tokenInput.trim();
+    const target = adminTarget;
+    await runChange(
+      `Token cap of ${tokenLimitInput.trim()} set on ${shortAddress(target)}`,
+      (policy) => setTokenDailyLimit(policy, token, target, parsed.value)
+    );
+  }
+
   async function applyAction(incidentId: string, action: "acknowledge" | "mitigate" | "ignore") {
     setError(null);
     // Optimistic local update first — serverless GET must never wipe this queue.
@@ -931,6 +1169,7 @@ export function App() {
     ["review", "Review", <IconReview key="r" size={16} />],
     ["alerts", openIncidents ? `Alerts (${openIncidents})` : "Alerts", <IconAlerts key="a" size={16} />],
     ["automation", "Playbooks", <IconAutomation key="u" size={16} />],
+    ["policy", "Policy", <IconPolicy key="p" size={16} />],
     ["security", "Vault", <IconSecurity key="s" size={16} />]
   ];
 
@@ -1667,6 +1906,328 @@ export function App() {
                     <li>Cannot grant admin access</li>
                     <li>Lock only after Lock the treasury is clicked</li>
                   </ul>
+                </section>
+              </div>
+            )}
+
+            {tab === "policy" && (
+              <div className="grid">
+                <section className="surface span-2">
+                  <h3>
+                    <IconPolicy size={18} /> Policy console
+                  </h3>
+                  <p className="muted section-lead">
+                    These are the rules the guard enforces on chain. Every change is signed by your own wallet and then
+                    read back from the contract, so the version and digest below are the contract's answer rather than
+                    ours.
+                  </p>
+
+                  <div className="admin-connect">
+                    {adminSigner ? (
+                      <span className="chip wallet-chip" title={adminSigner.address}>
+                        Signing as {shortAddress(adminSigner.address)}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="primary"
+                        onClick={() => {
+                          void connectAdminWallet();
+                        }}
+                        disabled={!hasInjectedWallet()}
+                        title={
+                          hasInjectedWallet()
+                            ? "Use the wallet that administers this treasury"
+                            : "No browser wallet was detected in this browser"
+                        }
+                      >
+                        Connect a wallet
+                      </button>
+                    )}
+                    {!hasInjectedWallet() ? (
+                      <span className="muted">
+                        No browser wallet detected — the page stays read-only, which is safe.
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <label className="spend-field">
+                    <span>Treasury or wallet to administer</span>
+                    <input
+                      className="treasury-input"
+                      value={adminTarget}
+                      onChange={(e) => setAdminTarget(e.target.value)}
+                      placeholder="0x…"
+                      spellCheck={false}
+                    />
+                  </label>
+
+                  {adminError ? <p className="error">{adminError}</p> : null}
+
+                  {adminView ? (
+                    <>
+                      <dl className="meta review-meta">
+                        <div>
+                          <dt>Native daily limit</dt>
+                          <dd>{formatEth(adminView.wallet.dailyLimitWei.toString())}</dd>
+                        </div>
+                        <div>
+                          <dt>Spent today</dt>
+                          <dd>{formatEth(adminView.wallet.spentTodayWei.toString())}</dd>
+                        </div>
+                        <div>
+                          <dt>Policy state</dt>
+                          <dd>{adminView.paused ? "Frozen" : "Active"}</dd>
+                        </div>
+                        <div>
+                          <dt>Policy version</dt>
+                          <dd>
+                            {adminView.attestation.supported && adminView.attestation.head
+                              ? adminView.attestation.head.version.toString()
+                              : "Not published"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Policy digest</dt>
+                          <dd title={adminView.attestation.head?.digest ?? ""}>
+                            {adminView.attestation.supported && adminView.attestation.head
+                              ? `${adminView.attestation.head.digest.slice(0, 14)}…`
+                              : "—"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Your permissions</dt>
+                          <dd>
+                            {adminSigner
+                              ? adminView.roles.policyAdmin
+                                ? adminView.roles.defaultAdmin
+                                  ? "Policy admin + admin"
+                                  : "Policy admin"
+                                : adminView.roles.defaultAdmin
+                                  ? "Admin only"
+                                  : "None on this treasury"
+                              : "Connect a wallet"}
+                          </dd>
+                        </div>
+                      </dl>
+
+                      {!adminView.attestation.supported ? (
+                        <p className="muted">
+                          This deployment was built before the versioned policy attestation, so it publishes no policy
+                          version or digest. The limits above are still read from it, and the guards still enforce the
+                          native lane — but a change here cannot be stamped to a policy version until the current build is
+                          deployed.
+                        </p>
+                      ) : null}
+
+                      <div className="admin-actions">
+                        <div className="admin-action">
+                          <strong>Daily limit for this address</strong>
+                          <div className="admin-row">
+                            <input
+                              className="treasury-input"
+                              value={limitInput}
+                              onChange={(e) => setLimitInput(e.target.value)}
+                              aria-label="Daily limit"
+                            />
+                            <span className="muted">ETH, or the word unlimited</span>
+                            <button
+                              type="button"
+                              className="primary"
+                              onClick={() => {
+                                void saveLimit();
+                              }}
+                              disabled={adminBusy || !adminGate("setWalletDailyLimit").allowed}
+                            >
+                              Save limit
+                            </button>
+                          </div>
+                          {!adminGate("setWalletDailyLimit").allowed ? (
+                            <p className="muted">{adminGate("setWalletDailyLimit").why}</p>
+                          ) : null}
+                        </div>
+
+                        <div className="admin-action">
+                          <strong>Payee allowlist</strong>
+                          <div className="admin-row">
+                            <input
+                              className="treasury-input"
+                              value={payeeInput}
+                              onChange={(e) => setPayeeInput(e.target.value)}
+                              placeholder="0x… payee"
+                              spellCheck={false}
+                              aria-label="Payee address"
+                            />
+                            <button
+                              type="button"
+                              className="primary"
+                              onClick={() => {
+                                void savePayee(true);
+                              }}
+                              disabled={adminBusy || !adminGate("setCounterparty").allowed}
+                            >
+                              Allow
+                            </button>
+                            <button
+                              type="button"
+                              className="ghost"
+                              onClick={() => {
+                                void savePayee(false);
+                              }}
+                              disabled={adminBusy || !adminGate("setCounterparty").allowed}
+                            >
+                              Revoke
+                            </button>
+                          </div>
+                          {!adminGate("setCounterparty").allowed ? (
+                            <p className="muted">{adminGate("setCounterparty").why}</p>
+                          ) : null}
+                        </div>
+
+                        <div className="admin-action">
+                          <strong>Freeze</strong>
+                          <div className="admin-row">
+                            <button
+                              type="button"
+                              className="primary"
+                              onClick={() => {
+                                void savePaused(true);
+                              }}
+                              disabled={adminBusy || adminView.paused || !adminGate("pause").allowed}
+                            >
+                              <IconFreeze size={16} /> Freeze the policy
+                            </button>
+                            <button
+                              type="button"
+                              className="ghost"
+                              onClick={() => {
+                                void savePaused(false);
+                              }}
+                              disabled={adminBusy || !adminView.paused || !adminGate("unpause").allowed}
+                            >
+                              Unfreeze
+                            </button>
+                          </div>
+                          <p className="muted">
+                            A freeze refuses every spend at the guard, and it also blocks further policy edits — including
+                            removing the freeze — so unfreezing needs a default admin.
+                          </p>
+                          {!adminView.paused && !adminGate("pause").allowed ? (
+                            <p className="muted">{adminGate("pause").why}</p>
+                          ) : null}
+                          {adminView.paused && !adminGate("unpause").allowed ? (
+                            <p className="muted">{adminGate("unpause").why}</p>
+                          ) : null}
+                        </div>
+
+                        <div className="admin-action">
+                          <strong>Token lane</strong>
+                          <p className="muted">
+                            A registered token is enforced in its own units: which recipients may be paid, and the daily cap
+                            for this address. USDG uses 6 decimals. Clearing a cap to zero closes the lane rather than
+                            opening it.
+                          </p>
+                          <div className="admin-row">
+                            <input
+                              className="treasury-input"
+                              value={tokenInput}
+                              onChange={(e) => setTokenInput(e.target.value)}
+                              placeholder="0x… token"
+                              spellCheck={false}
+                              aria-label="Token address"
+                            />
+                            <button
+                              type="button"
+                              className="primary"
+                              onClick={() => {
+                                void registerToken();
+                              }}
+                              disabled={adminBusy || !adminGate("setTokenRegistered").allowed}
+                            >
+                              Enforce this token
+                            </button>
+                          </div>
+                          {!adminGate("setTokenRegistered").allowed ? (
+                            <p className="muted">{adminGate("setTokenRegistered").why}</p>
+                          ) : null}
+                          <div className="admin-row">
+                            <input
+                              className="treasury-input"
+                              value={tokenRecipientInput}
+                              onChange={(e) => setTokenRecipientInput(e.target.value)}
+                              placeholder="0x… recipient"
+                              spellCheck={false}
+                              aria-label="Token recipient"
+                            />
+                            <button
+                              type="button"
+                              className="primary"
+                              onClick={() => {
+                                void saveTokenRecipient(true);
+                              }}
+                              disabled={adminBusy || !adminGate("setTokenCounterparty").allowed}
+                            >
+                              Allow recipient
+                            </button>
+                            <button
+                              type="button"
+                              className="ghost"
+                              onClick={() => {
+                                void saveTokenRecipient(false);
+                              }}
+                              disabled={adminBusy || !adminGate("setTokenCounterparty").allowed}
+                            >
+                              Revoke
+                            </button>
+                          </div>
+                          {!adminGate("setTokenCounterparty").allowed ? (
+                            <p className="muted">{adminGate("setTokenCounterparty").why}</p>
+                          ) : null}
+                          <div className="admin-row">
+                            <input
+                              className="treasury-input admin-narrow"
+                              value={tokenLimitInput}
+                              onChange={(e) => setTokenLimitInput(e.target.value)}
+                              aria-label="Token daily cap"
+                            />
+                            <input
+                              className="treasury-input admin-narrow"
+                              value={tokenDecimalsInput}
+                              onChange={(e) => setTokenDecimalsInput(e.target.value)}
+                              inputMode="numeric"
+                              aria-label="Token decimals"
+                            />
+                            <span className="muted">cap, decimals</span>
+                            <button
+                              type="button"
+                              className="primary"
+                              onClick={() => {
+                                void saveTokenLimit();
+                              }}
+                              disabled={adminBusy || !adminGate("setTokenDailyLimit").allowed}
+                            >
+                              Save cap
+                            </button>
+                          </div>
+                          {!adminGate("setTokenDailyLimit").allowed ? (
+                            <p className="muted">{adminGate("setTokenDailyLimit").why}</p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
+
+                  {adminNotice ? (
+                    <div className={adminNotice.ok ? "freeze-success" : "error-block"}>
+                      <strong>{adminNotice.ok ? "Change landed" : "Refused"}</strong>
+                      <p className="muted">{adminNotice.text}</p>
+                      {adminNotice.txHash ? (
+                        <a className="linkish" href={txUrl(adminNotice.txHash)} target="_blank" rel="noreferrer">
+                          See the transaction
+                        </a>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </section>
               </div>
             )}

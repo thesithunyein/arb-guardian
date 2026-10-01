@@ -54,7 +54,7 @@ Three Solidity contracts plus an operator console:
 | **ExecutionGuard** | Operator/API pre-execution validation and spend recording. Holds no funds and cannot move any |
 | **SafeTreasuryGuard** | A **real Gnosis Safe v1.4.1 transaction guard**. Once installed, a policy-violating transaction reverts inside the Safe's own `execTransaction` |
 | **API risk engine** | Deterministic scoring in TypeScript — no model, no LLM call anywhere in the repo |
-| **Web console** | Review / Allow-Block / Alerts / Playbooks / Vault |
+| **Web console** | Review / Allow-Block / Alerts / Playbooks / Policy admin / Vault |
 
 ## Where the enforcement actually happens
 

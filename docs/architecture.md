@@ -11,7 +11,7 @@ Live product: [arb-guardian.vercel.app](https://arb-guardian.vercel.app)
 ```mermaid
 flowchart TB
   subgraph Console["Operator console · apps/web"]
-    UI[Home · Review · Alerts · Playbooks · Vault]
+    UI[Home · Review · Alerts · Playbooks · Policy · Vault]
   end
 
   subgraph Edge["API · Vercel /api + apps/api"]
@@ -186,9 +186,10 @@ flowchart LR
 | Tab | Role in the system |
 | --- | --- |
 | **Home** | Bank status, session KPIs, waitlist |
-| **Review** | Spend receipt → assess → Allow/Block |
+| **Review** | Enter a treasury, payee, amount and type → the policy is read from the contract for those addresses → Allow/Block/Refuse |
 | **Alerts** | Incident queue · freeze / dismiss |
 | **Playbooks** | Catalog + policy conformance fixtures (14 fixed cases) |
+| **Policy** | Administer the rules the guard enforces: allowlist a payee, set daily limits, register a token lane, freeze. Gated on the connected wallet's own roles; every change is signed in the operator's wallet and read back from the contract |
 | **Vault** | Explorer links for Arb + Robinhood contracts |
 
 Web entry: `apps/web/src/App.tsx` · config: `apps/web/src/config.ts`.
