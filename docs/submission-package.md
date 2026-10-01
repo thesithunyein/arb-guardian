@@ -32,4 +32,4 @@
 - `npm run test -w apps/api`
 - `npm run build -w apps/web`
 - `npm run deploy:sepolia -w packages/contracts`
-- `npm run eval:agent -w apps/api`
+- `npm run eval:policy -w apps/api`

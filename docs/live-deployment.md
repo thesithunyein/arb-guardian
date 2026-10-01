@@ -1,8 +1,36 @@
 # Live deployment
 
-Public onchain qualification proof for Arb Guardian.
+Public on-chain qualification proof for Arb Guardian.
 
-## Arbitrum Sepolia (primary)
+> ## ⚠️ These deployments implement the earlier semantics — redeploy before submitting
+>
+> The addresses below were deployed **2026-07-30**. They predate two correctness changes now in
+> the repository:
+>
+> 1. **The daily limit used to fail open.** `if (dailyLimit > 0 && ...)` meant a limit of `0`
+>    was *unlimited*, so an unconfigured wallet had no protection and clearing a limit opened the
+>    lane. It now fails closed: `0` blocks all spending, and uncapped spending requires an
+>    explicit `UNLIMITED_LIMIT`.
+> 2. **The approval rule could not block.** It scored `+20` against a `60` threshold, so
+>    `approve` to an allowlisted destination always passed. Approval-class calls now block by
+>    default, matched by name *and* selector, and unlimited approvals are refused outright.
+>
+> The token lane (USDG) does not exist in the deployed bytecode at all.
+>
+> **Do not present the addresses below as the current build.** Redeploy, verify, and replace this
+> file with the new addresses and transaction hashes:
+>
+> ```bash
+> npm run deploy:sepolia  -w packages/contracts
+> npm run verify          -w packages/contracts -- --network arbitrumSepolia
+> npm run deploy:robinhood -w packages/contracts
+> npm run verify          -w packages/contracts -- --network robinhoodTestnet
+> ```
+>
+> The deploy script writes `packages/contracts/deployments/<network>.json`, which `npm run verify`
+> reads for addresses and constructor arguments.
+
+## Arbitrum Sepolia (primary) — superseded
 
 | Field | Value |
 | --- | --- |
@@ -11,11 +39,10 @@ Public onchain qualification proof for Arb Guardian.
 | PolicyManager | [`0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76`](https://sepolia.arbiscan.io/address/0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76) |
 | ExecutionGuard | [`0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124`](https://sepolia.arbiscan.io/address/0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124) |
 | SafeTreasuryGuard | [`0xcba30F60BE3FB0fB0e9db0C816c4ab9Fa2f7b211`](https://sepolia.arbiscan.io/address/0xcba30F60BE3FB0fB0e9db0C816c4ab9Fa2f7b211) |
-| Treasury Safe (enrolled) | [`0x009D53F97a07d9E141eA5ff90354d7bE748fa542`](https://sepolia.arbiscan.io/address/0x009D53F97a07d9E141eA5ff90354d7bE748fa542) |
+| Treasury (enrolled) | [`0x009D53F97a07d9E141eA5ff90354d7bE748fa542`](https://sepolia.arbiscan.io/address/0x009D53F97a07d9E141eA5ff90354d7bE748fa542) |
 | Live product | https://arb-guardian.vercel.app |
-| Repository | https://github.com/thesithunyein/arb-guardian |
 
-## Robinhood Chain Testnet (Overall reserved-lane)
+## Robinhood Chain Testnet — superseded
 
 | Field | Value |
 | --- | --- |
@@ -26,11 +53,38 @@ Public onchain qualification proof for Arb Guardian.
 | PolicyManager | [`0x57077DA6DEFCAAB83aEAbE080641D5D1Ed66758F`](https://explorer.testnet.chain.robinhood.com/address/0x57077DA6DEFCAAB83aEAbE080641D5D1Ed66758F) |
 | ExecutionGuard | [`0x4019C445bbc593eA5eb13D319Ca427aA8aDc7613`](https://explorer.testnet.chain.robinhood.com/address/0x4019C445bbc593eA5eb13D319Ca427aA8aDc7613) |
 | SafeTreasuryGuard | [`0xa168227dB7a3340e988Dbf9Cd01894840617E729`](https://explorer.testnet.chain.robinhood.com/address/0xa168227dB7a3340e988Dbf9Cd01894840617E729) |
-| Treasury Safe (enrolled) | [`0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124`](https://explorer.testnet.chain.robinhood.com/address/0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124) |
-| Status | Deployed 2026-07-30T14:52:40.069Z |
+| Treasury (enrolled) | [`0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124`](https://explorer.testnet.chain.robinhood.com/address/0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124) |
+| Deployed | 2026-07-30T14:52:40.069Z |
+
+> **Address collision note.** The Robinhood enrolled-treasury address is character-for-character
+> identical to the Arbitrum Sepolia ExecutionGuard address. This is legitimate — separate chains
+> have independent address spaces and the code at each is different — but it is called out
+> explicitly so it is not mistaken for a copy-paste error during submission review.
+
+## Token lane (USDG)
+
+USDG is natively issued on Robinhood Chain and is the lending asset in Robinhood Earn. To open a
+bounded USDG lane at deploy time:
+
+```bash
+USDG_ADDRESS=<usdg token address> \
+USDG_TREASURY_ADDRESS=<treasury wallet or Safe> \
+USDG_DAILY_LIMIT_UNITS=5000000000 \
+USDG_RECIPIENT=<allowlisted counterparty> \
+npm run deploy:robinhood -w packages/contracts
+```
+
+`USDG_DAILY_LIMIT_UNITS` is in the token's **base units**. USDG uses 6 decimals, so `5000000000`
+is a 5,000 USDG daily cap. Setting it in wei-sized numbers (e.g. `5000e18`) would be wrong by six
+orders of magnitude — `packages/contracts/test/TokenPolicy.test.ts` pins that mistake.
+
+If you register USDG but set no cap, the lane is **deny-by-default** for every wallet: the token
+is known to the guard, but nobody may move it until a limit is configured.
 
 ## Integration notes
 
-- `ExecutionGuard` — operator/API pre-execution validation
-- `SafeTreasuryGuard` — Safe-compatible `ITransactionGuard`
-- Dual-chain deploy supports Arbitrum qualification **and** Robinhood reserved Overall lane
+- `ExecutionGuard` — operator/API pre-execution validation and spend recording. It holds no funds
+  and cannot stop a transfer; hard enforcement is the Safe path.
+- `SafeTreasuryGuard` — Gnosis Safe v1.4.1 `ITransactionGuard`. Verified against real Safe
+  contracts in `packages/contracts/test/RealSafeGuard.test.ts`.
+- Dual-chain deploy supports Arbitrum qualification **and** the Robinhood reserved lane.

@@ -90,9 +90,12 @@ export const evaluationScenarios: EvaluationScenario[] = [
     }
   },
   {
-    id: "approve_allowlisted_medium",
-    expectedBlocked: false,
-    expectedPlaybook: "allow-with-monitoring",
+    // Approvals grant standing spending authority, so they are blocked by default
+    // even when the counterparty is allowlisted and the amount is within limits.
+    // A human officer must explicitly release this one.
+    id: "approve_allowlisted_blocked_by_default",
+    expectedBlocked: true,
+    expectedPlaybook: "hold-transaction-and-require-admin-review",
     tx: {
       txHash: "0xscn6",
       wallet: C,
@@ -101,6 +104,38 @@ export const evaluationScenarios: EvaluationScenario[] = [
       amountWei: 1_000000000000000000n,
       allowlisted: true,
       dailyLimitWei: 5_000000000000000000n,
+      spentTodayWei: 0n
+    }
+  },
+  {
+    // Selector-encoded increaseAllowance must be treated the same as a named approve.
+    id: "increase_allowance_selector_blocked",
+    expectedBlocked: true,
+    expectedPlaybook: "hold-transaction-and-require-admin-review",
+    tx: {
+      txHash: "0xscn13",
+      wallet: C,
+      destination: PAYROLL,
+      method: "0x39509351",
+      amountWei: 1_000000000000000000n,
+      allowlisted: true,
+      dailyLimitWei: 5_000000000000000000n,
+      spentTodayWei: 0n
+    }
+  },
+  {
+    // Fail closed: a wallet with no configured limit cannot spend at all.
+    id: "unconfigured_limit_blocked",
+    expectedBlocked: true,
+    expectedPlaybook: "hold-transaction-and-require-admin-review",
+    tx: {
+      txHash: "0xscn14",
+      wallet: B,
+      destination: PAYROLL,
+      method: "transfer",
+      amountWei: 1_000000000000000000n,
+      allowlisted: true,
+      dailyLimitWei: 0n,
       spentTodayWei: 0n
     }
   },

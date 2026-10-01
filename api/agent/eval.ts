@@ -1,7 +1,14 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { cors } from "../_store";
 
-/** Mirrors apps/api evaluationScenarios — 12 cases, accuracy 1.0. */
+/**
+ * Policy conformance fixtures (serverless copy).
+ *
+ * Kept in sync with apps/api/src/{riskEngine,evaluationScenarios}.ts. This is a
+ * regression suite, NOT model validation: expected outcomes are authored alongside
+ * the rules, so a pass only means the engine still matches its written specification.
+ * The metric is `conformanceRate`, not an accuracy score.
+ */
 type Scenario = {
   id: string;
   expectedBlocked: boolean;
@@ -65,9 +72,10 @@ const SCENARIOS: Scenario[] = [
     spentTodayWei: 1_000000000000000000n
   },
   {
-    id: "approve_allowlisted_medium",
-    expectedBlocked: false,
-    expectedPlaybook: "allow-with-monitoring",
+    // Approvals grant standing spending authority and are blocked by default.
+    id: "approve_allowlisted_blocked_by_default",
+    expectedBlocked: true,
+    expectedPlaybook: "hold-transaction-and-require-admin-review",
     allowlisted: true,
     method: "approve",
     amountWei: 1_000000000000000000n,
@@ -125,6 +133,28 @@ const SCENARIOS: Scenario[] = [
     spentTodayWei: 0n
   },
   {
+    // Selector-encoded increaseAllowance behaves like a named approve.
+    id: "increase_allowance_selector_blocked",
+    expectedBlocked: true,
+    expectedPlaybook: "hold-transaction-and-require-admin-review",
+    allowlisted: true,
+    method: "0x39509351",
+    amountWei: 1_000000000000000000n,
+    dailyLimitWei: 5_000000000000000000n,
+    spentTodayWei: 0n
+  },
+  {
+    // Fail closed: no configured limit means no spending.
+    id: "unconfigured_limit_blocked",
+    expectedBlocked: true,
+    expectedPlaybook: "hold-transaction-and-require-admin-review",
+    allowlisted: true,
+    method: "transfer",
+    amountWei: 1_000000000000000000n,
+    dailyLimitWei: 0n,
+    spentTodayWei: 0n
+  },
+  {
     id: "critical_limit_and_unlisted",
     expectedBlocked: true,
     expectedPlaybook: "freeze-wallet-and-revoke-approvals",
@@ -143,11 +173,30 @@ function recommendPlaybook(totalScore: number) {
   return "allow-with-monitoring";
 }
 
+const APPROVAL_SELECTORS = new Set([
+  "0x095ea7b3", // approve(address,uint256)
+  "0x39509351", // increaseAllowance(address,uint256)
+  "0xd505accf", // permit(...)
+  "0x8fcbaf0c", // permit (DAI-style)
+  "0xa22cb465" // setApprovalForAll(address,bool)
+]);
+
+const APPROVAL_METHODS = new Set(["approve", "increaseallowance", "permit", "setapprovalforall"]);
+
+function isApprovalSurface(method: string): boolean {
+  const raw = (method ?? "").trim().toLowerCase();
+  if (!raw) return false;
+  if (APPROVAL_SELECTORS.has(raw)) return true;
+  return APPROVAL_METHODS.has(raw.split("(")[0].trim());
+}
+
 function assess(s: Scenario) {
   let totalScore = 0;
   if (!s.allowlisted) totalScore += 60;
-  if (s.dailyLimitWei > 0n && s.spentTodayWei + s.amountWei > s.dailyLimitWei) totalScore += 60;
-  if (s.method.toLowerCase() === "approve") totalScore += 20;
+  // Deny by default: an unconfigured wallet cannot spend.
+  if (s.dailyLimitWei === 0n) totalScore += 60;
+  else if (s.spentTodayWei + s.amountWei > s.dailyLimitWei) totalScore += 60;
+  if (isApprovalSurface(s.method)) totalScore += 60;
   const blocked = totalScore >= 60;
   return { totalScore, blocked, playbook: recommendPlaybook(totalScore) };
 }
@@ -180,9 +229,11 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   return res.status(200).json({
     results,
     summary: {
+      kind: "policy-conformance-fixtures",
+      note: "Fixed fixtures authored with the rules. Regression check, not model validation.",
       total,
       passed,
-      accuracy: Number((passed / total).toFixed(4)),
+      conformanceRate: Number((passed / total).toFixed(4)),
       blockedPrecision:
         blockedPrecisionDenominator === 0
           ? 1

@@ -1,0 +1,136 @@
+{
+  "kind": "arb-guardian-guard-proof",
+  "generatedAt": "2026-10-01T05:11:08.430Z",
+  "hardhatNetwork": "hardhat",
+  "safeVersion": "1.4.1 (real contracts, not a shell)",
+  "addresses": {
+    "safe": "0x294c20f3071BA768b9BC9dbfb508AD7130a598E1",
+    "policyManager": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+    "safeTreasuryGuard": "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
+    "usdg": "0x0165878A594ca255338adfa4d48449f69242Eb8F",
+    "vendor": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    "outsider": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+    "usdgRecipient": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+    "usdgSpender": "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc"
+  },
+  "guardInstalledThroughExecTransaction": true,
+  "summary": {
+    "total": 14,
+    "passed": 14,
+    "failed": 0
+  },
+  "cases": [
+    {
+      "id": "before_guard_unsafe_spend",
+      "description": "Before the guard is installed, the Safe pays a NON-allowlisted address 1.0 ETH and the transfer settles.",
+      "expected": "allowed",
+      "outcome": "allowed",
+      "reason": "—",
+      "pass": true
+    },
+    {
+      "id": "after_guard_unsafe_spend",
+      "description": "After the guard is installed, the same non-allowlisted payment is refused before it executes.",
+      "expected": "blocked",
+      "outcome": "blocked",
+      "reason": "CounterpartyNotAllowlisted(\"0x90F79bf6EB2c4f870365E785982E1f101E93b906\")",
+      "pass": true
+    },
+    {
+      "id": "native_over_daily_cap",
+      "description": "A payment to an allowlisted vendor above the 5 ETH daily cap is refused.",
+      "expected": "blocked",
+      "outcome": "blocked",
+      "reason": "DailyLimitExceeded(\"0x294c20f3071BA768b9BC9dbfb508AD7130a598E1\", 6000000000000000000, 5000000000000000000)",
+      "pass": true
+    },
+    {
+      "id": "native_within_cap",
+      "description": "A payment to an allowlisted vendor inside the cap is allowed.",
+      "expected": "allowed",
+      "outcome": "allowed",
+      "reason": "—",
+      "pass": true
+    },
+    {
+      "id": "usdg_within_cap",
+      "description": "The Safe pays an allowlisted recipient 1,200 USDG, inside the 5,000 USDG daily cap.",
+      "expected": "allowed",
+      "outcome": "allowed",
+      "reason": "—",
+      "pass": true
+    },
+    {
+      "id": "usdg_over_cap",
+      "description": "The Safe attempts a 6,000 USDG payment, above the 5,000 USDG daily cap.",
+      "expected": "blocked",
+      "outcome": "blocked",
+      "reason": "TokenDailyLimitExceeded(\"0x0165878A594ca255338adfa4d48449f69242Eb8F\", \"0x294c20f3071BA768b9BC9dbfb508AD7130a598E1\", 7200000000, 5000000000)",
+      "pass": true
+    },
+    {
+      "id": "usdg_unlisted_recipient",
+      "description": "The Safe attempts to pay a recipient that is not allowlisted for USDG.",
+      "expected": "blocked",
+      "outcome": "blocked",
+      "reason": "TokenCounterpartyNotAllowlisted(\"0x0165878A594ca255338adfa4d48449f69242Eb8F\", \"0x90F79bf6EB2c4f870365E785982E1f101E93b906\")",
+      "pass": true
+    },
+    {
+      "id": "usdg_bounded_approval",
+      "description": "The Safe grants a bounded 250 USDG approval to an allowlisted spender.",
+      "expected": "allowed",
+      "outcome": "allowed",
+      "reason": "—",
+      "pass": true
+    },
+    {
+      "id": "usdg_unlimited_approval",
+      "description": "The Safe attempts an unlimited USDG approval — the classic drain primitive.",
+      "expected": "blocked",
+      "outcome": "blocked",
+      "reason": "UnlimitedApprovalNotAllowed(\"0x0165878A594ca255338adfa4d48449f69242Eb8F\", \"0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc\")",
+      "pass": true
+    },
+    {
+      "id": "usdg_unsupported_call",
+      "description": "The Safe attempts a non-standard call on a registered token instead of falling through.",
+      "expected": "blocked",
+      "outcome": "blocked",
+      "reason": "UnsupportedTokenCall(\"0x0165878A594ca255338adfa4d48449f69242Eb8F\", \"0x40c10f19\")",
+      "pass": true
+    },
+    {
+      "id": "delegatecall",
+      "description": "The Safe attempts a delegatecall, which a guard must never permit.",
+      "expected": "blocked",
+      "outcome": "blocked",
+      "reason": "DelegateCallNotAllowed()",
+      "pass": true
+    },
+    {
+      "id": "after_officer_freeze",
+      "description": "After an officer freeze, an otherwise valid allowlisted payment is refused.",
+      "expected": "blocked",
+      "outcome": "blocked",
+      "reason": "PolicyManagerPaused()",
+      "pass": true
+    },
+    {
+      "id": "usdg_cap_cleared_fails_closed",
+      "description": "Clearing the USDG cap to zero does not open the lane — it fails closed.",
+      "expected": "blocked",
+      "outcome": "blocked",
+      "reason": "TokenDailyLimitNotConfigured(\"0x0165878A594ca255338adfa4d48449f69242Eb8F\", \"0x294c20f3071BA768b9BC9dbfb508AD7130a598E1\")",
+      "pass": true
+    },
+    {
+      "id": "owner_direct_setguard",
+      "description": "An owner calling setGuard directly (not through the Safe) is rejected by Safe 1.4.1.",
+      "expected": "blocked",
+      "outcome": "blocked",
+      "reason": "GS031",
+      "pass": true
+    }
+  ]
+}

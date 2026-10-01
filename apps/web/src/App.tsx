@@ -193,7 +193,8 @@ type PlaybookExecution = {
 type AgentEvalSummary = {
   total: number;
   passed: number;
-  accuracy: number;
+  // Policy conformance across fixed regression fixtures. Not model validation.
+  conformanceRate: number;
   blockedPrecision: number;
   blockedRecall: number;
 };
@@ -777,7 +778,18 @@ export function App() {
           blockedRate: k.blockedRate,
           criticalIncidentCount: k.criticalIncidentCount
         });
-        if (evalData?.summary) setAgentEval(evalData.summary as AgentEvalSummary);
+        if (evalData?.summary) {
+          // Accept the legacy `accuracy` field too, so deploying the web app before the API
+          // route cannot render a NaN percentage.
+          const summary = evalData.summary as Partial<AgentEvalSummary> & { accuracy?: number };
+          setAgentEval({
+            total: summary.total ?? 0,
+            passed: summary.passed ?? 0,
+            conformanceRate: summary.conformanceRate ?? summary.accuracy ?? 0,
+            blockedPrecision: summary.blockedPrecision ?? 0,
+            blockedRecall: summary.blockedRecall ?? 0
+          });
+        }
         if (policyData && typeof policyData.paused === "boolean") setPolicyPaused(policyData.paused);
       })
       .catch(() => setRuntime("onchain-console"));
@@ -1114,13 +1126,13 @@ export function App() {
       {!entered ? (
         <section className="hero title-hero">
           <img className="hero-logo" src="/logo.png" alt="Arb Guardian" width={112} height={112} />
-          <p className="hero-kicker">SHARED TEAM BANK</p>
+          <p className="hero-kicker">ENFORCEABLE SPEND POLICY</p>
           <h2>
             <span className="accent">Arb</span> Guardian
           </h2>
           <p className="hero-lead">
-            Your guild's prize money shouldn't vanish because someone clicked a fake shop link. Check the spend first.
-            Lock the bank when it looks wrong.
+            Give an agent, bot or operator money without giving it the ability to drain the account. Check the spend
+            before it clears — and lock the treasury when it looks wrong.
           </p>
           <div className="cta-row">
             <button type="button" className="primary" onClick={enterWorld}>
@@ -1724,8 +1736,9 @@ export function App() {
                   <h3>What the helper can do</h3>
                   {agentEval ? (
                     <p className="muted" style={{ marginBottom: "0.65rem" }}>
-                      Checked on {agentEval.passed}/{agentEval.total} fixed scenarios (
-                      {(agentEval.accuracy * 100).toFixed(0)}% match).
+                      {agentEval.passed}/{agentEval.total} fixed policy cases match spec (
+                      {((agentEval.conformanceRate ?? 0) * 100).toFixed(0)}%). Regression fixtures only — not
+                      model validation.
                     </p>
                   ) : (
                     <p className="muted" style={{ marginBottom: "0.65rem" }}>

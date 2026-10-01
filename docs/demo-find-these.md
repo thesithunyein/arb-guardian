@@ -73,18 +73,20 @@ If there is no incident yet, Mitigate will not appear. Always run Risky approval
 
 ---
 
-## 4) “accuracy 1.0” = on AGENT tab
+## 4) Policy conformance = on the PLAYBOOKS tab
 
-1. Click tab **Agent**
-2. Look for box titled **Eval harness**
-3. You should see text like:  
-   `12 scenarios · accuracy 1`  
-   or  
-   `passed 12/12`
+1. Click tab **Playbooks**
+2. Look for the **What the helper can do** box
+3. You should see text like:
+   `14/14 fixed policy cases match spec (100%). Regression fixtures only — not model validation.`
 
-That is “accuracy 1.0”.
+**Do not call this "accuracy" on camera.** It is a regression suite: the expected outcomes were
+written alongside the rules, so 100% is expected. Say "conformance fixtures" or "the rule engine
+matches its spec" and move on. Claiming AI accuracy is the fastest way to lose credibility with a
+judge, because there is no model in this repo.
 
-If API is cold, it may briefly show fallback text `12 scenarios · accuracy 1.0` — still fine for video.
+If the API is cold it may show the fallback line `Responses follow fixed rules officers can audit.` —
+that fallback is fine for video.
 
 ---
 
@@ -94,5 +96,5 @@ If API is cold, it may briefly show fallback text `12 scenarios · accuracy 1.0`
 2. Open 5 Arbiscan links above  
 3. **Assess** → Risky approval → Run risk assessment  
 4. **Incidents** → Mitigate → onchain tx  
-5. **Agent** → Eval harness (accuracy 1)  
+5. **Playbooks** → policy conformance fixtures (say "regression suite", never "AI accuracy")
 6. **Evidence** → show proof links + say thank you

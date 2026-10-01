@@ -1,6 +1,6 @@
 # Architecture
 
-Arb Guardian is a dual-chain guild-bank protection stack: onchain policy + guards, a deterministic risk engine, a bounded Officer AI, and an officer console.
+Arb Guardian is a dual-chain guild-bank protection stack: onchain policy + guards, a deterministic risk engine, a policy playbook engine (no model in the loop), and an officer console.
 
 Live product: [arb-guardian.vercel.app](https://arb-guardian.vercel.app)
 
@@ -171,7 +171,7 @@ flowchart LR
 | **Home** | Bank status, session KPIs, waitlist |
 | **Review** | Spend receipt → assess → Allow/Block |
 | **Alerts** | Incident queue · freeze / dismiss |
-| **Playbooks** | Catalog + eval accuracy (12/12 harness) |
+| **Playbooks** | Catalog + policy conformance fixtures (14 fixed cases) |
 | **Vault** | Explorer links for Arb + Robinhood contracts |
 
 Web entry: `apps/web/src/App.tsx` · config: `apps/web/src/config.ts`.
@@ -240,16 +240,16 @@ Richer chain tooling on the same model: `/chain/validate`, `/chain/sync-events`,
 
 ---
 
-## Security & agent bounds
+## Security & engine bounds
 
 ```mermaid
 flowchart TB
-  subgraph Allowed["Officer AI may"]
+  subgraph Allowed["Policy engine may"]
     A1[Suggest playbook from score]
     A2[Open alert when blocked]
   end
 
-  subgraph Denied["Officer AI must not"]
+  subgraph Denied["Policy engine must not"]
     D1[Move guild funds]
     D2[Edit allowlists / limits]
     D3[Grant admin roles]
@@ -260,13 +260,13 @@ flowchart TB
   Human --> Pause[PolicyManager.pause]
 ```
 
-Eval harness (target accuracy 1.0):
+Policy conformance fixtures (regression suite — **not** model validation):
 
 ```bash
-npm run eval:agent -w apps/api
+npm run eval:policy -w apps/api
 ```
 
-Quality gate (contracts + API + eval + builds):
+Quality gate (contracts + API + conformance + builds):
 
 ```bash
 npm run quality:gate

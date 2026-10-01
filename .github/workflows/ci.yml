@@ -17,8 +17,9 @@ jobs:
           cache: npm
       - run: npm install
       - run: npm run test -w packages/contracts
+      - run: npm run evidence -w packages/contracts
       - run: npm run test -w apps/api
-      - run: npm run eval:agent -w apps/api
+      - run: npm run eval:policy -w apps/api
       - run: npm run build -w apps/api
       - run: npm run build -w apps/web
       - run: npm run build -w packages/shared

@@ -2,13 +2,17 @@
 
 ## Tracks
 - Overall Prize (Arbitrum lane + Robinhood lane both covered)
-- Best Agentic Project
+- Promising Products
 
 ## Market category
-**Gaming** — guild bank / prize-pot protection with practice spends and Officer AI (not a playable mini-game).
+**Treasury / on-chain infrastructure** — enforceable spend policy for delegated funds (agents, bots,
+operators). Guild and esports prize pots are one application, not the identity.
 
 ## One sentence
-Arb Guardian is a Gaming product for guild officers: check spends before anyone signs, get a clear allow/block from bounded Officer AI, and freeze the bank with a human click — live on Arbitrum Sepolia and Robinhood Chain.
+Arb Guardian lets a treasury delegate funds to an agent, bot or operator without delegating the
+ability to drain the account: allowlists and daily caps in native ETH **and USDG** are enforced by
+a real Gnosis Safe transaction guard, with a human freeze on top — live on Arbitrum Sepolia and
+Robinhood Chain.
 
 ## Links
 - Live: https://arb-guardian.vercel.app
@@ -16,12 +20,14 @@ Arb Guardian is a Gaming product for guild officers: check spends before anyone 
 - Demo video: _(paste Unlisted URL after recording)_
 
 ## Official criteria map
-1. **Smart contract quality** — RBAC, Pausable, allowlist, daily limits, ExecutionGuard, SafeTreasuryGuard; tests via `npm run quality:gate`
-2. **Product-Market Fit** — Practice-first Check → Alert → Freeze officers finish in under a minute
-3. **Innovation** — Gaming UX × deterministic rules × bounded Officer AI (cannot move funds)
-4. **Real Problem Solving** — Unknown marketplace approve drains + over-budget prize payouts + shared freeze log
-5. **Arb reserved lane** — Live Sepolia contracts in Vault
-6. **RH reserved lane** — Live Robinhood testnet twin in Vault
+1. **Smart contract quality** — RBAC, Pausable, deny-by-default limits in both lanes, calldata-aware token routing, real Gnosis Safe v1.4.1 integration, spend refunded on failure; 57 tests via `npm run quality:gate`
+2. **Product-Market Fit** — the control every team delegating funds needs, denominated in the asset treasuries hold (USDG first), on the chain where those teams are being pointed
+3. **Innovation** — contract-enforced delegated-spend policy: unlimited approvals refused, unrecognised calls on registered tokens rejected, no vendor goodwill or application code in the trust path
+4. **Real Problem Solving** — delegated trust is currently all-or-nothing; $13.3M of buyer losses on Robinhood Chain in one crew's 56 launches, $9.4M of it from app users who never saw an on-chain flag (Bitquery, Sept 2026)
+5. **Paxos USDG** — first-class token lane, denominated correctly in USDG's 6-decimal base units
+6. **Arb reserved lane** — live Sepolia contracts in Vault
+7. **RH reserved lane** — live Robinhood testnet twin in Vault
+8. **Proof, not a demo** — `npm run evidence -w packages/contracts` reproduces 14/14 cases against a real Safe, with a before/after pair and exact revert reasons
 
 ## Arbitrum Sepolia
 - PolicyManager: `0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76`

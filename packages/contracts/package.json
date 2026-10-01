@@ -7,6 +7,8 @@
     "test": "hardhat test",
     "lint": "solhint \"contracts/**/*.sol\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "verify": "hardhat run scripts/verify.ts",
+    "evidence": "hardhat run scripts/evidence-pack.ts",
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network arbitrumSepolia",
     "seed:sepolia": "hardhat run scripts/seed.ts --network arbitrumSepolia",
     "enroll:safe:sepolia": "hardhat run scripts/enroll-safe.ts --network arbitrumSepolia",
@@ -19,6 +21,7 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@openzeppelin/contracts": "^5.2.0",
+    "@safe-global/safe-contracts": "^1.4.1",
     "@types/node": "^22.10.2",
     "dotenv": "^16.4.7",
     "hardhat": "^2.22.18",

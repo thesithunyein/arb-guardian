@@ -130,4 +130,67 @@ describe("PolicyManager + ExecutionGuard", function () {
     await guard.validateAndRecord(wallet.address, destination.address, ethers.parseEther("2"), "0x12345678");
     expect(await guard.walletSpentTodayWei(wallet.address)).to.equal(ethers.parseEther("2"));
   });
+
+  describe("deny-by-default daily limit", function () {
+    async function setupGuard(limit: bigint | null) {
+      const [admin, wallet, destination] = await ethers.getSigners();
+      const policyFactory = await ethers.getContractFactory("PolicyManager");
+      const policy = await policyFactory.deploy(admin.address);
+      await policy.waitForDeployment();
+      await policy.setCounterparty(destination.address, true);
+      if (limit !== null) {
+        await policy.setWalletDailyLimit(wallet.address, limit);
+      }
+
+      const guardFactory = await ethers.getContractFactory("ExecutionGuard");
+      const guard = await guardFactory.deploy(admin.address, await policy.getAddress());
+      await guard.waitForDeployment();
+      return { admin, wallet, destination, policy, guard };
+    }
+
+    it("blocks a wallet that has no limit configured at all", async function () {
+      const { wallet, destination, guard } = await setupGuard(null);
+
+      await expect(
+        guard.validateAndRecord(wallet.address, destination.address, ethers.parseEther("1"), "0x12345678")
+      ).to.be.revertedWithCustomError(guard, "DailyLimitNotConfigured");
+
+      expect(await guard.walletSpentTodayWei(wallet.address)).to.equal(0n);
+    });
+
+    it("blocks a wallet whose limit was cleared back to zero", async function () {
+      const { wallet, destination, policy, guard } = await setupGuard(ethers.parseEther("5"));
+
+      await guard.validateAndRecord(wallet.address, destination.address, ethers.parseEther("1"), "0x12345678");
+      expect(await guard.walletSpentTodayWei(wallet.address)).to.equal(ethers.parseEther("1"));
+
+      await policy.setWalletDailyLimit(wallet.address, 0);
+
+      await expect(
+        guard.validateAndRecord(wallet.address, destination.address, ethers.parseEther("1"), "0x12345678")
+      ).to.be.revertedWithCustomError(guard, "DailyLimitNotConfigured");
+    });
+
+    it("allows uncapped spending only when UNLIMITED_LIMIT is granted explicitly", async function () {
+      const { wallet, destination, policy, guard } = await setupGuard(ethers.parseEther("1"));
+
+      expect(await policy.UNLIMITED_LIMIT()).to.equal(ethers.MaxUint256);
+
+      await policy.setWalletDailyLimit(wallet.address, await policy.UNLIMITED_LIMIT());
+      await guard.validateAndRecord(wallet.address, destination.address, ethers.parseEther("1000000"), "0x12345678");
+
+      expect(await guard.walletSpentTodayWei(wallet.address)).to.equal(ethers.parseEther("1000000"));
+    });
+
+    it("still blocks an unallowlisted destination even with an unlimited limit", async function () {
+      const { wallet, policy, guard } = await setupGuard(ethers.parseEther("1"));
+      const notAllowlisted = (await ethers.getSigners())[4];
+
+      await policy.setWalletDailyLimit(wallet.address, await policy.UNLIMITED_LIMIT());
+
+      await expect(
+        guard.validateAndRecord(wallet.address, notAllowlisted.address, ethers.parseEther("1"), "0x12345678")
+      ).to.be.revertedWithCustomError(guard, "CounterpartyNotAllowlisted");
+    });
+  });
 });

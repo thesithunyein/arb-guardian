@@ -11,6 +11,29 @@ export type PendingTransaction = {
   spentTodayWei: bigint;
 };
 
+/**
+ * Approval-class calls grant standing spending authority over a token and are the
+ * primary drain vector for treasuries and delegated operators. They are treated as
+ * critical: blocked by default and surfaced for explicit human review, matching the
+ * deny-by-default posture of the onchain policy.
+ */
+const APPROVAL_SELECTORS = new Set([
+  "0x095ea7b3", // approve(address,uint256)
+  "0x39509351", // increaseAllowance(address,uint256)
+  "0xd505accf", // permit(address,address,uint256,uint256,uint8,bytes32,bytes32)
+  "0x8fcbaf0c", // permit (DAI-style)
+  "0xa22cb465" // setApprovalForAll(address,bool)
+]);
+
+const APPROVAL_METHODS = new Set(["approve", "increaseallowance", "permit", "setapprovalforall"]);
+
+export function isApprovalSurface(method: string): boolean {
+  const raw = (method ?? "").trim().toLowerCase();
+  if (!raw) return false;
+  if (APPROVAL_SELECTORS.has(raw)) return true;
+  return APPROVAL_METHODS.has(raw.split("(")[0].trim());
+}
+
 export function assessTransaction(tx: PendingTransaction): RiskAssessment {
   let totalScore = 0;
   const matches = [];
@@ -26,7 +49,16 @@ export function assessTransaction(tx: PendingTransaction): RiskAssessment {
   }
 
   const projectedSpend = tx.spentTodayWei + tx.amountWei;
-  if (tx.dailyLimitWei > 0n && projectedSpend > tx.dailyLimitWei) {
+  if (tx.dailyLimitWei === 0n) {
+    // Mirrors the onchain guard: an unconfigured wallet cannot spend at all.
+    totalScore += 60;
+    matches.push({
+      ruleId: "RULE_DAILY_LIMIT_NOT_CONFIGURED",
+      reason: "No daily limit is configured, so this wallet cannot spend",
+      severity: "critical" as const,
+      scoreDelta: 60
+    });
+  } else if (projectedSpend > tx.dailyLimitWei) {
     totalScore += 60;
     matches.push({
       ruleId: "RULE_DAILY_LIMIT",
@@ -36,13 +68,13 @@ export function assessTransaction(tx: PendingTransaction): RiskAssessment {
     });
   }
 
-  if (tx.method.toLowerCase() === "approve") {
-    totalScore += 20;
+  if (isApprovalSurface(tx.method)) {
+    totalScore += 60;
     matches.push({
       ruleId: "RULE_APPROVAL_SURFACE",
-      reason: "Approval transactions require explicit review",
-      severity: "medium" as const,
-      scoreDelta: 20
+      reason: "Approval-class call grants standing spending authority and requires explicit review",
+      severity: "critical" as const,
+      scoreDelta: 60
     });
   }
 

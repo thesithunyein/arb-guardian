@@ -17,9 +17,9 @@
 - Execute incident action (`mitigate`) and show status update.
 - Show audit trail entry with actor and timestamp.
 
-## 2:10 - 2:40 Product metrics and agent evaluation
+## 2:10 - 2:40 Product metrics and policy conformance
 - Show KPI section: blocked rate, critical incidents, avg risk score.
-- Show agent evaluation summary (`accuracy`, `blockedPrecision`, `blockedRecall`).
+- Show the policy conformance fixtures (`conformanceRate`, `blockedPrecision`, `blockedRecall`) and describe them as a regression suite over fixed cases — not model validation.
 
 ## 2:40 - 3:00 Chain readiness and close
 - Show contract test quality signal and deployment command path.

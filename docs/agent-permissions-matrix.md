@@ -1,6 +1,11 @@
-# Officer AI — permissions matrix
+# Policy engine — permissions matrix
 
-Bounded agentic actions only. No free-form tools, no fund movement, no admin changes.
+Bounded deterministic actions only. No model, no free-form tools, no fund movement, no admin changes.
+
+**There is no AI in Arb Guardian.** The playbook recommender is a four-branch rule ladder in
+`apps/api/src/agentCoordinator.ts`. It is deliberately named a *policy engine* here so the
+permission surface matches what the code actually does. See the threat-model row on prompt
+injection below for why this is a design choice rather than a missing feature.
 
 Related: [`architecture.md`](architecture.md) · Live Playbooks tab on [arb-guardian.vercel.app](https://arb-guardian.vercel.app)
 
@@ -10,7 +15,7 @@ Related: [`architecture.md`](architecture.md) · Live Playbooks tab on [arb-guar
 
 ```mermaid
 flowchart LR
-  Score[Risk score] --> Suggest[Officer AI suggests playbook]
+  Score[Risk score] --> Suggest[Policy engine suggests playbook]
   Suggest --> Human{Officer confirms?}
   Human -->|Yes · mitigate| Pause[PolicyManager.pause]
   Human -->|No / ignore| Hold[Incident stays / closes]
@@ -18,7 +23,7 @@ flowchart LR
   Suggest -.->|never| Policy[Edit allowlist / limits]
 ```
 
-Officer AI **recommends**. The officer **decides**. Onchain policy **enforces**.
+The policy engine **recommends**. The officer **decides**. Onchain policy **enforces**.
 
 ---
 
@@ -31,20 +36,37 @@ Officer AI **recommends**. The officer **decides**. Onchain policy **enforces**.
 | `hold-transaction-and-require-admin-review` | 60–79 | Soft | Incident held · no pause | Mitigate / ignore |
 | `freeze-wallet-and-revoke-approvals` | ≥80 | **Only after mitigate** | `PolicyManager.pause()` | Officer clicks **Freeze** |
 
-Coordinator: `apps/api/src/agentCoordinator.ts` → `recommendPlaybook()`.  
+Coordinator: `apps/api/src/agentCoordinator.ts` → `recommendPlaybook()`.
 Executor: `apps/api/src/playbookExecutor.ts` → `executeBoundedPlaybook()` (Vercel: `api/incidents/[id]/action.ts`).
+
+---
+
+## Rules that produce the score
+
+The score comes from `apps/api/src/riskEngine.ts`. Every rule is deny-by-default:
+
+| Rule | Trigger | Delta |
+| --- | --- | ---: |
+| `RULE_ALLOWLIST_DESTINATION` | Destination not on the treasury allowlist | +60 |
+| `RULE_DAILY_LIMIT_NOT_CONFIGURED` | Wallet/Safe has no limit set (0) — cannot spend at all | +60 |
+| `RULE_DAILY_LIMIT` | Projected spend exceeds the configured limit | +60 |
+| `RULE_APPROVAL_SURFACE` | `approve`, `increaseAllowance`, `permit`, `setApprovalForAll` (by name **or** selector) | +60 |
+
+Block threshold is `totalScore >= 60`, so **each of these four rules can block on its own**.
+An approval to an allowlisted destination inside the limit still blocks: granting standing
+spending authority requires an explicit human release.
 
 ---
 
 ## Permission capability map
 
-| Capability | Officer AI | Officer (human) | Onchain contracts |
+| Capability | Policy engine | Officer (human) | Onchain contracts |
 | --- | --- | --- | --- |
 | Score spend / suggest playbook | ✅ | — | — |
 | Open alert when blocked | ✅ | — | — |
 | Freeze spending (`pause`) | ❌ alone | ✅ via Alerts | ✅ `PolicyManager.pause` |
 | Unfreeze (`unpause`) | ❌ | ✅ | ✅ admin / policy path |
-| Move guild funds | ❌ | Outside product | Guards may revert unsafe txs |
+| Move treasury funds | ❌ | Outside product | Guards revert unsafe txs |
 | Edit allowlist / daily limits | ❌ | Policy admin | ✅ `PolicyManager` admin roles |
 | Grant admin roles | ❌ | ❌ in product | ✅ role admin only |
 | Bypass `ExecutionGuard` | ❌ | ❌ | Guard is source of truth for validate path |
@@ -55,13 +77,13 @@ Executor: `apps/api/src/playbookExecutor.ts` → `executeBoundedPlaybook()` (Ver
 
 ```mermaid
 sequenceDiagram
-  participant AI as Officer AI
+  participant PE as Policy engine
   participant UI as Alerts UI
   participant API as Incident API
   participant PM as PolicyManager
 
-  Note over AI: score ≥ 80 → freeze playbook suggested
-  AI-->>UI: Recommend Freeze guild spending
+  Note over PE: score ≥ 80 → freeze playbook suggested
+  PE-->>UI: Recommend Freeze guild spending
   UI->>UI: Officer clicks Freeze
   UI->>API: POST /incidents/:id/action mitigate
   API->>PM: pause()
@@ -74,11 +96,11 @@ Without the officer click, **no pause** is sent.
 
 ## Hard bounds (non-negotiable)
 
-1. **Cannot move funds** — no transfer / approve / sweep tools.  
-2. **Cannot change policy** — no allowlist or limit writes from the agent.  
-3. **Cannot grant roles** — no AccessControl admin from the agent.  
-4. **Cannot freeze alone** — `pause()` only after human `mitigate` on the freeze playbook.  
-5. **Onchain wins** — `ExecutionGuard.validateAndRecord` / Safe guard still revert bad spends even if the UI is wrong.
+1. **Cannot move funds** — no transfer / approve / sweep tools.
+2. **Cannot change policy** — no allowlist or limit writes from the engine.
+3. **Cannot grant roles** — no AccessControl admin from the engine.
+4. **Cannot freeze alone** — `pause()` only after human `mitigate` on the freeze playbook.
+5. **Onchain wins** — `ExecutionGuard.validateAndRecord` / `SafeTreasuryGuard.checkTransaction` still revert bad spends even if the UI is wrong.
 
 ---
 
@@ -95,26 +117,32 @@ flowchart TD
   C -->|no| M[allow-with-monitoring]
 ```
 
-Block threshold in the risk engine is separate (typically score ≥ 60 → `blocked: true` and an incident opens). Playbook selection uses the bands above.
+Block threshold is `totalScore >= 60`. Playbook selection uses the bands above.
 
 ---
 
-## Eval harness
+## Policy conformance fixtures
 
-Measurable trust — not vibes.
+Not "measurable trust". These are **regression fixtures**: fixed cases whose expected
+outcomes were authored alongside the rules, so a pass means the engine still reproduces its
+written specification. It does **not** measure generalisation, and it is **not** model
+validation — there is no model to validate.
 
 ```bash
-npm run eval:agent -w apps/api
+npm run eval:policy -w apps/api
 # or live: GET /api/agent/eval
 ```
 
-| Metric | Target | Current harness |
+| Metric | Value | Source |
 | --- | --- | --- |
-| Scenarios | 12 | `apps/api/src/evaluationScenarios.ts` |
-| Accuracy | 1.0 | Pass/fail on blocked + playbook match |
-| Precision / recall (blocked) | 1.0 | Reported in eval summary |
+| Fixtures | 14 | `apps/api/src/evaluationScenarios.ts` |
+| `conformanceRate` | 1.0 | Pass/fail on blocked + playbook match |
+| Precision / recall (blocked) | 1.0 | Reported in the summary |
 
-Full gate (contracts + API + eval + builds):
+A `conformanceRate` of 1.0 on author-written fixtures is expected, not impressive. Treat it as
+a CI guard against silent rule drift.
+
+Full gate (contracts + API + conformance + builds):
 
 ```bash
 npm run quality:gate
@@ -129,15 +157,18 @@ npm run quality:gate
 | **Suggests: Freeze guild spending** | Playbook recommendation only |
 | **Cannot move funds** | Hard bound #1 |
 | **Freeze needs a human click** | Hard bound #4 |
-| Playbooks · **12/12 · 100%** | Eval harness result surfaced as trust |
+| Playbooks · **fixed policy cases match spec** | Conformance fixture count, labelled as such |
 
 ---
 
-## Threat model (agent-focused)
+## Threat model (engine-focused)
 
 | Threat | Mitigation |
 | --- | --- |
-| Agent drains treasury | No fund-moving tools; guards onchain |
-| Agent pauses forever without oversight | Pause only via officer mitigate |
-| Prompt injection / free-form tools | No LLM tool loop — deterministic coordinator |
-| UI spoofing allow | ExecutionGuard / SafeTreasuryGuard still enforce |
+| Engine drains treasury | No fund-moving tools; guards onchain |
+| Engine pauses forever without oversight | Pause only via officer mitigate |
+| Prompt injection / free-form tools | **No LLM at all** — deterministic rules, so this attack class does not apply |
+| UI spoofs an allow | `ExecutionGuard` / `SafeTreasuryGuard` still enforce onchain |
+| Limit never configured, so spend is unbounded | Deny-by-default: 0 means no spending; `UNLIMITED_LIMIT` must be explicit |
+| Approval drain via `increaseAllowance` / `permit` | Approval-class calls block by default, matched by name and selector |
+| Failed transaction silently burns the daily budget | `checkAfterExecution` refunds on failure |

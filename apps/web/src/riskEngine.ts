@@ -12,6 +12,28 @@ export type RiskAssessment = {
   recommendedPlaybook: string;
 };
 
+/**
+ * Approval-class calls grant standing spending authority over a token and are the
+ * primary drain vector. Treated as critical: blocked by default for explicit review.
+ * Kept in sync with apps/api/src/riskEngine.ts.
+ */
+const APPROVAL_SELECTORS = new Set([
+  "0x095ea7b3", // approve(address,uint256)
+  "0x39509351", // increaseAllowance(address,uint256)
+  "0xd505accf", // permit(address,address,uint256,uint256,uint8,bytes32,bytes32)
+  "0x8fcbaf0c", // permit (DAI-style)
+  "0xa22cb465" // setApprovalForAll(address,bool)
+]);
+
+const APPROVAL_METHODS = new Set(["approve", "increaseallowance", "permit", "setapprovalforall"]);
+
+export function isApprovalSurface(method: string): boolean {
+  const raw = (method ?? "").trim().toLowerCase();
+  if (!raw) return false;
+  if (APPROVAL_SELECTORS.has(raw)) return true;
+  return APPROVAL_METHODS.has(raw.split("(")[0].trim());
+}
+
 export function recommendPlaybook(score: number): string {
   if (score >= 80) return "freeze-wallet-and-revoke-approvals";
   if (score >= 60) return "hold-transaction-and-require-admin-review";
@@ -42,7 +64,16 @@ export function assessIntent(input: {
     });
   }
 
-  if (dailyLimitWei > 0n && spentTodayWei + amountWei > dailyLimitWei) {
+  if (dailyLimitWei === 0n) {
+    // Mirrors the onchain guard: an unconfigured wallet cannot spend at all.
+    totalScore += 60;
+    matches.push({
+      ruleId: "RULE_DAILY_LIMIT_NOT_CONFIGURED",
+      reason: "No daily limit is configured, so this wallet cannot spend",
+      severity: "critical",
+      scoreDelta: 60
+    });
+  } else if (spentTodayWei + amountWei > dailyLimitWei) {
     totalScore += 60;
     matches.push({
       ruleId: "RULE_DAILY_LIMIT",
@@ -52,13 +83,13 @@ export function assessIntent(input: {
     });
   }
 
-  if (input.method.toLowerCase() === "approve") {
-    totalScore += 20;
+  if (isApprovalSurface(input.method)) {
+    totalScore += 60;
     matches.push({
       ruleId: "RULE_APPROVAL_SURFACE",
-      reason: "Approval transactions require explicit review",
-      severity: "medium",
-      scoreDelta: 20
+      reason: "Approval-class call grants standing spending authority and requires explicit review",
+      severity: "critical",
+      scoreDelta: 60
     });
   }
 
@@ -82,7 +113,10 @@ export function predictGuardOutcome(input: {
   }
   const projected = BigInt(input.spentTodayWei) + BigInt(input.amountWei);
   const limit = BigInt(input.dailyLimitWei);
-  if (limit > 0n && projected > limit) {
+  if (limit === 0n) {
+    return { wouldRevert: true, reason: "DailyLimitNotConfigured" };
+  }
+  if (projected > limit) {
     return { wouldRevert: true, reason: "DailyLimitExceeded" };
   }
   return { wouldRevert: false, reason: "allowed" };

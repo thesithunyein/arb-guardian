@@ -121,4 +121,133 @@ describe("SafeTreasuryGuard", function () {
       )
     ).to.be.revertedWithCustomError(guard, "DelegateCallNotAllowed");
   });
+
+  describe("deny-by-default daily limit", function () {
+    it("blocks an enrolled Safe with no limit configured", async function () {
+      const { admin, safe, vendor } = await setup();
+      const policyFactory = await ethers.getContractFactory("PolicyManager");
+      const policy = await policyFactory.deploy(admin.address);
+      await policy.waitForDeployment();
+      await policy.setCounterparty(vendor.address, true);
+      // deliberately no setWalletDailyLimit for the Safe
+
+      const guardFactory = await ethers.getContractFactory("SafeTreasuryGuard");
+      const freshGuard = await guardFactory.deploy(admin.address, await policy.getAddress());
+      await freshGuard.waitForDeployment();
+      await freshGuard.setSafeEnrollment(safe.address, true);
+
+      await expect(
+        freshGuard.connect(safe).checkTransaction(
+          vendor.address,
+          ethers.parseEther("1"),
+          "0x",
+          0,
+          0,
+          0,
+          0,
+          ethers.ZeroAddress,
+          ethers.ZeroAddress,
+          "0x",
+          safe.address
+        )
+      ).to.be.revertedWithCustomError(freshGuard, "DailyLimitNotConfigured");
+    });
+
+    it("allows uncapped spending only when UNLIMITED_LIMIT is granted explicitly", async function () {
+      const { safe, vendor, policy, guard } = await setup();
+      await policy.setWalletDailyLimit(safe.address, await policy.UNLIMITED_LIMIT());
+
+      await expect(
+        guard.connect(safe).checkTransaction(
+          vendor.address,
+          ethers.parseEther("1000000"),
+          "0x",
+          0,
+          0,
+          0,
+          0,
+          ethers.ZeroAddress,
+          ethers.ZeroAddress,
+          "0x",
+          safe.address
+        )
+      ).to.emit(guard, "SafeTxChecked");
+
+      expect(await guard.safeSpentTodayWei(safe.address)).to.equal(ethers.parseEther("1000000"));
+    });
+  });
+
+  describe("spend refund on failed execution", function () {
+    it("refunds the daily budget when the guarded transaction fails", async function () {
+      const { safe, vendor, guard } = await setup();
+      const guardAsSafe = guard.connect(safe);
+
+      await guardAsSafe.checkTransaction(
+        vendor.address,
+        ethers.parseEther("1"),
+        "0x",
+        0,
+        0,
+        0,
+        0,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        "0x",
+        safe.address
+      );
+      expect(await guard.safeSpentTodayWei(safe.address)).to.equal(ethers.parseEther("1"));
+      expect(await guard.pendingSpendWei(safe.address)).to.equal(ethers.parseEther("1"));
+
+      await expect(guardAsSafe.checkAfterExecution(ethers.ZeroHash, false)).to.emit(guard, "SafeSpendRefunded");
+
+      expect(await guard.safeSpentTodayWei(safe.address)).to.equal(0n);
+      expect(await guard.pendingSpendWei(safe.address)).to.equal(0n);
+    });
+
+    it("keeps the spend recorded when the transaction succeeds", async function () {
+      const { safe, vendor, guard } = await setup();
+      const guardAsSafe = guard.connect(safe);
+
+      await guardAsSafe.checkTransaction(
+        vendor.address,
+        ethers.parseEther("1"),
+        "0x",
+        0,
+        0,
+        0,
+        0,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        "0x",
+        safe.address
+      );
+
+      await expect(guardAsSafe.checkAfterExecution(ethers.ZeroHash, true)).to.not.emit(guard, "SafeSpendRefunded");
+
+      expect(await guard.safeSpentTodayWei(safe.address)).to.equal(ethers.parseEther("1"));
+      expect(await guard.pendingSpendWei(safe.address)).to.equal(0n);
+    });
+
+    it("does not refund a value-less call that fails", async function () {
+      const { safe, vendor, guard } = await setup();
+      const guardAsSafe = guard.connect(safe);
+
+      await guardAsSafe.checkTransaction(
+        vendor.address,
+        0,
+        "0x12345678",
+        0,
+        0,
+        0,
+        0,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        "0x",
+        safe.address
+      );
+
+      await guardAsSafe.checkAfterExecution(ethers.ZeroHash, false);
+      expect(await guard.safeSpentTodayWei(safe.address)).to.equal(0n);
+    });
+  });
 });
