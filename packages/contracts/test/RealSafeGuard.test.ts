@@ -431,14 +431,14 @@ describe("SafeTreasuryGuard + real Gnosis Safe v1.4.1", function () {
       await installGuard(ctx);
 
       // The guard's own policy checks pass (allowlisted recipient, inside the cap), but the
-      // token call then fails: the Safe holds no allowance over the outsider's USDG.
+      // token call then fails: the Safe has no allowance for its own transferFrom call.
       //
       // gasPrice is non-zero so the Safe settles with success = false instead of reverting
       // the whole transaction (Safe reverts with GS013 when the inner call fails and both
       // safeTxGas and gasPrice are zero). That settled-but-failed case is precisely what
       // checkAfterExecution has to clean up after.
       const data = erc20Interface.encodeFunctionData("transferFrom", [
-        ctx.usdgOutsider.address,
+        ctx.safeAddress,
         ctx.usdgRecipient.address,
         usdgUnits(900)
       ]);
