@@ -80,15 +80,17 @@ async function main() {
   console.log(`Generating evidence pack on ${network.name}`);
 
   // ---------------------------------------------------------------- real Safe infra
-  const singleton = await new ethers.ContractFactory(SAFE.abi as never, SAFE.bytecode, admin).deploy();
+  // Safe's build output lives outside this package, so these are deployed from raw artifacts
+  // and typed loosely rather than through `getContractFactory`.
+  const singleton: any = await new ethers.ContractFactory(SAFE.abi as never, SAFE.bytecode, admin).deploy();
   await singleton.waitForDeployment();
-  const proxyFactory = await new ethers.ContractFactory(
+  const proxyFactory: any = await new ethers.ContractFactory(
     PROXY_FACTORY.abi as never,
     PROXY_FACTORY.bytecode,
     admin
   ).deploy();
   await proxyFactory.waitForDeployment();
-  const fallbackHandler = await new ethers.ContractFactory(
+  const fallbackHandler: any = await new ethers.ContractFactory(
     FALLBACK_HANDLER.abi as never,
     FALLBACK_HANDLER.bytecode,
     admin
@@ -117,7 +119,7 @@ async function main() {
     }
   }
   if (!safeAddress) throw new Error("ProxyCreation event not found");
-  const safe = new ethers.Contract(safeAddress, SAFE.abi as never, owner);
+  const safe: any = new ethers.Contract(safeAddress, SAFE.abi as never, owner);
   console.log(`Real Gnosis Safe: ${safeAddress}`);
 
   // ------------------------------------------------------------------ policy stack
@@ -375,6 +377,92 @@ async function main() {
     )
   );
 
+  // ---- Attestation: amend the policy, then spend again. The stamp must move with it.
+  await policy.setWalletDailyLimit(safeAddress, ethers.parseEther("6"));
+  cases.push(
+    await attempt(
+      "after_policy_amendment",
+      "After the native cap is raised from 5 ETH to 6 ETH, the vendor payment is allowed again and is stamped with the NEW policy version.",
+      "allowed",
+      () => execSafeTx(vendor.address, ethers.parseEther("1"), "0x")
+    )
+  );
+
+  // ------------------------------------------------- policy attestation replay check
+  // Rebuild the digest chain from `PolicyAmended` logs alone and confirm every allowed
+  // decision is stamped with a (version, digest) pair that appears in that history.
+  const abiCoder = ethers.AbiCoder.defaultAbiCoder();
+  const amendmentLogs = await policy.queryFilter(policy.filters.PolicyAmended(), 0, "latest");
+  const digestByVersion = new Map<string, string>();
+  const amendmentKinds: string[] = [];
+  const replayFailures: string[] = [];
+  let previousDigest: string = await policy.genesisSeed();
+
+  amendmentLogs.forEach((log: { args: unknown }, index: number) => {
+    const { version, digest, kind, params } = (log as unknown as { args: Record<string, unknown> })
+      .args as {
+      version: bigint;
+      digest: string;
+      kind: string;
+      params: string;
+    };
+    if (version !== BigInt(index)) {
+      replayFailures.push(`amendment at index ${index} claims version ${version}`);
+    }
+    const recomputed = ethers.keccak256(
+      abiCoder.encode(["bytes32", "uint256", "bytes32", "bytes"], [previousDigest, version, kind, params])
+    );
+    if (recomputed !== digest) {
+      replayFailures.push(`version ${version}: logged digest ${digest} != recomputed ${recomputed}`);
+    }
+    digestByVersion.set(version.toString(), digest);
+    amendmentKinds.push(version.toString());
+    previousDigest = digest;
+  });
+
+  const policyHead = await policy.policySnapshot();
+  if (previousDigest !== policyHead[1]) {
+    replayFailures.push(`replayed head ${previousDigest} != policy head ${policyHead[1]}`);
+  }
+
+  const decisionStamps = [
+    ...(await guard.queryFilter(guard.filters.SafeTxChecked(), 0, "latest")),
+    ...(await guard.queryFilter(guard.filters.SafeTokenTxChecked(), 0, "latest"))
+  ]
+    .map((log) => (log as unknown as { args: Record<string, unknown> }).args as unknown as {
+      reason: string;
+      policyVersion: bigint;
+      policyDigest: string;
+    })
+    .map((args) => ({
+      reason: args.reason,
+      version: args.policyVersion.toString(),
+      digest: args.policyDigest
+    }));
+
+  const unstampedDecisions = decisionStamps.filter(
+    (stamp) => digestByVersion.get(stamp.version) !== stamp.digest
+  );
+  const stampedVersions = new Set(decisionStamps.map((stamp) => stamp.version));
+
+  const attestation = {
+    genesisSeed: await policy.genesisSeed(),
+    amendmentsReplayed: amendmentLogs.length,
+    replayFailures,
+    headVersion: policyHead[0].toString(),
+    headDigest: policyHead[1],
+    decisionsChecked: decisionStamps.length,
+    decisionsWithUnknownPolicy: unstampedDecisions.length,
+    distinctPolicyVersionsInDecisions: stampedVersions.size,
+    decisions: decisionStamps
+  };
+
+  const attestationOk =
+    replayFailures.length === 0 &&
+    unstampedDecisions.length === 0 &&
+    decisionStamps.length > 0 &&
+    stampedVersions.size >= 2;
+
   // --------------------------------------------------------------------------- report
   const passed = cases.filter((c) => c.pass).length;
   const allPass = passed === cases.length;
@@ -397,6 +485,7 @@ async function main() {
     },
     guardInstalledThroughExecTransaction: guardInstalled,
     summary: { total: cases.length, passed, failed: cases.length - passed },
+    policyAttestation: attestation,
     cases
   };
 
@@ -448,6 +537,46 @@ async function main() {
   lines.push(`| SafeTreasuryGuard | \`${await guard.getAddress()}\` |`);
   lines.push(`| USDG-shaped test token (6 dp) | \`${usdgAddress}\` |`);
   lines.push("");
+  lines.push("## Policy attestation");
+  lines.push("");
+  lines.push(
+    "A decision is only meaningful against the policy that was in force at the time. So every " +
+      "policy mutation advances a hash-chained version — `digest[n] = keccak256(prev, n, kind, " +
+      "params)` — and each allowed decision record carries the version and digest that judged it."
+  );
+  lines.push("");
+  lines.push("| Field | Value |");
+  lines.push("| --- | --- |");
+  lines.push(`| Genesis seed | \`${attestation.genesisSeed}\` |`);
+  lines.push(`| Amendments replayed from logs | ${attestation.amendmentsReplayed} |`);
+  lines.push(`| Head policy version | ${attestation.headVersion} |`);
+  lines.push(`| Head policy digest | \`${attestation.headDigest}\` |`);
+  lines.push(
+    `| Digest chain replay | ${
+      replayFailures.length === 0
+        ? `${attestation.amendmentsReplayed}/${attestation.amendmentsReplayed} digests recomputed from logs`
+        : `${replayFailures.length} MISMATCH`
+    } |`
+  );
+  lines.push(
+    `| Allowed decisions stamped | ${attestation.decisionsChecked - unstampedDecisions.length}/${attestation.decisionsChecked} match a version in the amendment log |`
+  );
+  lines.push(
+    `| Distinct policy versions across decisions | ${stampedVersions.size} (proves the stamp tracks amendments, not a constant) |`
+  );
+  lines.push("");
+  lines.push("| Decision | Policy version | Digest in force |");
+  lines.push("| --- | ---: | --- |");
+  for (const stamp of decisionStamps) {
+    lines.push(`| \`${stamp.reason}\` | ${stamp.version} | \`${stamp.digest.slice(0, 18)}…\` |`);
+  }
+  lines.push("");
+  lines.push(
+    "Blocked decisions revert, so they leave no logs of their own — they are attributed to the " +
+      "policy version in force at their block, which the amendment log pins down. The stamp is " +
+      "what makes an executed transfer reconcilable after the fact."
+  );
+  lines.push("");
   lines.push("## Why the first row matters");
   lines.push("");
   lines.push(
@@ -474,9 +603,24 @@ async function main() {
   console.log(`\nWrote ${resolve(outDir, "guard-proof.md")}`);
   console.log(`Wrote ${resolve(outDir, "guard-proof.json")}`);
   console.log(`\n${passed}/${cases.length} cases behaved as specified.`);
+  console.log(
+    `Policy attestation: ${attestation.amendmentsReplayed} amendments replayed, ` +
+      `${decisionStamps.length - unstampedDecisions.length}/${decisionStamps.length} decisions stamped.`
+  );
   if (!allPass) {
     for (const c of cases.filter((x) => !x.pass)) {
       console.error(`  NOT AS EXPECTED: ${c.id} — expected ${c.expected}, observed ${c.outcome} (${c.reason})`);
+    }
+    process.exitCode = 1;
+  }
+  if (!attestationOk) {
+    for (const failure of replayFailures) console.error(`  ATTESTATION REPLAY FAILED: ${failure}`);
+    for (const stamp of unstampedDecisions) {
+      console.error(`  UNSTAMPED DECISION: ${stamp.reason} claims version ${stamp.version}, which is not in the log`);
+    }
+    if (decisionStamps.length === 0) console.error("  ATTESTATION FAILED: no decisions were stamped at all");
+    if (stampedVersions.size < 2) {
+      console.error("  ATTESTATION FAILED: every decision reported the same policy version");
     }
     process.exitCode = 1;
   }

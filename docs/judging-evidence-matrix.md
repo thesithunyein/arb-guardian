@@ -12,8 +12,10 @@
   - **Real Gnosis Safe v1.4.1 integration** (`test/RealSafeGuard.test.ts`) — guard installed via a genuine `execTransaction` self-call (Safe 1.4.1 `setGuard` is `SelfAuthorized`), then shown blocking a spend that succeeds without it
   - Spend recorded pre-execution (no re-entrancy bypass) and **refunded** on failed execution
   - Bounds-checked assembly decoding isolated in one library
-- **Validation command:** `npm run test -w packages/contracts` (57 tests)
-- **Reproducible proof:** `npm run evidence -w packages/contracts` → 14/14 cases, before/after pair, exact revert reason per case
+  - **Versioned policy attestation**: every policy mutation advances a hash-chained `policyVersion` / `policyDigest`, the amendment is emitted with its parameters so the chain replays from logs alone, and every decision record carries the version and digest that judged it (`test/PolicyAttestation.test.ts`)
+- **Validation command:** `npm run test -w packages/contracts` (65 tests)
+- **Reproducible proof:** `npm run evidence -w packages/contracts` → 15/15 cases, before/after pair, exact revert reason per case, plus an 11-amendment digest-chain replay with 6/6 decisions stamped
+- **Typecheck:** `npm run typecheck` is clean across all four workspaces
 
 ## Product-market fit
 
@@ -34,6 +36,7 @@
   - Bounded onchain mitigate (`PolicyManager.pause`) for critical playbooks
   - Event sync from `TransactionValidated` → incidents
   - Policy conformance fixtures: 14 fixed cases asserting the rule engine matches its written specification (**a regression suite, not model validation**)
+  - **Tamper-evident policy history**: an amendment log that is recomputable from logs, so "what policy allowed this spend?" has a cryptographic answer rather than a git blame
 - **Validation command:** `npm run eval:policy -w apps/api`
 
 ## Real problem solving

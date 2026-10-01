@@ -96,7 +96,8 @@ singleton, real proxy factory, real compatibility fallback handler. Nothing here
 submission-ready artifact:
 
 ```
-14/14 cases behaved as specified
+15/15 cases behaved as specified
+Policy attestation: 11 amendments replayed, 6/6 decisions stamped.
 ```
 
 The table it generates is the readable version of the claim, including every revert reason:
@@ -113,6 +114,7 @@ The table it generates is the readable version of the claim, including every rev
 | 12 | Valid payment after an officer freeze | blocked | blocked | `PolicyManagerPaused()` |
 | 13 | USDG cap cleared to zero | blocked | blocked | `TokenDailyLimitNotConfigured(token, safe)` |
 | 14 | Owner calling `setGuard` directly, not through the Safe | blocked | blocked | `GS031` |
+| 15 | After the native cap is raised 5 ETH → 6 ETH, the same vendor payment again | allowed | allowed | — (stamped with the **new** policy version) |
 
 Full output: [`packages/contracts/evidence/guard-proof.md`](packages/contracts/evidence/guard-proof.md).
 The script exits non-zero if any case drifts, so this table cannot silently go stale.
@@ -120,6 +122,44 @@ The script exits non-zero if any case drifts, so this table cannot silently go s
 **Row 1 is the one that matters.** It is the same transaction as row 2, executed before the guard
 was installed — and it settles. A screenshot of a blocked transaction proves nothing on its own.
 The before/after pair is what shows the guard is the thing making the difference.
+
+## Policy attestation
+
+A refusal is only meaningful against the policy that was actually in force when it happened.
+Otherwise "the policy blocks that" is a claim about the policy *today*, and a limit that was
+raised last week quietly rewrites history.
+
+So policy is versioned and hash-chained. Every mutation — allowlist, cap, token registration,
+pause — advances `policyVersion` and folds the change into `policyDigest`:
+
+```solidity
+policyDigest = keccak256(abi.encode(policyDigest, policyVersion, kind, params));
+```
+
+Each amendment emits `PolicyAmended(version, digest, kind, params, actor)`, including the
+parameters verbatim, so the whole chain can be **recomputed from logs alone** — no trust in the
+contract's own storage. Because every digest folds in its predecessor, editing an early
+amendment changes every later digest.
+
+Every decision record then carries the version and digest that judged it
+(`TransactionValidated`, `TokenTransferValidated`, `TokenApprovalValidated`, `SafeTxChecked`,
+`SafeTokenTxChecked`). An executed transfer can therefore be reconciled against the exact policy
+that allowed it, months later.
+
+The evidence pack does not just assert this — it replays the chain and cross-checks every stamped
+decision:
+
+```
+| Amendments replayed from logs | 11 |
+| Head policy version | 10 |
+| Digest chain replay | 11/11 digests recomputed from logs |
+| Allowed decisions stamped | 6/6 match a version in the amendment log |
+| Distinct policy versions across decisions | 2 (proves the stamp tracks amendments, not a constant) |
+```
+
+One honest caveat: **blocked decisions revert, so they emit no logs of their own.** A refusal is
+attributed to the policy version in force at its block, which the amendment log pins down
+unambiguously. The inline stamp is what makes an *executed* transfer reconcilable after the fact.
 
 ## USDG
 

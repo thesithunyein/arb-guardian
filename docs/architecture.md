@@ -80,10 +80,27 @@ Deploy order: **PolicyManager → ExecutionGuard → SafeTreasuryGuard** (`packa
 
 | Contract | Key surface | Notes |
 | --- | --- | --- |
-| **PolicyManager** | `setCounterparty`, `setWalletDailyLimit`, `pause` / `unpause` | OZ `AccessControl` + `Pausable` |
-| **ExecutionGuard** | `validateAndRecord(wallet, destination, amountWei, methodSelector)` | Allowlist + daily limit; records spend; reverts when paused |
-| **SafeTreasuryGuard** | `checkTransaction(...)` | Same rules for Safe txs; blocks `DelegateCall` |
+| **PolicyManager** | `setCounterparty`, `setWalletDailyLimit` (native), `setTokenRegistered`, `setTokenCounterparty`, `setTokenDailyLimit` (token lane), `pause` / `unpause`, `policySnapshot` | OZ `AccessControl` + `Pausable`; **every mutation advances the policy attestation chain** |
+| **ExecutionGuard** | `validateAndRecord(...)`, `validateTokenTransfer(...)`, `validateTokenApproval(...)` | Allowlist + per-asset daily caps; records spend; reverts when paused; stamps each decision with the policy version/digest in force |
+| **SafeTreasuryGuard** | `checkTransaction(...)` | Same rules inside a real Safe's `execTransaction`; blocks `DelegateCall`; refunds budget on inner failure |
 | **TreasurySafeShell** | `execTransaction` | Demo enrolled Safe shell for guard path |
+
+### Policy attestation
+
+Policy state is not just mutable, it is *versioned*. Each amendment folds into a running hash:
+
+```
+digest[n] = keccak256(abi.encode(digest[n-1], n, kind, params))      // digest[-1] = genesisSeed
+genesisSeed = keccak256("arb-guardian.policy.genesis" || chainId)
+```
+
+`PolicyAmended(version, digest, kind, params, actor)` emits the parameters verbatim, so a third
+party can recompute the entire chain from logs without trusting the contract's storage, and any
+edit to an earlier amendment changes every later digest. Guard decision events carry the version
+and digest that judged them, which is what makes an executed spend reconcilable against the
+policy in force at that block. Verified end to end in `test/PolicyAttestation.test.ts` and
+replayed by the evidence pack.
+
 
 ### Trust boundary (onchain)
 

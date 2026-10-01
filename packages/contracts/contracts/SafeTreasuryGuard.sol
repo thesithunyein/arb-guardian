@@ -28,6 +28,10 @@ import "./libraries/TokenCalldata.sol";
  *
  *      Both lanes are deny-by-default, and spend is recorded before execution so the cap
  *      cannot be bypassed by re-entrancy.
+ *
+ *      Each checked transaction is also stamped with the `PolicyManager` policy version and
+ *      digest that judged it, so an executed transfer can be reconciled against the exact
+ *      policy in force at that block rather than the policy as it looks later.
  */
 contract SafeTreasuryGuard is AccessControl, ITransactionGuard {
     bytes32 public constant GUARD_ADMIN_ROLE = keccak256("GUARD_ADMIN_ROLE");
@@ -67,7 +71,9 @@ contract SafeTreasuryGuard is AccessControl, ITransactionGuard {
         uint256 value,
         bytes4 selector,
         bool blocked,
-        string reason
+        string reason,
+        uint256 policyVersion,
+        bytes32 policyDigest
     );
     event SafeTokenTxChecked(
         address indexed token,
@@ -76,7 +82,9 @@ contract SafeTreasuryGuard is AccessControl, ITransactionGuard {
         uint256 amount,
         bytes4 selector,
         bool blocked,
-        string reason
+        string reason,
+        uint256 policyVersion,
+        bytes32 policyDigest
     );
 
     // ------------------------------------------------------------------- errors
@@ -144,6 +152,8 @@ contract SafeTreasuryGuard is AccessControl, ITransactionGuard {
         if (operation == Enum.Operation.DelegateCall) revert DelegateCallNotAllowed();
         if (to == address(0)) revert ZeroAddressNotAllowed();
 
+        (uint256 policyVersion, bytes32 policyDigest) = policyManager.policySnapshot();
+
         bytes4 selector = data.length >= 4 ? bytes4(data) : bytes4(0);
 
         // Clear any stale in-flight record before recording this transaction.
@@ -157,14 +167,14 @@ contract SafeTreasuryGuard is AccessControl, ITransactionGuard {
             if (value > 0) {
                 _recordNativeSpend(msg.sender, to, value, selector);
             }
-            emit SafeTxChecked(msg.sender, to, value, selector, false, "self_call_allowed");
+            emit SafeTxChecked(msg.sender, to, value, selector, false, "self_call_allowed", policyVersion, policyDigest);
             return;
         }
 
         if (policyManager.tokenRegistered(to)) {
             _checkRegisteredToken(msg.sender, to, data, selector);
         } else if (!policyManager.allowlistedCounterparty(to)) {
-            emit SafeTxChecked(msg.sender, to, value, selector, true, "counterparty_not_allowlisted");
+            emit SafeTxChecked(msg.sender, to, value, selector, true, "counterparty_not_allowlisted", policyVersion, policyDigest);
             revert CounterpartyNotAllowlisted(to);
         }
 
@@ -173,7 +183,7 @@ contract SafeTreasuryGuard is AccessControl, ITransactionGuard {
             _recordNativeSpend(msg.sender, to, value, selector);
         }
 
-        emit SafeTxChecked(msg.sender, to, value, selector, false, "allowed");
+        emit SafeTxChecked(msg.sender, to, value, selector, false, "allowed", policyVersion, policyDigest);
     }
 
     /**
@@ -214,6 +224,7 @@ contract SafeTreasuryGuard is AccessControl, ITransactionGuard {
     // ------------------------------------------------------------------ internal
 
     function _checkRegisteredToken(address safe, address token, bytes memory data, bytes4 selector) internal {
+        (uint256 policyVersion, bytes32 policyDigest) = policyManager.policySnapshot();
         if (TokenCalldata.isTransfer(selector)) {
             address recipient;
             uint256 amount;
@@ -225,7 +236,7 @@ contract SafeTreasuryGuard is AccessControl, ITransactionGuard {
             if (recipient == address(0)) revert ZeroAddressNotAllowed();
 
             if (!policyManager.tokenCounterpartyAllowed(token, recipient)) {
-                emit SafeTokenTxChecked(token, safe, recipient, amount, selector, true, "recipient_not_allowlisted");
+                emit SafeTokenTxChecked(token, safe, recipient, amount, selector, true, "recipient_not_allowlisted", policyVersion, policyDigest);
                 revert TokenCounterpartyNotAllowlisted(token, recipient);
             }
 
@@ -238,41 +249,42 @@ contract SafeTreasuryGuard is AccessControl, ITransactionGuard {
             if (spender == address(0)) revert ZeroAddressNotAllowed();
 
             if (!policyManager.tokenCounterpartyAllowed(token, spender)) {
-                emit SafeTokenTxChecked(token, safe, spender, amount, selector, true, "spender_not_allowlisted");
+                emit SafeTokenTxChecked(token, safe, spender, amount, selector, true, "spender_not_allowlisted", policyVersion, policyDigest);
                 revert TokenCounterpartyNotAllowlisted(token, spender);
             }
 
             // A standing, unbounded grant of spending authority is never acceptable from a
             // treasury. Bounded approvals are allowed against an allowlisted spender.
             if (amount == type(uint256).max) {
-                emit SafeTokenTxChecked(token, safe, spender, amount, selector, true, "unlimited_approval");
+                emit SafeTokenTxChecked(token, safe, spender, amount, selector, true, "unlimited_approval", policyVersion, policyDigest);
                 revert UnlimitedApprovalNotAllowed(token, spender);
             }
 
-            emit SafeTokenTxChecked(token, safe, spender, amount, selector, false, "approval_allowed");
+            emit SafeTokenTxChecked(token, safe, spender, amount, selector, false, "approval_allowed", policyVersion, policyDigest);
             return;
         }
 
         // Registered token, unrecognised selector: reject rather than fall through to the
         // native lane, which would otherwise let a non-standard call bypass the token cap.
-        emit SafeTokenTxChecked(token, safe, address(0), 0, selector, true, "unsupported_token_call");
+        emit SafeTokenTxChecked(token, safe, address(0), 0, selector, true, "unsupported_token_call", policyVersion, policyDigest);
         revert UnsupportedTokenCall(token, selector);
     }
 
     function _recordNativeSpend(address safe, address to, uint256 value, bytes4 selector) internal {
+        (uint256 policyVersion, bytes32 policyDigest) = policyManager.policySnapshot();
         _resetDailySpendIfNeeded(safe);
 
         // Deny-by-default: an unconfigured Safe (limit 0) cannot spend. Uncapped
         // spending must be granted explicitly via PolicyManager.UNLIMITED_LIMIT.
         uint256 dailyLimit = policyManager.walletDailyLimitWei(safe);
         if (dailyLimit == 0) {
-            emit SafeTxChecked(safe, to, value, selector, true, "daily_limit_not_configured");
+            emit SafeTxChecked(safe, to, value, selector, true, "daily_limit_not_configured", policyVersion, policyDigest);
             revert DailyLimitNotConfigured(safe);
         }
 
         uint256 newTotal = safeSpentTodayWei[safe] + value;
         if (newTotal > dailyLimit) {
-            emit SafeTxChecked(safe, to, value, selector, true, "daily_limit_exceeded");
+            emit SafeTxChecked(safe, to, value, selector, true, "daily_limit_exceeded", policyVersion, policyDigest);
             revert DailyLimitExceeded(safe, newTotal, dailyLimit);
         }
 
@@ -287,17 +299,18 @@ contract SafeTreasuryGuard is AccessControl, ITransactionGuard {
         uint256 amount,
         bytes4 selector
     ) internal {
+        (uint256 policyVersion, bytes32 policyDigest) = policyManager.policySnapshot();
         _resetTokenSpendIfNeeded(token, safe);
 
         uint256 limit = policyManager.tokenDailyLimit(token, safe);
         if (limit == 0) {
-            emit SafeTokenTxChecked(token, safe, recipient, amount, selector, true, "daily_limit_not_configured");
+            emit SafeTokenTxChecked(token, safe, recipient, amount, selector, true, "daily_limit_not_configured", policyVersion, policyDigest);
             revert TokenDailyLimitNotConfigured(token, safe);
         }
 
         uint256 newTotal = safeTokenSpentToday[token][safe] + amount;
         if (newTotal > limit) {
-            emit SafeTokenTxChecked(token, safe, recipient, amount, selector, true, "daily_limit_exceeded");
+            emit SafeTokenTxChecked(token, safe, recipient, amount, selector, true, "daily_limit_exceeded", policyVersion, policyDigest);
             revert TokenDailyLimitExceeded(token, safe, newTotal, limit);
         }
 
@@ -305,7 +318,7 @@ contract SafeTreasuryGuard is AccessControl, ITransactionGuard {
         pendingToken[safe] = token;
         pendingTokenSpend[safe] = amount;
 
-        emit SafeTokenTxChecked(token, safe, recipient, amount, selector, false, "allowed");
+        emit SafeTokenTxChecked(token, safe, recipient, amount, selector, false, "allowed", policyVersion, policyDigest);
     }
 
     function _resetDailySpendIfNeeded(address safe) internal {

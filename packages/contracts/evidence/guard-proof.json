@@ -1,6 +1,6 @@
 {
   "kind": "arb-guardian-guard-proof",
-  "generatedAt": "2026-10-01T05:11:08.430Z",
+  "generatedAt": "2026-10-01T06:05:21.381Z",
   "hardhatNetwork": "hardhat",
   "safeVersion": "1.4.1 (real contracts, not a shell)",
   "addresses": {
@@ -15,9 +15,51 @@
   },
   "guardInstalledThroughExecTransaction": true,
   "summary": {
-    "total": 14,
-    "passed": 14,
+    "total": 15,
+    "passed": 15,
     "failed": 0
+  },
+  "policyAttestation": {
+    "genesisSeed": "0x61e7819e82690c034d1b6f89cc55ff695755fefcfaf7904ab0146803747fdea6",
+    "amendmentsReplayed": 11,
+    "replayFailures": [],
+    "headVersion": "10",
+    "headDigest": "0xcd06814a704c76943b5f0f691587c7a137ee2697f0b3883f8132370c55b2e290",
+    "decisionsChecked": 6,
+    "decisionsWithUnknownPolicy": 0,
+    "distinctPolicyVersionsInDecisions": 2,
+    "decisions": [
+      {
+        "reason": "allowed",
+        "version": "6",
+        "digest": "0x3442214ee3c7f11e61092baa15ba21c2bbc0587f061b023ed2e3937ad628c2bd"
+      },
+      {
+        "reason": "allowed",
+        "version": "6",
+        "digest": "0x3442214ee3c7f11e61092baa15ba21c2bbc0587f061b023ed2e3937ad628c2bd"
+      },
+      {
+        "reason": "allowed",
+        "version": "6",
+        "digest": "0x3442214ee3c7f11e61092baa15ba21c2bbc0587f061b023ed2e3937ad628c2bd"
+      },
+      {
+        "reason": "allowed",
+        "version": "10",
+        "digest": "0xcd06814a704c76943b5f0f691587c7a137ee2697f0b3883f8132370c55b2e290"
+      },
+      {
+        "reason": "allowed",
+        "version": "6",
+        "digest": "0x3442214ee3c7f11e61092baa15ba21c2bbc0587f061b023ed2e3937ad628c2bd"
+      },
+      {
+        "reason": "approval_allowed",
+        "version": "6",
+        "digest": "0x3442214ee3c7f11e61092baa15ba21c2bbc0587f061b023ed2e3937ad628c2bd"
+      }
+    ]
   },
   "cases": [
     {
@@ -130,6 +172,14 @@
       "expected": "blocked",
       "outcome": "blocked",
       "reason": "GS031",
+      "pass": true
+    },
+    {
+      "id": "after_policy_amendment",
+      "description": "After the native cap is raised from 5 ETH to 6 ETH, the vendor payment is allowed again and is stamped with the NEW policy version.",
+      "expected": "allowed",
+      "outcome": "allowed",
+      "reason": "—",
       "pass": true
     }
   ]

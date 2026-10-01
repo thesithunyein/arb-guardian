@@ -14,6 +14,11 @@ import "./PolicyManager.sol";
  *      API and the UI share one source of truth. It holds no funds and cannot move any.
  *      Hard enforcement for a multisig treasury happens in `SafeTreasuryGuard`, which
  *      runs inside a real Gnosis Safe's `execTransaction`.
+ *
+ *      Every decision record carries the `PolicyManager` version and digest that judged it
+ *      (see `PolicyManager.policySnapshot`). That makes a decision independently
+ *      re-checkable against the policy actually in force at the time, and makes the
+ *      amendment log tamper-evident: editing history changes the digest chain.
  */
 contract ExecutionGuard is AccessControl, Pausable {
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
@@ -31,7 +36,9 @@ contract ExecutionGuard is AccessControl, Pausable {
         bytes4 methodSelector,
         bool blocked,
         string reason,
-        address indexed actor
+        address indexed actor,
+        uint256 policyVersion,
+        bytes32 policyDigest
     );
 
     event WalletSpendReset(address indexed wallet, uint256 dayIndex);
@@ -56,7 +63,9 @@ contract ExecutionGuard is AccessControl, Pausable {
         bytes4 methodSelector,
         bool blocked,
         string reason,
-        address actor
+        address actor,
+        uint256 policyVersion,
+        bytes32 policyDigest
     );
 
     event TokenApprovalValidated(
@@ -67,7 +76,9 @@ contract ExecutionGuard is AccessControl, Pausable {
         bytes4 methodSelector,
         bool blocked,
         string reason,
-        address actor
+        address actor,
+        uint256 policyVersion,
+        bytes32 policyDigest
     );
 
     event WalletTokenSpendReset(address indexed token, address indexed wallet, uint256 dayIndex);
@@ -105,8 +116,10 @@ contract ExecutionGuard is AccessControl, Pausable {
         if (amountWei == 0) revert InvalidAmount();
         if (policyManager.paused()) revert PolicyManagerPaused();
 
+        (uint256 policyVersion, bytes32 policyDigest) = policyManager.policySnapshot();
+
         if (!policyManager.allowlistedCounterparty(destination)) {
-            emit TransactionValidated(wallet, destination, amountWei, methodSelector, true, "counterparty_not_allowlisted", msg.sender);
+            emit TransactionValidated(wallet, destination, amountWei, methodSelector, true, "counterparty_not_allowlisted", msg.sender, policyVersion, policyDigest);
             revert CounterpartyNotAllowlisted(destination);
         }
 
@@ -116,18 +129,18 @@ contract ExecutionGuard is AccessControl, Pausable {
         // spending must be granted explicitly via PolicyManager.UNLIMITED_LIMIT.
         uint256 dailyLimit = policyManager.walletDailyLimitWei(wallet);
         if (dailyLimit == 0) {
-            emit TransactionValidated(wallet, destination, amountWei, methodSelector, true, "daily_limit_not_configured", msg.sender);
+            emit TransactionValidated(wallet, destination, amountWei, methodSelector, true, "daily_limit_not_configured", msg.sender, policyVersion, policyDigest);
             revert DailyLimitNotConfigured(wallet);
         }
 
         uint256 newTotal = walletSpentTodayWei[wallet] + amountWei;
         if (newTotal > dailyLimit) {
-            emit TransactionValidated(wallet, destination, amountWei, methodSelector, true, "daily_limit_exceeded", msg.sender);
+            emit TransactionValidated(wallet, destination, amountWei, methodSelector, true, "daily_limit_exceeded", msg.sender, policyVersion, policyDigest);
             revert DailyLimitExceeded(wallet, newTotal, dailyLimit);
         }
 
         walletSpentTodayWei[wallet] = newTotal;
-        emit TransactionValidated(wallet, destination, amountWei, methodSelector, false, "allowed", msg.sender);
+        emit TransactionValidated(wallet, destination, amountWei, methodSelector, false, "allowed", msg.sender, policyVersion, policyDigest);
         return (true, "allowed");
     }
 
@@ -149,13 +162,15 @@ contract ExecutionGuard is AccessControl, Pausable {
         if (amount == 0) revert InvalidAmount();
         if (policyManager.paused()) revert PolicyManagerPaused();
 
+        (uint256 policyVersion, bytes32 policyDigest) = policyManager.policySnapshot();
+
         if (!policyManager.tokenRegistered(token)) {
-            emit TokenTransferValidated(token, wallet, recipient, amount, methodSelector, true, "token_not_registered", msg.sender);
+            emit TokenTransferValidated(token, wallet, recipient, amount, methodSelector, true, "token_not_registered", msg.sender, policyVersion, policyDigest);
             revert TokenNotRegistered(token);
         }
 
         if (!policyManager.tokenCounterpartyAllowed(token, recipient)) {
-            emit TokenTransferValidated(token, wallet, recipient, amount, methodSelector, true, "counterparty_not_allowlisted", msg.sender);
+            emit TokenTransferValidated(token, wallet, recipient, amount, methodSelector, true, "counterparty_not_allowlisted", msg.sender, policyVersion, policyDigest);
             revert TokenCounterpartyNotAllowlisted(token, recipient);
         }
 
@@ -163,18 +178,18 @@ contract ExecutionGuard is AccessControl, Pausable {
 
         uint256 limit = policyManager.tokenDailyLimit(token, wallet);
         if (limit == 0) {
-            emit TokenTransferValidated(token, wallet, recipient, amount, methodSelector, true, "daily_limit_not_configured", msg.sender);
+            emit TokenTransferValidated(token, wallet, recipient, amount, methodSelector, true, "daily_limit_not_configured", msg.sender, policyVersion, policyDigest);
             revert TokenDailyLimitNotConfigured(token, wallet);
         }
 
         uint256 newTotal = walletTokenSpentToday[token][wallet] + amount;
         if (newTotal > limit) {
-            emit TokenTransferValidated(token, wallet, recipient, amount, methodSelector, true, "daily_limit_exceeded", msg.sender);
+            emit TokenTransferValidated(token, wallet, recipient, amount, methodSelector, true, "daily_limit_exceeded", msg.sender, policyVersion, policyDigest);
             revert TokenDailyLimitExceeded(token, wallet, newTotal, limit);
         }
 
         walletTokenSpentToday[token][wallet] = newTotal;
-        emit TokenTransferValidated(token, wallet, recipient, amount, methodSelector, false, "allowed", msg.sender);
+        emit TokenTransferValidated(token, wallet, recipient, amount, methodSelector, false, "allowed", msg.sender, policyVersion, policyDigest);
         return (true, "allowed");
     }
 
@@ -194,22 +209,24 @@ contract ExecutionGuard is AccessControl, Pausable {
         if (wallet == address(0) || token == address(0) || spender == address(0)) revert ZeroAddressNotAllowed();
         if (policyManager.paused()) revert PolicyManagerPaused();
 
+        (uint256 policyVersion, bytes32 policyDigest) = policyManager.policySnapshot();
+
         if (!policyManager.tokenRegistered(token)) {
-            emit TokenApprovalValidated(token, wallet, spender, amount, methodSelector, true, "token_not_registered", msg.sender);
+            emit TokenApprovalValidated(token, wallet, spender, amount, methodSelector, true, "token_not_registered", msg.sender, policyVersion, policyDigest);
             revert TokenNotRegistered(token);
         }
 
         if (!policyManager.tokenCounterpartyAllowed(token, spender)) {
-            emit TokenApprovalValidated(token, wallet, spender, amount, methodSelector, true, "spender_not_allowlisted", msg.sender);
+            emit TokenApprovalValidated(token, wallet, spender, amount, methodSelector, true, "spender_not_allowlisted", msg.sender, policyVersion, policyDigest);
             revert TokenCounterpartyNotAllowlisted(token, spender);
         }
 
         if (amount == type(uint256).max) {
-            emit TokenApprovalValidated(token, wallet, spender, amount, methodSelector, true, "unlimited_approval", msg.sender);
+            emit TokenApprovalValidated(token, wallet, spender, amount, methodSelector, true, "unlimited_approval", msg.sender, policyVersion, policyDigest);
             revert UnlimitedApprovalNotAllowed(token, spender);
         }
 
-        emit TokenApprovalValidated(token, wallet, spender, amount, methodSelector, false, "allowed", msg.sender);
+        emit TokenApprovalValidated(token, wallet, spender, amount, methodSelector, false, "allowed", msg.sender, policyVersion, policyDigest);
         return (true, "allowed");
     }
 

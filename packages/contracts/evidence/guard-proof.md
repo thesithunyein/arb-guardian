@@ -1,6 +1,6 @@
 # Arb Guardian — Guard Proof
 
-Generated 2026-10-01T05:11:08.430Z by `npm run evidence -w packages/contracts` on the in-process `hardhat` chain.
+Generated 2026-10-01T06:05:21.381Z by `npm run evidence -w packages/contracts` on the in-process `hardhat` chain.
 
 This is a reproduction, not a recording. Every row below was produced by executing the transaction against a **real Gnosis Safe v1.4.1** (real singleton, real proxy factory, real fallback handler) with `SafeTreasuryGuard` installed as its guard.
 
@@ -14,7 +14,7 @@ npm run evidence -w packages/contracts
 
 The script exits non-zero if any case does not behave as expected, so the table below cannot silently drift from the contracts.
 
-## Result: 14/14 cases behaved as specified
+## Result: 15/15 cases behaved as specified
 
 | # | Case | Expected | Observed | Revert reason |
 | ---: | --- | --- | --- | --- |
@@ -32,6 +32,7 @@ The script exits non-zero if any case does not behave as expected, so the table 
 | 12 | After an officer freeze, an otherwise valid allowlisted payment is refused. | blocked | blocked | `PolicyManagerPaused()` |
 | 13 | Clearing the USDG cap to zero does not open the lane — it fails closed. | blocked | blocked | `TokenDailyLimitNotConfigured("0x0165878A594ca255338adfa4d48449f69242Eb8F", "0x294c20f3071BA768b9BC9dbfb508AD7130a598E1")` |
 | 14 | An owner calling setGuard directly (not through the Safe) is rejected by Safe 1.4.1. | blocked | blocked | `GS031` |
+| 15 | After the native cap is raised from 5 ETH to 6 ETH, the vendor payment is allowed again and is stamped with the NEW policy version. | allowed | allowed | `—` |
 
 ## Addresses used in this run
 
@@ -41,6 +42,31 @@ The script exits non-zero if any case does not behave as expected, so the table 
 | PolicyManager | `0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9` |
 | SafeTreasuryGuard | `0x5FC8d32690cc91D4c39d9d3abcBD16989F875707` |
 | USDG-shaped test token (6 dp) | `0x0165878A594ca255338adfa4d48449f69242Eb8F` |
+
+## Policy attestation
+
+A decision is only meaningful against the policy that was in force at the time. So every policy mutation advances a hash-chained version — `digest[n] = keccak256(prev, n, kind, params)` — and each allowed decision record carries the version and digest that judged it.
+
+| Field | Value |
+| --- | --- |
+| Genesis seed | `0x61e7819e82690c034d1b6f89cc55ff695755fefcfaf7904ab0146803747fdea6` |
+| Amendments replayed from logs | 11 |
+| Head policy version | 10 |
+| Head policy digest | `0xcd06814a704c76943b5f0f691587c7a137ee2697f0b3883f8132370c55b2e290` |
+| Digest chain replay | 11/11 digests recomputed from logs |
+| Allowed decisions stamped | 6/6 match a version in the amendment log |
+| Distinct policy versions across decisions | 2 (proves the stamp tracks amendments, not a constant) |
+
+| Decision | Policy version | Digest in force |
+| --- | ---: | --- |
+| `allowed` | 6 | `0x3442214ee3c7f11e…` |
+| `allowed` | 6 | `0x3442214ee3c7f11e…` |
+| `allowed` | 6 | `0x3442214ee3c7f11e…` |
+| `allowed` | 10 | `0xcd06814a704c7694…` |
+| `allowed` | 6 | `0x3442214ee3c7f11e…` |
+| `approval_allowed` | 6 | `0x3442214ee3c7f11e…` |
+
+Blocked decisions revert, so they leave no logs of their own — they are attributed to the policy version in force at their block, which the amendment log pins down. The stamp is what makes an executed transfer reconcilable after the fact.
 
 ## Why the first row matters
 
