@@ -123,6 +123,37 @@ The script exits non-zero if any case drifts, so this table cannot silently go s
 was installed — and it settles. A screenshot of a blocked transaction proves nothing on its own.
 The before/after pair is what shows the guard is the thing making the difference.
 
+## Wiring an operator in
+
+A runnable integration, not a snippet: `packages/contracts/examples/operator-spend.ts`. Four of its
+eight rows:
+
+```bash
+npm run example:operator -w packages/contracts
+```
+
+```
+  1  0.75 ETH → allowlisted vendor (inside the 2 ETH cap)          ALLOWED   v6 0xdff263390b…
+  2  0.10 ETH → address nobody allowlisted                         DENIED    CounterpartyNotAllowlisted(0x90F7…)
+  3  1.50 ETH → allowlisted vendor (1.75 ETH already spent today)  DENIED    DailyLimitExceeded(0x7099…, 2250000000000000000, 2000000000000000000)
+  4  1,200 USDG → allowlisted payroll (inside the 5,000 USDG cap)  ALLOWED   v6 0xdff263390b…
+  6  unlimited USDG approval to a market maker                    DENIED    UnlimitedApprovalNotAllowed(0x9fE4…)
+  8  0.01 ETH from a key the policy never configured               DENIED    DailyLimitNotConfigured(0x976E…)
+
+  3/8 spends were allowed; policy refused 5.
+```
+
+It shows the two patterns an operator client needs: **dry-run the policy with `staticCall` and
+decode the custom error** so you get a reason before spending rather than a failed transaction
+after, and **carry the policy version and digest** from the decision event into your own order
+record. It runs in-process with no keys and no funding, and exits non-zero if a case drifts, so CI
+runs it too.
+
+One caveat stated plainly, because it is the difference between this and enforcement: an operator
+holding the funds could skip this client. `ExecutionGuard` is the pre-flight oracle for a key you
+control. When the money is in a multisig, install `SafeTreasuryGuard` and enforcement stops
+depending on the operator's good behaviour.
+
 ## Policy attestation
 
 A refusal is only meaningful against the policy that was actually in force when it happened.

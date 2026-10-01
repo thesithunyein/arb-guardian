@@ -21,6 +21,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test -w packages/contracts
+      # The operator integration example: dry-run, decode the refusal, stamp the decision.
+      - run: npm run example:operator -w packages/contracts
       # Regenerates evidence/guard-proof.{md,json} and fails the build if any case stops
       # behaving as specified, or if the policy digest chain stops replaying.
       - run: npm run evidence -w packages/contracts

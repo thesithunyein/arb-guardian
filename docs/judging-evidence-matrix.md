@@ -14,6 +14,7 @@
   - Bounds-checked assembly decoding isolated in one library
   - **Versioned policy attestation**: every policy mutation advances a hash-chained `policyVersion` / `policyDigest`, the amendment is emitted with its parameters so the chain replays from logs alone, and every decision record carries the version and digest that judged it (`test/PolicyAttestation.test.ts`)
 - **Validation command:** `npm run test -w packages/contracts` (65 tests)
+- **Integration path:** `npm run example:operator -w packages/contracts` — a runnable operator bot that dry-runs policy, decodes the refusal, and records the policy version/digest of each allowed decision. Exercised in CI.
 - **Reproducible proof:** `npm run evidence -w packages/contracts` → 15/15 cases, before/after pair, exact revert reason per case, plus an 11-amendment digest-chain replay with 6/6 decisions stamped
 - **Typecheck:** `npm run typecheck` is clean across all four workspaces
 

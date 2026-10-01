@@ -13,6 +13,7 @@
   },
   "include": [
     "hardhat.config.ts",
+    "examples",
     "scripts",
     "test",
     "types/*.d.ts"
