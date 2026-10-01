@@ -55,11 +55,17 @@ function readLocalLatest(): Partial<{
   policyManager: { address: string; txHash?: string };
   executionGuard: { address: string; txHash?: string };
 }> | null {
-  const candidates = [
-    resolve(process.cwd(), "../../packages/contracts/deployments/latest.json"),
-    resolve(process.cwd(), "packages/contracts/deployments/latest.json"),
-    resolve(process.cwd(), "deployments/latest.json")
-  ];
+  // Tests set this so they never write into the directory the running product reads. A test
+  // that leaves a half-written `latest.json` behind in the real path is the same footgun that
+  // let a throwaway chain shadow the deployment in the first place.
+  const overrideDir = process.env.ARB_GUARDIAN_DEPLOYMENTS_DIR?.trim();
+  const candidates = overrideDir
+    ? [resolve(overrideDir, "latest.json")]
+    : [
+        resolve(process.cwd(), "../../packages/contracts/deployments/latest.json"),
+        resolve(process.cwd(), "packages/contracts/deployments/latest.json"),
+        resolve(process.cwd(), "deployments/latest.json")
+      ];
   for (const path of candidates) {
     if (!existsSync(path)) continue;
     try {
@@ -140,7 +146,13 @@ export function getDeploymentStatus(): DeploymentStatus {
   }
 
   const local = readLocalLatest();
-  if (local?.policyManager?.address && local?.executionGuard?.address) {
+  // A local `deploy.ts` run leaves latest.json behind. It is a build artifact, and reading it as
+  // the product's deployment let a throwaway Hardhat chain (id 31337) shadow the real one for the
+  // whole API — the live client checks then skipped silently instead of failing. Only a real
+  // network's record is allowed to win; anything else falls through to the committed manifest.
+  const localIsRealNetwork =
+    local !== null && local.chainId !== undefined && local.chainId !== null && local.chainId !== 31337;
+  if (localIsRealNetwork && local?.policyManager?.address && local?.executionGuard?.address) {
     const isSepolia = local.network === "arbitrumSepolia" || local.chainId === 421614;
     return buildDeploymentStatus(
       isSepolia ? "Arbitrum Sepolia" : (local.network ?? "local"),
