@@ -5,6 +5,23 @@ import { ethers, network } from "hardhat";
 const PAYROLL = "0x4444444444444444444444444444444444444444";
 const UNLISTED = "0x5555555555555555555555555555555555555555";
 
+/**
+ * The settlement token for a live network, taken from the committed manifest so there is one place
+ * that says which address is USDG. `npm run check:settlement` reads the same field and verifies the
+ * address against the chain.
+ */
+function settlementTokenFor(networkName: string): { address: string; symbol: string; decimals: number } {
+  const manifestPath = resolve(__dirname, "..", "evidence", "live-deployments.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+    networks?: Array<{ name?: string; settlementToken?: { address?: string; symbol?: string; decimals?: number } }>;
+  };
+  const entry = manifest.networks?.find((n) => n.name === networkName)?.settlementToken;
+  if (!entry?.address) {
+    throw new Error(`No settlementToken declared for ${networkName} in evidence/live-deployments.json.`);
+  }
+  return { address: entry.address, symbol: entry.symbol ?? "USDG", decimals: entry.decimals ?? 6 };
+}
+
 async function main() {
   const [deployer] = await ethers.getSigners();
   const deploymentsDir = resolve(__dirname, "..", "deployments");
@@ -40,6 +57,44 @@ async function main() {
   await (await policy.setCounterparty(PAYROLL, true)).wait();
   await (await policy.setWalletDailyLimit(shellAddress, ethers.parseEther("5"))).wait();
   console.log(`Seeded allowlist + daily limit for Safe shell`);
+
+  // ------------------------------------------------------------------ USDG token lane (live)
+  // Skipped on the in-process chain, where the real token has no code. On a live network the lane is
+  // pointed at the issuer's contract, and its decimals are read from that contract rather than
+  // assumed: a cap configured at the wrong scale is off by a power of ten and nothing in this
+  // repository would look wrong.
+  if (network.name === "hardhat" || network.name === "localhost") {
+    console.log("Skipping the USDG token lane: no issuer contract on the in-process chain.");
+  } else {
+    const usdg = settlementTokenFor(network.name);
+    const token = new ethers.Contract(
+      usdg.address,
+      ["function symbol() view returns (string)", "function decimals() view returns (uint8)"],
+      deployer
+    );
+    const [symbol, decimals] = await Promise.all([
+      token.symbol() as Promise<string>,
+      token.decimals() as Promise<bigint>
+    ]);
+    if (symbol !== usdg.symbol) {
+      throw new Error(`Expected ${usdg.symbol} at ${usdg.address} on ${network.name} but the token calls itself ${symbol}.`);
+    }
+    if (Number(decimals) !== usdg.decimals) {
+      throw new Error(
+        `USDG reports ${decimals} decimals on ${network.name}, but the manifest declares ${usdg.decimals}. ` +
+          "Fix the manifest before any cap is written, or every limit is wrong by a power of ten."
+      );
+    }
+
+    const tokenCap = 5000n * 10n ** BigInt(usdg.decimals);
+    await (await policy.setTokenRegistered(usdg.address, true)).wait();
+    await (await policy.setTokenCounterparty(usdg.address, PAYROLL, true)).wait();
+    await (await policy.setTokenDailyLimit(usdg.address, shellAddress, tokenCap)).wait();
+    console.log(
+      `USDG lane live: ${symbol} (${usdg.decimals} decimals) at ${usdg.address}, ` +
+        `payroll allowlisted, cap ${tokenCap.toString()} base units per day`
+    );
+  }
 
   // Fund shell so value transfers can succeed in demos.
   // Keep this small so a single Robinhood faucet claim (0.01 ETH) still covers deploy+seed+enroll.

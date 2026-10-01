@@ -29,6 +29,10 @@ jobs:
       # Reads the bytecode at every recorded address over public RPC and fails when a
       # network's declared status and the chain disagree. Needs no keys.
       - run: npm run check:deployed
+
+      # The settlement token is a third party's contract on a testnet, and every cap we quote is in
+      # its units, so the address and its decimals are checked against the chain rather than trusted.
+      - run: npm run check:settlement
       # The policy client every surface shares. Its ABI, role hashes, limit semantics and
       # revert decoding are asserted here, then driven against the real deployment below.
       # A fetch path is only a string until something checks it against the handlers on disk.

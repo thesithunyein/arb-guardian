@@ -28,6 +28,7 @@ import {
 import {
   API_BASE,
   API_KEY,
+  CHAIN_ID,
   DEPLOYMENT_READY,
   EXECUTION_GUARD,
   POLICY_MANAGER,
@@ -38,10 +39,13 @@ import {
   RH_TREASURY_SAFE,
   SAFE_TREASURY_GUARD,
   TREASURY_SAFE,
+  USDG,
+  USDG_DECIMALS,
   addressUrl,
   rhAddressUrl,
   txUrl
 } from "./config";
+import { settlementGeneratedAt, settlementTokenFor, settlementTokenVerified } from "./settlementToken";
 import { BrandBackdrop } from "./BrandBackdrop";
 import {
   IconAlerts,
@@ -371,10 +375,12 @@ export function App() {
   );
   const [payeeInput, setPayeeInput] = useState("");
   const [limitInput, setLimitInput] = useState("5");
-  const [tokenInput, setTokenInput] = useState("");
+  // Prefilled with the issuer's USDG address, verified on-chain by `npm run check:settlement`.
+  // A token lane is the one place where pasting the wrong address silently disables enforcement.
+  const [tokenInput, setTokenInput] = useState(USDG);
   const [tokenRecipientInput, setTokenRecipientInput] = useState("");
   const [tokenLimitInput, setTokenLimitInput] = useState("5000");
-  const [tokenDecimalsInput, setTokenDecimalsInput] = useState("6");
+  const [tokenDecimalsInput, setTokenDecimalsInput] = useState(String(USDG_DECIMALS));
 
   useEffect(() => {
     try {
@@ -1161,6 +1167,8 @@ export function App() {
     }
   }
 
+  /** The settlement token as read from its contract on this chain, or null if none is declared. */
+  const settlement = settlementTokenFor(CHAIN_ID);
   const openIncidents = incidents.filter((i) => i.status === "open").length;
   const statusLabel = policyPaused ? "Frozen" : DEPLOYMENT_READY ? "Online" : "Ready";
 
@@ -2124,8 +2132,30 @@ export function App() {
                           <strong>Token lane</strong>
                           <p className="muted">
                             A registered token is enforced in its own units: which recipients may be paid, and the daily cap
-                            for this address. USDG uses 6 decimals. Clearing a cap to zero closes the lane rather than
-                            opening it.
+                            for this address. Clearing a cap to zero closes the lane rather than opening it.
+                          </p>
+                          <p className="muted">
+                            {!settlement
+                              ? "No settlement token is declared for this chain."
+                              : !settlementTokenVerified
+                                ? "The declared settlement token did not answer as the manifest expects — see npm run check:settlement."
+                                : null}
+                            {settlement && settlementTokenVerified ? (
+                              <>
+                                Fields are prefilled with the issuer’s {settlement.symbol} — {settlement.name},
+                                {" "}
+                                {settlement.decimals} decimals — at{" "}
+                                <a
+                                  className="linkish"
+                                  href={addressUrl(settlement.address)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  {shortAddress(settlement.address)}
+                                </a>
+                                {`. Read from that contract ${settlementGeneratedAt}, not copied from the docs.`}
+                              </>
+                            ) : null}
                           </p>
                           <div className="admin-row">
                             <input

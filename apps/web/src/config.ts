@@ -68,6 +68,20 @@ export const RH_TREASURY_SAFE_TX =
   "0xf6968bded0810f6c9ba52db5b17c4c5fa5def1467df92af55cfd7561b5ee7a2f";
 export const RH_READY = /^0x[a-fA-F0-9]{40}$/.test(RH_POLICY_MANAGER) && /^0x[a-fA-F0-9]{40}$/.test(RH_EXECUTION_GUARD);
 
+/**
+ * Paxos USDG (Global Dollar) on each lane this project deploys to.
+ *
+ * These are the issuer's published testnet addresses, and `npm run check:settlement` reads
+ * `symbol()` and `decimals()` at both to confirm they are what the manifest declares. The
+ * decimals are the part that matters: a token lane configured with the wrong scale misreads every
+ * cap by a power of ten, which no amount of reading the code will reveal.
+ */
+export const USDG =
+  import.meta.env.VITE_USDG_ADDRESS?.trim() || "0xFFC95faa3d63Cde504a05B567C600B78C0b41892";
+export const RH_USDG =
+  import.meta.env.VITE_RH_USDG_ADDRESS?.trim() || "0x7E955252E15c84f5768B83c41a71F9eba181802F";
+export const USDG_DECIMALS = 6;
+
 /** Same-origin Vercel serverless API by default. */
 export const API_BASE = import.meta.env.VITE_API_BASE_URL?.trim() || "/api";
 export const API_KEY = import.meta.env.VITE_API_KEY?.trim() || undefined;

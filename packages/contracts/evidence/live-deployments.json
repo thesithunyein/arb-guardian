@@ -15,6 +15,14 @@
         "the ERC-20 token lane (USDG) does not exist in this bytecode",
         "the versioned policy attestation does not exist in this bytecode"
       ],
+      "settlementToken": {
+        "label": "USDG — Paxos Global Dollar",
+        "address": "0xFFC95faa3d63Cde504a05B567C600B78C0b41892",
+        "symbol": "USDG",
+        "decimals": 6,
+        "source": "https://docs.paxos.com/guides/stablecoin/usdg/testnet",
+        "comment": "Published by Paxos for Arbitrum Sepolia. `npm run check:settlement` reads symbol()/decimals() at this address, because a token lane configured with the wrong decimals misreads every limit by a power of ten."
+      },
       "contracts": [
         {
           "contract": "PolicyManager",
@@ -41,6 +49,14 @@
       "supersededBy": [
         "same four changes as Arbitrum Sepolia"
       ],
+      "settlementToken": {
+        "label": "USDG — Paxos Global Dollar",
+        "address": "0x7E955252E15c84f5768B83c41a71F9eba181802F",
+        "symbol": "USDG",
+        "decimals": 6,
+        "source": "https://docs.paxos.com/guides/stablecoin/usdg/testnet",
+        "comment": "Published by Paxos for Robinhood Testnet. The same stablecoin is live on both lanes this project deploys to, so the settlement claim is checkable on both."
+      },
       "contracts": [
         {
           "contract": "PolicyManager",

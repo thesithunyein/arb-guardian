@@ -15,7 +15,7 @@
     "typecheck:api": "tsc -p api/tsconfig.json",
     "format": "npm run format --workspaces --if-present",
     "check:routes": "node scripts/check-api-routes.mjs",
-    "quality:gate": "npm run check:routes && npm run test -w packages/shared && npm run test -w packages/contracts && npm run evidence -w packages/contracts && npm run test -w apps/api && npm run eval:policy -w apps/api && npm run build -w packages/shared && npm run build -w apps/api && npm run build -w apps/web",
+    "quality:gate": "npm run check:routes && npm run check:settlement && npm run test -w packages/shared && npm run test -w packages/contracts && npm run evidence -w packages/contracts && npm run test -w apps/api && npm run eval:policy -w apps/api && npm run build -w packages/shared && npm run build -w apps/api && npm run build -w apps/web",
     "submission:check": "node scripts/submission-readiness.mjs",
     "submission:finalize": "node scripts/finalize-submission.mjs",
     "submission:record-deploy": "node scripts/record-deployment-evidence.mjs",
@@ -26,8 +26,10 @@
     "deploy:p0": "node scripts/deploy-p0.mjs",
     "deploy:robinhood:wait": "node scripts/deploy-robinhood-when-funded.mjs",
     "check:deployed": "node scripts/check-deployed-drift.mjs",
+    "check:settlement": "node scripts/check-settlement-token.mjs",
+    "demo:sheet": "node scripts/demo-sheet.mjs",
     "push:audit": "node scripts/push-safe-audit.mjs",
-    "preflight": "npm run quality:gate && npm run check:deployed && npm run submission:check && npm run push:audit"
+    "preflight": "npm run quality:gate && npm run check:deployed && npm run check:settlement && npm run submission:check && npm run push:audit"
   },
   "engines": {
     "node": ">=20.0.0"
