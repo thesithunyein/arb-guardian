@@ -45,6 +45,7 @@ if (hasDeployerKey) {
 
   const envUpdates = {
     SUBMISSION_NETWORK: "Arbitrum Sepolia",
+    SUBMISSION_DEPLOYMENT_STATUS: "current",
     SUBMISSION_CHAIN_ID: String(deployment.chainId ?? 421614),
     SUBMISSION_POLICY_MANAGER_ADDRESS: deployment.policyManager.address,
     SUBMISSION_EXECUTION_GUARD_ADDRESS: deployment.executionGuard.address,

@@ -22,18 +22,18 @@
 - [x] Public live dashboard on Vercel
 
 ## Go-live gate for judging
-- [x] Public staging URL: https://arb-guardian.vercel.app
-- [ ] Custom domain `arb-guardian.sithunyein.com` attached in Vercel and DNS verified
+- [x] Public production URL: https://arb-guardian.sithunyein.com (HTTP 200; DNS resolves to Vercel)
+- [x] Vercel alias remains reachable: https://arb-guardian.vercel.app (HTTP 200)
 - [x] Public repository: https://github.com/thesithunyein/arb-guardian
-- [x] Arbitrum Sepolia deployment — PolicyManager + ExecutionGuard live
-- [x] Public product on Vercel with onchain addresses
+- [ ] Corrected Arbitrum Sepolia deployment — blocked: no deployer key, funded wallet, or explorer API key is available in this environment
+- [x] Public product on Vercel with the recorded superseded onchain addresses clearly labelled
 - [ ] Public API on Render (optional; console works with onchain reads)
 - [ ] Demo video with onchain tx evidence on Arbiscan
 
 ## Bounty criteria map
 | Criterion | Status |
 | --- | --- |
-| Deployed on Arbitrum chain | Existing Sepolia addresses are superseded; redeploy required — see `docs/live-deployment.md` |
+| Deployed on Arbitrum chain | Existing Sepolia addresses are superseded; corrected redeploy required — see `docs/live-deployment.md` |
 | Smart contract quality | Ready (tests + RBAC + pause) |
 | Product-market fit | Ready (treasury ops console) |
 | Innovation / creativity | Ready (deterministic agent playbooks) |

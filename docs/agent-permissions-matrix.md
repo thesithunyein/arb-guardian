@@ -7,7 +7,7 @@ Bounded deterministic actions only. No model, no free-form tools, no fund moveme
 permission surface matches what the code actually does. See the threat-model row on prompt
 injection below for why this is a design choice rather than a missing feature.
 
-Related: [`architecture.md`](architecture.md) · Live Playbooks tab on [arb-guardian.vercel.app](https://arb-guardian.vercel.app)
+Related: [`architecture.md`](architecture.md) · Live Playbooks tab on [arb-guardian.sithunyein.com](https://arb-guardian.sithunyein.com)
 
 ---
 

@@ -2,8 +2,8 @@
 
 ## Required artifacts
 
-- Live app URL (web dashboard deployment)
-- API URL and health endpoint response
+- Live app URL: https://arb-guardian.sithunyein.com (Vercel alias also verified)
+- API URL and health endpoint response: https://arb-guardian.sithunyein.com/api/health returned HTTP 200
 - Deployed Arbitrum Sepolia contract addresses: **source-only until the corrected build is
   redeployed**. Existing recorded addresses are explicitly marked superseded in
   `docs/live-deployment.md`.

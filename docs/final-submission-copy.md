@@ -106,7 +106,9 @@ natively issued Global Dollar and the lending asset in Robinhood Earn — settle
 
 ## Links
 
-- Web app: https://arb-guardian.vercel.app
+- Web app: https://arb-guardian.sithunyein.com (Vercel alias: https://arb-guardian.vercel.app)
+- Production check: both URLs returned HTTP 200; same-origin API health is
+  https://arb-guardian.sithunyein.com/api/health
 - Repo: https://github.com/thesithunyein/arb-guardian
 - Guard proof: `packages/contracts/evidence/guard-proof.md`
 - Demo video: **not recorded**
@@ -115,7 +117,8 @@ natively issued Global Dollar and the lending asset in Robinhood Earn — settle
 
 ### Live now (deployed 2026-07-30) — **superseded, see note**
 
-**Arbitrum Sepolia** (chain 421614)
+**Arbitrum Sepolia** (chain 421614) — recorded deployment is superseded; corrected redeploy is not
+yet verified
 - PolicyManager: `0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76`
 - ExecutionGuard: `0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124`
 - SafeTreasuryGuard: `0xcba30F60BE3FB0fB0e9db0C816c4ab9Fa2f7b211`
@@ -138,8 +141,9 @@ natively issued Global Dollar and the lending asset in Robinhood Earn — settle
 
 ## Deployment transactions
 
-- Corrected-build deployment transactions: **not available; deployment is blocked pending
-  funded keys and operator approval. Do not fabricate hashes.**
+- Corrected-build deployment transactions: **not available; deployment is blocked pending a funded
+  deployer, Arbitrum Sepolia ETH, an explorer API key, and operator approval. Do not fabricate
+  hashes.**
 
 ## What we validated
 

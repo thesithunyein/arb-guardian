@@ -58,7 +58,7 @@
 ## Deployment qualification
 
 - **Required proof:** Arbitrum chain deployment addresses + transaction links
-- **Live product:** https://arb-guardian.vercel.app
+- **Live product:** https://arb-guardian.sithunyein.com (Vercel alias: https://arb-guardian.vercel.app)
 - **Public repo:** https://github.com/thesithunyein/arb-guardian
 - **Deploy guide:** `docs/deploy-sepolia.md`
 - **Deployment command:** `npm run deploy:p0`

@@ -7,7 +7,7 @@ export const RPC_URL =
   import.meta.env.VITE_ARB_SEPOLIA_RPC_URL?.trim() || "https://sepolia-rollup.arbitrum.io/rpc";
 export const EXPLORER = "https://sepolia.arbiscan.io";
 
-/** Live Arbitrum Sepolia deployment (public, onchain). */
+/** Recorded Arbitrum Sepolia deployment (public, onchain; superseded by the current source). */
 export const POLICY_MANAGER =
   import.meta.env.VITE_POLICY_MANAGER_ADDRESS?.trim() ||
   "0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76";
@@ -81,4 +81,6 @@ export const rhAddressUrl = (addr: string) => `${RH_EXPLORER}/address/${addr}`;
 export const rhTxUrl = (hash: string) => `${RH_EXPLORER}/tx/${hash}`;
 
 export const DEPLOYMENT_READY =
-  /^0x[a-fA-F0-9]{40}$/.test(POLICY_MANAGER) && /^0x[a-fA-F0-9]{40}$/.test(EXECUTION_GUARD);
+  import.meta.env.VITE_DEPLOYMENT_STATUS?.trim() === "current" &&
+  /^0x[a-fA-F0-9]{40}$/.test(POLICY_MANAGER) &&
+  /^0x[a-fA-F0-9]{40}$/.test(EXECUTION_GUARD);

@@ -10,13 +10,13 @@
 </p>
 
 <p align="center">
-  <a href="https://arb-guardian.vercel.app"><img src="https://img.shields.io/badge/Live_app-E5FF5D?style=for-the-badge&labelColor=0B1220" alt="Live app" /></a>
+  <a href="https://arb-guardian.sithunyein.com"><img src="https://img.shields.io/badge/Live_app-E5FF5D?style=for-the-badge&labelColor=0B1220" alt="Live app" /></a>
   <img src="https://img.shields.io/badge/Chains-Arbitrum_+_Robinhood-28A0F0?style=for-the-badge&labelColor=0B1220" alt="Chains" />
   <img src="https://img.shields.io/badge/Settlement-USDG-7C3AED?style=for-the-badge&labelColor=0B1220" alt="USDG" />
   <img src="https://img.shields.io/badge/Tests-57_passing-22C55E?style=for-the-badge&labelColor=0B1220" alt="Tests" />
 </p>
 
-**Live product:** [arb-guardian.vercel.app](https://arb-guardian.vercel.app)
+**Live product:** [arb-guardian.sithunyein.com](https://arb-guardian.sithunyein.com) ([Vercel alias](https://arb-guardian.vercel.app))
 **Repo:** [github.com/thesithunyein/arb-guardian](https://github.com/thesithunyein/arb-guardian)
 
 ---
@@ -298,8 +298,8 @@ Full addresses, explorers and transaction hashes: [`docs/live-deployment.md`](do
 
 | Network | Status |
 | --- | --- |
-| **Arbitrum Sepolia** (421614) | Live — PolicyManager, ExecutionGuard, SafeTreasuryGuard, enrolled treasury |
-| **Robinhood Chain Testnet** (46630) | Live — twin deploy for the same loop |
+| **Arbitrum Sepolia** (421614) | Superseded bytecode recorded — corrected redeploy required |
+| **Robinhood Chain Testnet** (46630) | Superseded bytecode recorded — corrected redeploy required |
 
 > Note on the Robinhood deployment: its enrolled-treasury address resembles the Arbitrum
 > ExecutionGuard address. They are unrelated — separate chains, independent address spaces,

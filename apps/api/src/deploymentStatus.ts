@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 export type DeploymentStatus = {
   ready: boolean;
+  status: "current" | "superseded" | "unknown";
   network: string | null;
   chainId: number | null;
   policyManager: string | null;
@@ -30,11 +31,13 @@ function buildDeploymentStatus(
   executionGuard: string,
   policyManagerTx: string | null,
   executionGuardTx: string | null,
-  source: DeploymentStatus["source"]
+  source: DeploymentStatus["source"],
+  status: DeploymentStatus["status"]
 ): DeploymentStatus {
   const explorer = explorerBaseUrl(network);
   return {
-    ready: true,
+    ready: status === "current",
+    status,
     network,
     chainId,
     policyManager,
@@ -93,6 +96,7 @@ function readLiveManifest(): {
   chainId: number | null;
   policyManager: string;
   executionGuard: string;
+  status: DeploymentStatus["status"];
 } | null {
   const candidates = [
     resolve(process.cwd(), "../../packages/contracts/evidence/live-deployments.json"),
@@ -115,7 +119,8 @@ function readLiveManifest(): {
         network: chosen.label ?? chosen.name ?? "unknown",
         chainId: chosen.chainId ?? null,
         policyManager,
-        executionGuard
+        executionGuard,
+        status: chosen.status === "current" ? "current" : chosen.status === "superseded" ? "superseded" : "unknown"
       };
     } catch {
       continue;
@@ -128,6 +133,12 @@ export function getDeploymentStatus(): DeploymentStatus {
   const fromEnvPolicy = process.env.SUBMISSION_POLICY_MANAGER_ADDRESS?.trim() || null;
   const fromEnvGuard = process.env.SUBMISSION_EXECUTION_GUARD_ADDRESS?.trim() || null;
   if (fromEnvPolicy && fromEnvGuard) {
+    const live = readLiveManifest();
+    const status =
+      live?.policyManager.toLowerCase() === fromEnvPolicy.toLowerCase() &&
+      live.executionGuard.toLowerCase() === fromEnvGuard.toLowerCase()
+        ? live.status
+        : "unknown";
     return buildDeploymentStatus(
       process.env.SUBMISSION_NETWORK?.trim() || "Arbitrum Sepolia",
       Number(process.env.SUBMISSION_CHAIN_ID ?? "421614"),
@@ -135,7 +146,8 @@ export function getDeploymentStatus(): DeploymentStatus {
       fromEnvGuard,
       process.env.SUBMISSION_POLICY_MANAGER_TX?.trim() || null,
       process.env.SUBMISSION_EXECUTION_GUARD_TX?.trim() || null,
-      "env"
+      "env",
+      status
     );
   }
 
@@ -149,7 +161,8 @@ export function getDeploymentStatus(): DeploymentStatus {
       local.executionGuard.address,
       local.policyManager.txHash ?? null,
       local.executionGuard.txHash ?? null,
-      "local-file"
+      "local-file",
+      "unknown"
     );
   }
 
@@ -162,12 +175,14 @@ export function getDeploymentStatus(): DeploymentStatus {
       live.executionGuard,
       null,
       null,
-      "live-manifest"
+      "live-manifest",
+      live.status
     );
   }
 
   return {
     ready: false,
+    status: "unknown",
     network: null,
     chainId: null,
     policyManager: null,
