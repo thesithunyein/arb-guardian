@@ -77,8 +77,9 @@ It routes three ways:
    (guard, modules, owners). Allowed through, since it is already gated by the Safe's threshold.
 2. **Registered token** (`to` is e.g. USDG) — calldata is decoded and the **token** policy
    applies: recipient (or spender) must be allowlisted for that token, the movement must fit the
-   token's daily cap, unlimited approvals are rejected, and an unrecognised call on a registered
-   token is rejected rather than silently allowed.
+   token's daily cap, `transferFrom` must name the Safe as its source, standing approvals are
+   rejected because they can bypass later daily-cap checks, and an unrecognised call on a
+   registered token is rejected rather than silently allowed.
 3. **Everything else** — native lane: destination must be allowlisted, and any native value
    counts against the native cap.
 
@@ -97,7 +98,7 @@ submission-ready artifact:
 
 ```
 15/15 cases behaved as specified
-Policy attestation: 11 amendments replayed, 6/6 decisions stamped.
+Policy attestation: 11 amendments replayed, 5/5 decisions stamped.
 ```
 
 The same artifact is what the site renders, so the numbers on the page cannot drift away from the
@@ -135,7 +136,7 @@ The table it generates is the readable version of the claim, including every rev
 | 3 | Allowlisted vendor, above the 5 ETH daily cap | blocked | blocked | `DailyLimitExceeded(safe, 6e18, 5e18)` |
 | 5 | 1,200 USDG to an allowlisted recipient, inside the 5,000 USDG cap | allowed | allowed | — |
 | 6 | 6,000 USDG, above the cap | blocked | blocked | `TokenDailyLimitExceeded(token, safe, 7.2e9, 5e9)` |
-| 9 | **Unlimited USDG approval** — the classic drain primitive | blocked | blocked | `UnlimitedApprovalNotAllowed(token, spender)` |
+| 9 | **Finite USDG approval** — a standing `transferFrom` bypass primitive | blocked | blocked | `ApprovalNotAllowed(token, spender, amount)` |
 | 10 | Non-standard call on a registered token | blocked | blocked | `UnsupportedTokenCall(token, 0x40c10f19)` |
 | 12 | Valid payment after an operator freeze | blocked | blocked | `PolicyManagerPaused()` |
 | 13 | USDG cap cleared to zero | blocked | blocked | `TokenDailyLimitNotConfigured(token, safe)` |
@@ -163,7 +164,7 @@ npm run example:operator -w packages/contracts
   2  0.10 ETH → address nobody allowlisted                         DENIED    CounterpartyNotAllowlisted(0x90F7…)
   3  1.50 ETH → allowlisted vendor (1.75 ETH already spent today)  DENIED    DailyLimitExceeded(0x7099…, 2250000000000000000, 2000000000000000000)
   4  1,200 USDG → allowlisted payroll (inside the 5,000 USDG cap)  ALLOWED   v6 0xdff263390b…
-  6  unlimited USDG approval to a market maker                    DENIED    UnlimitedApprovalNotAllowed(0x9fE4…)
+  6  250 USDG standing approval to a market maker                  DENIED    ApprovalNotAllowed(0x9fE4…)
   8  0.01 ETH from a key the policy never configured               DENIED    DailyLimitNotConfigured(0x976E…)
 
   3/8 spends were allowed; policy refused 5.
@@ -210,7 +211,7 @@ decision:
 | Amendments replayed from logs | 11 |
 | Head policy version | 10 |
 | Digest chain replay | 11/11 digests recomputed from logs |
-| Allowed decisions stamped | 6/6 match a version in the amendment log |
+| Allowed decisions stamped | 5/5 match a version in the amendment log |
 | Distinct policy versions across decisions | 2 (proves the stamp tracks amendments, not a constant) |
 ```
 
@@ -309,7 +310,7 @@ Full addresses, explorers and transaction hashes: [`docs/live-deployment.md`](do
 - **Contracts:** Solidity 0.8.25, OpenZeppelin (AccessControl, Pausable), Hardhat
 - **API:** TypeScript, deterministic risk engine + policy conformance fixtures
 - **Web:** React + Vite
-- **Ops:** `npm run quality:gate` — 65 contract tests, 17 API tests, policy conformance (14 fixtures), builds
+- **Ops:** `npm run quality:gate` — contract/API tests, policy conformance, and builds
 
 ## Develop
 
@@ -334,10 +335,8 @@ npm run verify -w packages/contracts -- --network arbitrumSepolia
 - On-chain policy is the source of truth for limits and pause.
 - Both lanes are **deny-by-default**: an unconfigured wallet or Safe cannot spend.
   `PolicyManager.UNLIMITED_LIMIT` must be granted explicitly.
-- **Approval-class calls** (`approve`, `increaseAllowance`, `permit`, `setApprovalForAll`) block
-  by default, matched by name *and* by selector, and require a human release.
-- An **unlimited token approval** is refused outright — a standing unbounded grant is never
-  acceptable from a treasury.
+- **All token approvals** are refused outright because a spender could exercise the allowance
+  outside the Safe's daily-cap path; direct transfers are required instead.
 - Spend is recorded **before** execution (no re-entrancy bypass) and **refunded** if the inner
   call fails.
 - `DelegateCall` is rejected.

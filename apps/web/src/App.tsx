@@ -263,7 +263,7 @@ const INTENTS: Record<
   "risky-approve": {
     label: "Agent asks for standing approval",
     blurb: "A delegate asks for permission to pull money from the treasury, from an address nobody has allowlisted",
-    outcomeHint: "unlimited approval",
+    outcomeHint: "standing approval",
     vendor: "Unlisted address",
     walletLabel: "Operator key A",
     amountEth: "1.00",
@@ -1894,7 +1894,7 @@ export function App() {
                     <article className="asset-card">
                       <strong>Approval guard</strong>
                       <span>Calldata-aware</span>
-                      <p>An unlimited approval is refused, and an unrecognised call on a registered token is rejected.</p>
+                      <p>Standing approvals are refused, and an unrecognised call on a registered token is rejected.</p>
                     </article>
                     <article className="asset-card">
                       <strong>Policy attestation</strong>

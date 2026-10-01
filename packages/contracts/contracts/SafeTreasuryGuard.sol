@@ -20,8 +20,8 @@ import "./libraries/TokenCalldata.sol";
  *         allowed through; native value on such a call still follows policy.
  *      2. **Registered token** (`to` is a registered ERC-20, e.g. USDG) — the calldata is
  *         decoded and the *token* policy applies: recipient (or spender) must be allowlisted
- *         for that token, the movement must fit the token's daily cap, an unlimited approval
- *         is rejected, and an unrecognised selector on a registered token is rejected rather
+ *         for that token, the movement must fit the token's daily cap, standing approvals are
+ *         rejected, and an unrecognised selector on a registered token is rejected rather
  *         than silently allowed.
  *      3. **Everything else** — native lane: the destination must be allowlisted and any
  *         native value counts against the native daily cap.
@@ -102,7 +102,8 @@ contract SafeTreasuryGuard is AccessControl, ITransactionGuard {
     error TokenCounterpartyNotAllowlisted(address token, address counterparty);
     error TokenDailyLimitNotConfigured(address token, address safe);
     error TokenDailyLimitExceeded(address token, address safe, uint256 attemptedAmount, uint256 limit);
-    error UnlimitedApprovalNotAllowed(address token, address spender);
+    error ApprovalNotAllowed(address token, address spender, uint256 amount);
+    error TransferFromSourceNotSafe(address token, address source, address safe);
     error UnsupportedTokenCall(address token, bytes4 selector);
     error InvalidAmount();
 
@@ -226,12 +227,16 @@ contract SafeTreasuryGuard is AccessControl, ITransactionGuard {
     function _checkRegisteredToken(address safe, address token, bytes memory data, bytes4 selector) internal {
         (uint256 policyVersion, bytes32 policyDigest) = policyManager.policySnapshot();
         if (TokenCalldata.isTransfer(selector)) {
+            address from;
             address recipient;
             uint256 amount;
             if (selector == TokenCalldata.TRANSFER) {
                 (recipient, amount) = TokenCalldata.decodeTransfer(data);
             } else {
-                (, recipient, amount) = TokenCalldata.decodeTransferFrom(data);
+                (from, recipient, amount) = TokenCalldata.decodeTransferFrom(data);
+                if (from != safe) {
+                    revert TransferFromSourceNotSafe(token, from, safe);
+                }
             }
             if (recipient == address(0)) revert ZeroAddressNotAllowed();
 
@@ -253,15 +258,10 @@ contract SafeTreasuryGuard is AccessControl, ITransactionGuard {
                 revert TokenCounterpartyNotAllowlisted(token, spender);
             }
 
-            // A standing, unbounded grant of spending authority is never acceptable from a
-            // treasury. Bounded approvals are allowed against an allowlisted spender.
-            if (amount == type(uint256).max) {
-                emit SafeTokenTxChecked(token, safe, spender, amount, selector, true, "unlimited_approval", policyVersion, policyDigest);
-                revert UnlimitedApprovalNotAllowed(token, spender);
-            }
-
-            emit SafeTokenTxChecked(token, safe, spender, amount, selector, false, "approval_allowed", policyVersion, policyDigest);
-            return;
+            // Any standing approval can be exercised later by the spender without a Safe
+            // transaction, so it would sit outside this guard's daily-cap accounting.
+            emit SafeTokenTxChecked(token, safe, spender, amount, selector, true, "approval_not_allowed", policyVersion, policyDigest);
+            revert ApprovalNotAllowed(token, spender, amount);
         }
 
         // Registered token, unrecognised selector: reject rather than fall through to the

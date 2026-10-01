@@ -13,7 +13,7 @@ Public on-chain qualification proof for Arb Guardian.
 >    explicit `UNLIMITED_LIMIT`.
 > 2. **The approval rule could not block.** It scored `+20` against a `60` threshold, so
 >    `approve` to an allowlisted destination always passed. Approval-class calls now block by
->    default, matched by name *and* selector, and unlimited approvals are refused outright.
+>    default, matched by name *and* selector, and standing approvals are refused outright.
 >
 > The token lane (USDG) does not exist in the deployed bytecode at all, and neither does the
 > versioned policy attestation (`policyVersion` / `policyDigest`, `PolicyAmendment` history).

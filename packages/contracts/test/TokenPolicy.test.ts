@@ -128,22 +128,15 @@ describe("ExecutionGuard token lane (USDG-shaped, 6 decimals)", function () {
   });
 
   describe("approval lane", function () {
-    it("allows a bounded approval to an allowlisted spender", async function () {
+    it("rejects a bounded approval because it can be exercised outside the daily-cap path", async function () {
       const { wallet, spender, tokenAddress, guard } = await setup();
 
-      await expect(guard.validateTokenApproval(wallet.address, tokenAddress, spender.address, usdg(500), APPROVE))
-        .to.not.be.reverted;
+      await expect(
+        guard.validateTokenApproval(wallet.address, tokenAddress, spender.address, usdg(500), APPROVE)
+      ).to.be.revertedWithCustomError(guard, "ApprovalNotAllowed");
       await expect(
         guard.validateTokenApproval(wallet.address, tokenAddress, spender.address, usdg(1), INCREASE_ALLOWANCE)
-      ).to.not.be.reverted;
-    });
-
-    it("rejects an unlimited approval", async function () {
-      const { wallet, spender, tokenAddress, guard } = await setup();
-
-      await expect(
-        guard.validateTokenApproval(wallet.address, tokenAddress, spender.address, ethers.MaxUint256, APPROVE)
-      ).to.be.revertedWithCustomError(guard, "UnlimitedApprovalNotAllowed");
+      ).to.be.revertedWithCustomError(guard, "ApprovalNotAllowed");
     });
 
     it("rejects a spender that is not allowlisted for that token", async function () {
@@ -154,14 +147,6 @@ describe("ExecutionGuard token lane (USDG-shaped, 6 decimals)", function () {
       ).to.be.revertedWithCustomError(guard, "TokenCounterpartyNotAllowlisted");
     });
 
-    it("does not consume the daily cap, because an approval grants authority rather than value", async function () {
-      const { wallet, spender, recipient, tokenAddress, guard } = await setup({ limit: usdg(1000) });
-
-      await guard.validateTokenApproval(wallet.address, tokenAddress, spender.address, usdg(1000), APPROVE);
-      expect(await guard.walletTokenSpentToday(tokenAddress, wallet.address)).to.equal(0n);
-
-      await guard.validateTokenTransfer(wallet.address, tokenAddress, recipient.address, usdg(1000), TRANSFER);
-    });
   });
 
   it("enforces RBAC on the token lane", async function () {

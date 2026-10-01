@@ -294,8 +294,8 @@ async function main() {
   cases.push(
     await attempt(
       "usdg_bounded_approval",
-      "The Safe grants a bounded 250 USDG approval to an allowlisted spender.",
-      "allowed",
+      "The Safe attempts a bounded 250 USDG approval; standing approvals are refused because they bypass daily-cap accounting.",
+      "blocked",
       () =>
         execSafeTx(
           usdgAddress,
@@ -307,7 +307,7 @@ async function main() {
   cases.push(
     await attempt(
       "usdg_unlimited_approval",
-      "The Safe attempts an unlimited USDG approval — the classic drain primitive.",
+      "The Safe attempts an unlimited USDG approval; all standing approvals are refused.",
       "blocked",
       () =>
         execSafeTx(

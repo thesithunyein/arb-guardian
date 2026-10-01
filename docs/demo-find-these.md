@@ -16,8 +16,8 @@ Hard refresh once: `Ctrl+Shift+R`.
 1. Click **Open** on the landing screen.
 2. Click the tab **Review**.
 3. Pick the spend **“Agent asks for standing approval”**, then **Check a spend**.
-4. You get **Block — unlimited approval**. That intent is an approval-class call, which is the
-   drain primitive this exists to stop.
+4. You get **Block — standing approval**. Even a finite allowance can be exercised later through
+   `transferFrom` without a new Safe transaction, so the contract requires direct transfers.
 5. Switch to **“Normal vendor payout”** and run it: **Allow — within policy**.
 
 Point out the two numbers in the receipt: **Day limit** and **Spent today**. They are the whole

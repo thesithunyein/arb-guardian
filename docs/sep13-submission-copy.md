@@ -20,14 +20,16 @@ Robinhood Chain.
 - Demo video: _(paste Unlisted URL after recording)_
 
 ## Official criteria map
-1. **Smart contract quality** — RBAC, Pausable, deny-by-default limits in both lanes, calldata-aware token routing, real Gnosis Safe v1.4.1 integration, spend refunded on failure; 57 tests via `npm run quality:gate`
+1. **Smart contract quality** — RBAC, Pausable, deny-by-default limits in both lanes, calldata-aware token routing, real Gnosis Safe v1.4.1 integration, spend refunded on failure; run `npm run quality:gate` to regenerate totals
 2. **Product-Market Fit** — the control every team delegating funds needs, denominated in the asset treasuries hold (USDG first), on the chain where those teams are being pointed
-3. **Innovation** — contract-enforced delegated-spend policy: unlimited approvals refused, unrecognised calls on registered tokens rejected, no vendor goodwill or application code in the trust path
+3. **Innovation** — contract-enforced delegated-spend policy: standing approvals refused,
+   `transferFrom` source constrained to the Safe, unrecognised calls on registered tokens
+   rejected, no vendor goodwill or application code in the trust path
 4. **Real Problem Solving** — delegated trust is currently all-or-nothing; $13.3M of buyer losses on Robinhood Chain in one crew's 56 launches, $9.4M of it from app users who never saw an on-chain flag (Bitquery, Sept 2026)
 5. **Paxos USDG** — first-class token lane, denominated correctly in USDG's 6-decimal base units
 6. **Arb reserved lane** — live Sepolia contracts in Vault
 7. **RH reserved lane** — live Robinhood testnet twin in Vault
-8. **Proof, not a demo** — `npm run evidence -w packages/contracts` reproduces 14/14 cases against a real Safe, with a before/after pair and exact revert reasons
+8. **Proof, not a demo** — `npm run evidence -w packages/contracts` reproduces 15/15 cases against a real Safe, with a before/after pair and exact revert reasons
 
 ## Arbitrum Sepolia
 - PolicyManager: `0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76`

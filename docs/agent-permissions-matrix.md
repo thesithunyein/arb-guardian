@@ -53,8 +53,9 @@ The score comes from `apps/api/src/riskEngine.ts`. Every rule is deny-by-default
 | `RULE_APPROVAL_SURFACE` | `approve`, `increaseAllowance`, `permit`, `setApprovalForAll` (by name **or** selector) | +60 |
 
 Block threshold is `totalScore >= 60`, so **each of these four rules can block on its own**.
-An approval to an allowlisted destination inside the limit still blocks: granting standing
-spending authority requires an explicit human release.
+An approval to an allowlisted destination still blocks: granting standing spending authority
+would let the spender call `transferFrom` outside the Safe's daily-cap path, so the contracts
+require direct, bounded transfers instead.
 
 ---
 

@@ -1,4 +1,7 @@
 export const CHAIN_NAME = import.meta.env.VITE_CHAIN_NAME?.trim() || "Arbitrum Sepolia";
+/** Set this to the verified Vercel custom-domain URL when the domain is attached. */
+export const PUBLIC_APP_URL =
+  import.meta.env.VITE_PUBLIC_APP_URL?.trim() || "https://arb-guardian.vercel.app";
 export const CHAIN_ID = 421614;
 export const RPC_URL =
   import.meta.env.VITE_ARB_SEPOLIA_RPC_URL?.trim() || "https://sepolia-rollup.arbitrum.io/rpc";
