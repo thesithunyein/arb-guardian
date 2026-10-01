@@ -6,18 +6,25 @@
 
 <p align="center">
   <strong>Give an agent, bot or operator money without giving it the ability to drain the account</strong><br/>
-  On-chain spend policy a treasury cannot exceed — enforced by a contract, not by trust.
+  On-chain spend policy a treasury cannot exceed — enforced by a contract, not by trust.<br/>
+  Live on <strong>Arbitrum Sepolia</strong> and <strong>Robinhood Chain Testnet</strong>, settling in <strong>Paxos USDG</strong>.
 </p>
 
 <p align="center">
   <a href="https://arb-guardian.vercel.app"><img src="https://img.shields.io/badge/Live_app-E5FF5D?style=for-the-badge&labelColor=0B1220" alt="Live app" /></a>
   <img src="https://img.shields.io/badge/Chains-Arbitrum_+_Robinhood-28A0F0?style=for-the-badge&labelColor=0B1220" alt="Chains" />
-  <img src="https://img.shields.io/badge/Settlement-USDG-7C3AED?style=for-the-badge&labelColor=0B1220" alt="USDG" />
-  <img src="https://img.shields.io/badge/Tests-57_passing-22C55E?style=for-the-badge&labelColor=0B1220" alt="Tests" />
+  <img src="https://img.shields.io/badge/Settlement-USDG_verified-7C3AED?style=for-the-badge&labelColor=0B1220" alt="USDG" />
+  <img src="https://img.shields.io/badge/Tests-116_passing-22C55E?style=for-the-badge&labelColor=0B1220" alt="Tests" />
 </p>
 
 **Live product:** [arb-guardian.vercel.app](https://arb-guardian.vercel.app)
 **Repo:** [github.com/thesithunyein/arb-guardian](https://github.com/thesithunyein/arb-guardian)
+**Security posture:** [SECURITY.md](SECURITY.md) — trust assumptions, deliberate limits, and the defects that were found and fixed
+
+> **Building on both reserved lanes.** This project deploys to two Arbitrum chains: Arbitrum Sepolia
+> and Robinhood Chain Testnet. The same Solidity, the same tests, the same guard installed in a real
+> Gnosis Safe on each — and the settlement token, Paxos USDG, is live on both, so the USDG claim is
+> checkable on either.
 
 ---
 

@@ -42,6 +42,34 @@ Public on-chain qualification proof for Arb Guardian.
 > mistake these addresses for the current source. That statement is generated from this file's
 > status, not from a claim in the marketing copy.
 
+## Settlement token — Paxos USDG, on both lanes
+
+| Network | Address | Symbol | Decimals |
+| --- | --- | --- | --- |
+| Arbitrum Sepolia | [`0xFFC95faa3d63Cde504a05B567C600B78C0b41892`](https://sepolia.arbiscan.io/address/0xFFC95faa3d63Cde504a05B567C600B78C0b41892) | USDG | 6 |
+| Robinhood Chain Testnet | [`0x7E955252E15c84f5768B83c41a71F9eba181802F`](https://explorer.testnet.chain.robinhood.com/address/0x7E955252E15c84f5768B83c41a71F9eba181802F) | USDG | 6 |
+
+These are the issuer's published testnet deployments
+([Paxos docs](https://docs.paxos.com/guides/stablecoin/usdg/testnet)), not our own token. The token
+lane is pointed at them, so the caps quoted in the product are in real USDG base units.
+
+The addresses and decimals above are **read from the contracts, not copied from the docs**:
+
+```bash
+npm run check:settlement
+```
+
+It calls `symbol()` and `decimals()` at each declared address, compares them with
+`packages/contracts/evidence/live-deployments.json`, and fails when they disagree. That check exists
+because decimals are the part of a token integration a reader cannot eyeball: a lane configured at
+the wrong scale misreads every cap by a power of ten, and nothing in the policy source would look
+wrong. `enroll-safe.ts` reads `decimals()` again before writing any cap, and refuses to continue if it
+disagrees with the manifest.
+
+The evidence pack (`npm run evidence -w packages/contracts`) still uses a USDG-shaped local token,
+because an in-process chain has no issuer contract to transfer. It exercises the lane's *logic*; this
+check and the live lanes cover the *address*.
+
 ## Arbitrum Sepolia (primary) — superseded
 
 | Field | Value |

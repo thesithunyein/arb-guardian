@@ -11,7 +11,9 @@
   - PolicyManager tx: `<fill-after-deploy>`
   - ExecutionGuard tx: `<fill-after-deploy>`
 - Public repository URL
-- 3-minute demo video link
+- Security posture (`SECURITY.md`) — trust assumptions, deliberate limits, defects found and fixed
+- 3-minute demo video link (beats and evidence: `npm run demo:sheet`)
+- Settlement token proof: `npm run check:settlement` reads USDG's `symbol()`/`decimals()` on both lanes
 - Judge brief (`docs/judge-brief.md`)
 - Grant milestones (`docs/grant-milestones.md`)
 - Judging evidence matrix (`docs/judging-evidence-matrix.md`)
@@ -21,15 +23,31 @@
 
 ## Judging alignment evidence
 
-- Smart contract quality: tests + RBAC + pause + events.
-- PMF: treasury signer persona with guardrail workflows.
-- Innovation: deterministic evidence engine + bounded agentic playbooks.
-- Real problem solving: blocked risky transaction incident demo.
+Each line names something a judge can run or open, not a description of intent.
+
+- **Smart contract quality** — 71 contract tests including `test/Invariants.test.ts` (property-style
+  sequences, not examples); the evidence pack deploys a real Gnosis Safe v1.4.1 and installs the
+  guard through an owner-approved `execTransaction`; `npm run check:deployed` compares live bytecode
+  with this build.
+- **Product-market fit** — a real operator console that reads policy from the chain and administers
+  it, with waitlist and usage counts. State is weak: no users beyond the waitlist.
+- **Innovation** — a hash-chained policy attestation (`digest[n] = keccak256(prev, n, kind, params)`)
+  replayed from `PolicyAmended` logs, with every allowed decision stamped with the version in force.
+- **Real problem solving** — deny-by-default limits, an ERC-20 token lane aimed at real Paxos USDG, and
+  a guard installed inside a real Safe so a violating transaction reverts inside `execTransaction`.
+- **USDG (extra consideration)** — the issuer's testnet contracts on both lanes, verified on-chain
+  rather than quoted from docs.
 
 ## Verification commands
 
-- `npm run test -w packages/contracts`
-- `npm run test -w apps/api`
-- `npm run build -w apps/web`
-- `npm run deploy:sepolia -w packages/contracts`
-- `npm run eval:policy -w apps/api`
+```bash
+npm run typecheck                                  # all workspaces, including the serverless handlers
+npm run test -w packages/contracts                 # 71, including the invariant suite
+npm run test -w apps/api                           # 25, including live read-only checks against the deployment
+npm run evidence -w packages/contracts             # real Safe, real guard, 15/15 cases
+npm run check:deployed                             # live bytecode vs this source
+npm run check:settlement                           # USDG address and decimals on both lanes
+npm run check:routes                               # web app routes vs serverless handlers
+npm run demo:sheet                                 # the recording sheet, generated from the evidence above
+npm run deploy:sepolia -w packages/contracts       # needs DEPLOYER_PRIVATE_KEY
+```
