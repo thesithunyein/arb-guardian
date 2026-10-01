@@ -1247,7 +1247,7 @@ export function App() {
                     <p className="snapshot-label">For teams</p>
                     <strong>{interestJoined ? "You're on the list" : "Join with email — no wallet"}</strong>
                     <p className="muted">
-                      Managers and players: leave your team name and email. We'll follow up when enroll opens.
+                      Treasury owners and operators: leave your team name and email. We'll follow up when enroll opens.
                     </p>
                   </div>
                   {interestJoined ? (
@@ -1339,7 +1339,7 @@ export function App() {
                       {officerOpen ? (
                         <>
                           <p className="muted" style={{ margin: 0 }}>
-                            Optional. Link once so locks and checks count for your guild.
+                            Optional. Link once so checks and freezes count for your treasury.
                           </p>
                           <form className="enroll-form" onSubmit={enrollGuild}>
                             <input
@@ -1467,7 +1467,7 @@ export function App() {
                     </div>
                   </dl>
                   <p className="muted review-budget-hint">
-                    Day limit = max the team bank can send today. Spent today = already used. Unknown payee = not on the
+                    Day limit = max the treasury can send today. Spent today = already used. Unknown payee = not on the
                     trusted list.
                   </p>
 
@@ -1497,7 +1497,7 @@ export function App() {
                           >
                             connect
                           </button>{" "}
-                          later to lock the bank.
+                          later to freeze the treasury.
                         </p>
                       ) : null}
                     </div>
@@ -1519,7 +1519,7 @@ export function App() {
                         <p>
                           Suggests: <em>{playbookLabel(assessment.recommendedPlaybook)}</em>
                         </p>
-                        <p className="muted">Cannot move money. Locking the bank needs your click.</p>
+                        <p className="muted">Cannot move money. Freezing the treasury needs your click.</p>
                       </div>
                       <button type="button" className="linkish" onClick={() => setWhyOpen((v) => !v)}>
                         {whyOpen ? "Hide details" : "Why this decision"}
@@ -1643,7 +1643,7 @@ export function App() {
                                   }}
                                 >
                                   <IconFreeze size={14} />
-                                  Lock the shared bank
+                                  Freeze the treasury
                                 </button>
                                 <button
                                   type="button"
@@ -1718,8 +1718,8 @@ export function App() {
                     <IconAutomation size={18} /> Playbooks
                   </h3>
                   <p className="muted">
-                    Clear responses for each risk level. The helper only suggests — locking the bank still needs your
-                    click in Alerts.
+                    Clear responses for each risk level. The helper only suggests — freezing the treasury still needs
+                    your click in Alerts.
                   </p>
                   <div className="evidence-grid" style={{ marginTop: "1rem" }}>
                     <article>
