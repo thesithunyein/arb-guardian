@@ -33,6 +33,7 @@ import {
   IconSun
 } from "./icons";
 import { guardProof, shortDigest } from "./guardProof";
+import { driftReport } from "./deployedDrift";
 import { assessIntent, predictGuardOutcome, type RiskAssessment } from "./riskEngine";
 import {
   loadSfxMuted,
@@ -227,6 +228,7 @@ type TabId = "home" | "review" | "alerts" | "automation" | "security";
 
 /** The evidence pack writes an ISO timestamp; render it without the millisecond noise. */
 const PROOF_GENERATED_AT = guardProof.generatedAt.replace("T", " ").replace(/\.\d+Z$/, " UTC");
+const DRIFT_GENERATED_AT = driftReport.generatedAt.replace("T", " ").replace(/\.\d+Z$/, " UTC");
 const PROOF_SAFE_VERSION = guardProof.safeVersion.split(" ")[0];
 
 const TREASURY = {
@@ -1214,7 +1216,7 @@ export function App() {
                       {policyPaused
                         ? "Unlock from Alerts when it is safe"
                         : openIncidents > 0
-                          ? "Open Alerts to lock the bank or dismiss"
+                          ? "Open Alerts to lock the treasury or dismiss"
                           : "See if a spend is safe before anyone approves it"}
                     </p>
                   </div>
@@ -1755,7 +1757,7 @@ export function App() {
                     </article>
                     <article>
                       <h4>Critical</h4>
-                      <p>Lock the shared bank (human click)</p>
+                      <p>Lock the treasury (human click)</p>
                     </article>
                   </div>
                 </section>
@@ -1775,18 +1777,18 @@ export function App() {
                   <ul className="clean">
                     <li>Suggest the next response from the risk score</li>
                     <li>Open an alert when a spend is blocked</li>
-                    <li>Never move team money</li>
+                    <li>Never move treasury funds</li>
                     <li>Never change the trusted payout list</li>
-                    <li>Never lock the bank without your click</li>
+                    <li>Never lock the treasury without your click</li>
                   </ul>
                 </section>
                 <section className="surface">
                   <h3>Hard limits</h3>
                   <ul className="clean">
-                    <li>Cannot move team money</li>
+                    <li>Cannot move treasury funds</li>
                     <li>Cannot change the trusted payout list</li>
                     <li>Cannot grant admin access</li>
-                    <li>Lock only after Lock the shared bank is clicked</li>
+                    <li>Lock only after Lock the treasury is clicked</li>
                   </ul>
                 </section>
               </div>
@@ -1803,6 +1805,64 @@ export function App() {
                     source by <code>npm run evidence -w packages/contracts</code> — run it and compare. Addresses and
                     explorer links: <code>docs/live-deployment.md</code>.
                   </p>
+                  <p className="muted section-lead">
+                    That first sentence is not taken on trust either. <code>npm run check:deployed</code> reads the
+                    bytecode at every recorded address over each network&apos;s public RPC and compares the Solidity
+                    metadata fingerprint with this build. Its output is the next section.
+                  </p>
+                </section>
+                <section className="surface span-2">
+                  <h3>
+                    <IconSecurity size={18} /> Deployed bytecode vs this build · checked, not asserted
+                  </h3>
+                  <p className="muted section-lead">
+                    {driftReport.summary.checked} contract{driftReport.summary.checked === 1 ? "" : "s"} read from
+                    chain: {driftReport.summary.drifted} drifted, {driftReport.summary.matched} matched
+                    {driftReport.summary.unreachable > 0
+                      ? `, ${driftReport.summary.unreachable} unreachable`
+                      : ""}
+                    . A drifted contract is one whose deployed source is not the source you are reading now — the honest
+                    status of both networks until the redeploy. {driftReport.note} Generated {DRIFT_GENERATED_AT} by{" "}
+                    <code>npm run check:deployed</code>, which fails when a network&apos;s declared status and the chain
+                    disagree.
+                  </p>
+                  {driftReport.networks.map((network) => (
+                    <div key={network.name}>
+                      <p className="muted section-lead">
+                        <strong>{network.label}</strong> · chain {network.chainId} · declared {" "}
+                        <code>{network.declared}</code>
+                        {network.declared === "superseded"
+                          ? " — expected to differ from this source, and it does"
+                          : " — expected to match this source"}
+                      </p>
+                      <ul className="clean">
+                        {network.contracts.map((c) => (
+                          <li key={`${network.name}-${c.contract}`}>
+                            <strong>
+                              {c.verdict === "match"
+                                ? "Matches"
+                                : c.verdict === "drift"
+                                  ? "Drifted"
+                                  : c.verdict === "absent"
+                                    ? "No code"
+                                    : "Not read"}
+                            </strong>
+                            {" — "}
+                            <a href={c.url} target="_blank" rel="noreferrer noopener">
+                              {c.contract}
+                            </a>
+                            {c.onchainBytes !== null && c.localBytes !== null ? (
+                              <span className="muted">
+                                {" "}
+                                · {c.onchainBytes.toLocaleString()} bytes on-chain vs {c.localBytes.toLocaleString()} in
+                                this repo
+                              </span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
                 </section>
                 <section className="surface span-2">
                   <h3>

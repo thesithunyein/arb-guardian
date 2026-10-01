@@ -16,7 +16,8 @@
 - **Validation command:** `npm run test -w packages/contracts` (65 tests)
 - **Integration path:** `npm run example:operator -w packages/contracts` — a runnable operator bot that dry-runs policy, decodes the refusal, and records the policy version/digest of each allowed decision. Exercised in CI.
 - **Reproducible proof:** `npm run evidence -w packages/contracts` → 15/15 cases, before/after pair, exact revert reason per case, plus an 11-amendment digest-chain replay with 6/6 decisions stamped
-- **Typecheck:** `npm run typecheck` is clean across all four workspaces
+- **Typecheck:** `npm run typecheck` is clean across all four workspaces, including the Vercel handlers in `api/` that no workspace tsconfig covered
+- **Live-vs-repo check:** `npm run check:deployed` reads the bytecode at every recorded address over public RPC (no keys) and compares the Solidity metadata fingerprint and runtime size with this build → 6 contracts read, 6 declared `superseded` and confirmed to differ (PolicyManager is 2,098 bytes on-chain against 4,631 here). Each network declares whether it must match this source, and the script fails when the declaration and the chain disagree
 
 ## Product-market fit
 
@@ -27,6 +28,7 @@
   - On the chains where those teams are being pointed: Arbitrum for mature DeFi and Safe tooling, Robinhood Chain for agents and USDG
   - Core workflows: policy setup, risk assessment, incident response
 - **Validation command:** `npm run build -w apps/web`
+- **Honesty gate:** the Vault tab renders the generated drift report, so the superseded status a judge sees on screen comes from `evidence/deployed-drift.json` rather than from marketing copy
 
 ## Innovation and creativity
 

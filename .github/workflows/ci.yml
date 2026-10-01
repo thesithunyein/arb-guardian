@@ -26,6 +26,9 @@ jobs:
       # Regenerates evidence/guard-proof.{md,json} and fails the build if any case stops
       # behaving as specified, or if the policy digest chain stops replaying.
       - run: npm run evidence -w packages/contracts
+      # Reads the bytecode at every recorded address over public RPC and fails when a
+      # network's declared status and the chain disagree. Needs no keys.
+      - run: npm run check:deployed
       - run: npm run test -w apps/api
       - run: npm run eval:policy -w apps/api
       - run: npm run build -w packages/shared

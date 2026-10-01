@@ -100,6 +100,15 @@ submission-ready artifact:
 Policy attestation: 11 amendments replayed, 6/6 decisions stamped.
 ```
 
+The same artifact is what the site renders, so the numbers on the page cannot drift away from the
+contracts without CI going red.
+
+`npm run check:deployed` then reads the bytecode at every recorded address over public RPC — no keys
+— and compares the Solidity metadata fingerprint and runtime size against this build. It confirms
+that the Arbitrum Sepolia and Robinhood Chain Testnet addresses run an **earlier build**:
+PolicyManager is 2,098 bytes on-chain against 4,631 here. That is what `docs/live-deployment.md`
+warns about, and it is checked rather than asserted.
+
 The table it generates is the readable version of the claim, including every revert reason:
 
 | # | Case | Expected | Observed | Revert reason |

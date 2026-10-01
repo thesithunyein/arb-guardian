@@ -31,6 +31,13 @@ Public on-chain qualification proof for Arb Guardian.
 > The deploy script writes `packages/contracts/deployments/<network>.json`, which `npm run verify`
 > reads for addresses and constructor arguments.
 >
+> Then update `packages/contracts/evidence/live-deployments.json`: replace every address and set each
+> network's `status` to `"current"`. `npm run check:deployed` reads the bytecode at those addresses
+> over public RPC and compares the Solidity metadata fingerprint with this repository's build. It
+> **fails today** because the addresses above really are an older build — that is the point. Leave
+> `status` as `"superseded"` after a redeploy and it keeps failing, which is the reminder to finish
+> the job.
+>
 > The Vault tab in the web app says the same thing on screen, so a judge clicking around cannot
 > mistake these addresses for the current source. That statement is generated from this file's
 > status, not from a claim in the marketing copy.
