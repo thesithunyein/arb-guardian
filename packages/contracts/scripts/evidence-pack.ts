@@ -467,7 +467,7 @@ async function main() {
   const passed = cases.filter((c) => c.pass).length;
   const allPass = passed === cases.length;
 
-  const generatedAt = new Date().toISOString();
+  let generatedAt = new Date().toISOString();
   const json = {
     kind: "arb-guardian-guard-proof",
     generatedAt,
@@ -490,8 +490,26 @@ async function main() {
   };
 
   const outDir = resolve(__dirname, "..", "evidence");
+  const jsonPath = resolve(outDir, "guard-proof.json");
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(resolve(outDir, "guard-proof.json"), JSON.stringify(json, null, 2), "utf8");
+
+  // A proof that changes bytes on every run is a proof nobody diffs. The artifact is committed
+  // and rendered by the site, so if only its timestamp moved, keep the timestamp that is already
+  // there: re-running the pack then leaves the file byte-identical, and a real change is the only
+  // thing that appears in `git diff`.
+  const withoutTimestamp = (value: unknown) =>
+    JSON.stringify({ ...(value as Record<string, unknown>), generatedAt: "" });
+  try {
+    const existing = JSON.parse(readFileSync(jsonPath, "utf8")) as { generatedAt?: string };
+    if (existing.generatedAt && withoutTimestamp(existing) === withoutTimestamp(json)) {
+      generatedAt = existing.generatedAt;
+      json.generatedAt = generatedAt;
+    }
+  } catch {
+    // First run, or an unreadable artifact: fall through and write a fresh one.
+  }
+
+  writeFileSync(jsonPath, JSON.stringify(json, null, 2), "utf8");
 
   const lines: string[] = [];
   lines.push("# Arb Guardian — Guard Proof");
