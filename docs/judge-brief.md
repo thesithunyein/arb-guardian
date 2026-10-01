@@ -25,19 +25,27 @@ Small DAOs and onchain startups lose funds from approval misuse, weak operationa
 - Pausable circuit breaker.
 - Zero-address and invalid-amount guards.
 - Custom errors for clear failure reasons.
-- Comprehensive Hardhat tests including rollover and pause scenarios.
+- 65 Hardhat tests including rollover, pause, deny-by-default and the 18-vs-6 decimal trap.
 - **SafeTreasuryGuard** — Gnosis Safe `ITransactionGuard` for production multisig treasuries.
+- **Deny-by-default** limits in both the native and token lanes: `0` blocks spending, uncapped
+  spending requires an explicit `UNLIMITED_LIMIT`.
+- **Versioned policy attestation** — every policy amendment folds into a hash chain that replays
+  from logs alone, and every decision record carries the version and digest that judged it.
+- **Reproducible proof** — `npm run evidence -w packages/contracts` runs 15 cases against a real
+  Gnosis Safe v1.4.1 and exits non-zero if any case drifts.
 
 ## Demo flow
 
-1. Configure allowlist + wallet limit.
-2. Submit risky approval transaction.
-3. Observe blocked transaction and event-backed evidence.
-4. Review auto-created incident and playbook recommendation.
-5. Show SafeTreasuryGuard as the Safe multisig enforcement path.
+1. Configure the allowlist, the per-asset caps and the token lane.
+2. Submit a spend from an agent, bot or operator key.
+3. Show the refusal, the revert reason, and the policy version stamped on the allowed ones.
+4. Show the Vault tab: the proof is the generated artifact, not prose.
+5. Show SafeTreasuryGuard as the enforcement path inside a real Safe's `execTransaction`.
 
 ## Scale roadmap
 
+- Redeploy the current build (token lane + attestation) to Arbitrum Sepolia and Robinhood Chain,
+  then replace `docs/live-deployment.md`; today those addresses run the earlier semantics.
 - Wire live Gnosis Safe instances to SafeTreasuryGuard enrollment.
 - Introduce queue-backed event ingestion and alerting.
 - Expand policy templates for payroll, grant disbursement, and market ops.

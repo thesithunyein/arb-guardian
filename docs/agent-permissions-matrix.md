@@ -16,14 +16,14 @@ Related: [`architecture.md`](architecture.md) · Live Playbooks tab on [arb-guar
 ```mermaid
 flowchart LR
   Score[Risk score] --> Suggest[Policy engine suggests playbook]
-  Suggest --> Human{Officer confirms?}
+  Suggest --> Human{Operator confirms?}
   Human -->|Yes · mitigate| Pause[PolicyManager.pause]
   Human -->|No / ignore| Hold[Incident stays / closes]
   Suggest -.->|never| Funds[Move funds]
   Suggest -.->|never| Policy[Edit allowlist / limits]
 ```
 
-The policy engine **recommends**. The officer **decides**. Onchain policy **enforces**.
+The policy engine **recommends**. The operator **decides**. Onchain policy **enforces**.
 
 ---
 
@@ -34,7 +34,7 @@ The policy engine **recommends**. The officer **decides**. Onchain policy **enfo
 | `allow-with-monitoring` | 0–29 | No | Allow path · keep watching | None |
 | `request-secondary-signer-confirmation` | 30–59 | No | Soft caution · second look | Operator ack |
 | `hold-transaction-and-require-admin-review` | 60–79 | Soft | Incident held · no pause | Mitigate / ignore |
-| `freeze-wallet-and-revoke-approvals` | ≥80 | **Only after mitigate** | `PolicyManager.pause()` | Officer clicks **Freeze** |
+| `freeze-wallet-and-revoke-approvals` | ≥80 | **Only after mitigate** | `PolicyManager.pause()` | Operator clicks **Freeze** |
 
 Coordinator: `apps/api/src/agentCoordinator.ts` → `recommendPlaybook()`.
 Executor: `apps/api/src/playbookExecutor.ts` → `executeBoundedPlaybook()` (Vercel: `api/incidents/[id]/action.ts`).
@@ -60,7 +60,7 @@ spending authority requires an explicit human release.
 
 ## Permission capability map
 
-| Capability | Policy engine | Officer (human) | Onchain contracts |
+| Capability | Policy engine | Operator (human) | Onchain contracts |
 | --- | --- | --- | --- |
 | Score spend / suggest playbook | ✅ | — | — |
 | Open alert when blocked | ✅ | — | — |
@@ -166,7 +166,7 @@ npm run quality:gate
 | Threat | Mitigation |
 | --- | --- |
 | Engine drains treasury | No fund-moving tools; guards onchain |
-| Engine pauses forever without oversight | Pause only via officer mitigate |
+| Engine pauses forever without oversight | Pause only via operator mitigate |
 | Prompt injection / free-form tools | **No LLM at all** — deterministic rules, so this attack class does not apply |
 | UI spoofs an allow | `ExecutionGuard` / `SafeTreasuryGuard` still enforce onchain |
 | Limit never configured, so spend is unbounded | Deny-by-default: 0 means no spending; `UNLIMITED_LIMIT` must be explicit |

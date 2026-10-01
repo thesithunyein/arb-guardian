@@ -32,6 +32,7 @@ import {
   IconSoundOn,
   IconSun
 } from "./icons";
+import { guardProof, shortDigest } from "./guardProof";
 import { assessIntent, predictGuardOutcome, type RiskAssessment } from "./riskEngine";
 import {
   loadSfxMuted,
@@ -114,7 +115,7 @@ function loadLocalEnroll(): LocalEnroll | null {
     if (!parsed.address || !parsed.signature || !parsed.message) return null;
     return {
       address: parsed.address,
-      guild: parsed.guild || "My Guild",
+      guild: parsed.guild || "My Treasury",
       message: parsed.message,
       signature: parsed.signature,
       enrolledAt: parsed.enrolledAt || new Date().toISOString()
@@ -167,9 +168,12 @@ function loadBadges(): BadgeState {
 
 function loadGuildName() {
   try {
-    return localStorage.getItem(GUILD_STORAGE)?.trim() || "My Guild";
+    const stored = localStorage.getItem(GUILD_STORAGE)?.trim();
+    // Existing visitors have the pre-repositioning default name cached; treat it as unset.
+    if (!stored || stored === "My Guild" || stored === "My Treasury") return "My Treasury";
+    return stored;
   } catch {
-    return "My Guild";
+    return "My Treasury";
   }
 }
 
@@ -202,6 +206,10 @@ type AgentEvalSummary = {
 type IntentId = "risky-approve" | "limit-breach" | "safe-transfer";
 type TabId = "home" | "review" | "alerts" | "automation" | "security";
 
+/** The evidence pack writes an ISO timestamp; render it without the millisecond noise. */
+const PROOF_GENERATED_AT = guardProof.generatedAt.replace("T", " ").replace(/\.\d+Z$/, " UTC");
+const PROOF_SAFE_VERSION = guardProof.safeVersion.split(" ")[0];
+
 const TREASURY = {
   a: "0x1111111111111111111111111111111111111111",
   b: "0x2222222222222222222222222222222222222222",
@@ -232,13 +240,13 @@ const INTENTS: Record<
   }
 > = {
   "risky-approve": {
-    label: "Unknown shop asks to spend",
-    blurb: "A random shop link wants permission to pull money from the shared team pot",
-    outcomeHint: "unknown shop",
-    vendor: "Unknown marketplace",
-    walletLabel: "Officer A",
+    label: "Agent asks for standing approval",
+    blurb: "A delegate asks for permission to pull money from the treasury, from an address nobody has allowlisted",
+    outcomeHint: "unlimited approval",
+    vendor: "Unlisted address",
+    walletLabel: "Operator key A",
     amountEth: "1.00",
-    whyUsersCare: "Stops scams that empty the prize pot with one bad click",
+    whyUsersCare: "One bad approval is how a bounded budget turns into an unbounded one",
     payload: {
       wallet: TREASURY.a,
       destination: TREASURY.unlisted,
@@ -250,13 +258,13 @@ const INTENTS: Record<
     }
   },
   "limit-breach": {
-    label: "Over today's payout limit",
-    blurb: "Paying a known person, but the amount is bigger than today's team limit",
+    label: "Over today's spend limit",
+    blurb: "Paying an allowlisted vendor, but the amount is bigger than the cap policy set",
     outcomeHint: "over today's limit",
     vendor: "Contributor payouts (approved)",
-    walletLabel: "Officer B",
+    walletLabel: "Operator key B",
     amountEth: "4.00",
-    whyUsersCare: "Keeps prize and salary payouts inside the daily limit the team set",
+    whyUsersCare: "Payroll and vendor runs stay inside the ceiling whether or not the delegate respects it",
     payload: {
       wallet: TREASURY.b,
       destination: TREASURY.payroll,
@@ -268,13 +276,13 @@ const INTENTS: Record<
     }
   },
   "safe-transfer": {
-    label: "Normal team payout",
-    blurb: "Paying someone already on the trusted payout list, inside today's limit",
-    outcomeHint: "within team rules",
+    label: "Normal vendor payout",
+    blurb: "Paying an allowlisted vendor, inside today's limit",
+    outcomeHint: "within policy",
     vendor: "Contributor payouts (approved)",
-    walletLabel: "Officer C",
+    walletLabel: "Operator key C",
     amountEth: "1.00",
-    whyUsersCare: "Green light for normal payouts when the rules are clean",
+    whyUsersCare: "Routine payouts keep moving without a human in the loop",
     payload: {
       wallet: TREASURY.c,
       destination: TREASURY.payroll,
@@ -290,15 +298,15 @@ const INTENTS: Record<
 const VENDOR_LABEL: Record<string, string> = {
   [TREASURY.payroll]: "Contributor payouts (approved)",
   [TREASURY.unlisted]: "Unknown marketplace",
-  [TREASURY.a]: "Guild signer A",
-  [TREASURY.b]: "Guild signer B",
-  [TREASURY.c]: "Guild signer C"
+  [TREASURY.a]: "Operator key A",
+  [TREASURY.b]: "Operator key B",
+  [TREASURY.c]: "Operator key C"
 };
 
 const PLAYBOOK_LABELS: Record<string, string> = {
-  "freeze-wallet-and-revoke-approvals": "Lock the shared bank",
-  "hold-transaction-and-require-admin-review": "Hold for a manager review",
-  "request-secondary-signer-confirmation": "Ask a second officer",
+  "freeze-wallet-and-revoke-approvals": "Freeze the treasury account",
+  "hold-transaction-and-require-admin-review": "Hold for an admin review",
+  "request-secondary-signer-confirmation": "Ask a second signer",
   "allow-with-monitoring": "Allow and keep watching"
 };
 
@@ -307,7 +315,7 @@ function playbookLabel(id: string) {
 }
 
 function plainOutcome(assessment: RiskAssessment, intentId: IntentId) {
-  if (!assessment.blocked) return "Allow — safe for the team";
+  if (!assessment.blocked) return "Allow — within policy";
   const hint = INTENTS[intentId].outcomeHint;
   if (assessment.totalScore >= 80) return `Block — ${hint}`;
   return `Hold — ${hint}`;
@@ -315,7 +323,7 @@ function plainOutcome(assessment: RiskAssessment, intentId: IntentId) {
 
 function methodLabel(method: string) {
   if (method === "approve") return "Permission to spend";
-  if (method === "transfer") return "Team payout";
+  if (method === "transfer") return "Vendor payout";
   return method;
 }
 
@@ -542,7 +550,7 @@ export function App() {
       const res = await fetch(`${API_BASE}/waitlist`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, guild: guildName.trim() || "Guild" })
+        body: JSON.stringify({ email, guild: guildName.trim() || "Treasury" })
       });
       const data = (await res.json().catch(() => ({}))) as {
         count?: number;
@@ -556,7 +564,7 @@ export function App() {
       try {
         localStorage.setItem(INTEREST_STORAGE, "1");
         localStorage.setItem(`${INTEREST_STORAGE}:email`, email);
-        localStorage.setItem(`${INTEREST_STORAGE}:guild`, guildName.trim() || "Guild");
+        localStorage.setItem(`${INTEREST_STORAGE}:guild`, guildName.trim() || "Treasury");
       } catch {
         // ignore
       }
@@ -570,7 +578,7 @@ export function App() {
 
   async function enrollGuild(e?: FormEvent) {
     e?.preventDefault();
-    const name = guildName.trim() || "My Guild";
+    const name = guildName.trim() || "My Treasury";
     setEnrollBusy(true);
     setEnrollMsg(null);
     try {
@@ -605,7 +613,7 @@ export function App() {
       setEnrollMsg(null);
       void sfxSuccess();
     } catch (err) {
-      setEnrollMsg(err instanceof Error ? err.message : "Could not connect guild");
+      setEnrollMsg(err instanceof Error ? err.message : "Could not load policy state");
     } finally {
       setEnrollBusy(false);
     }
@@ -670,7 +678,7 @@ export function App() {
     });
     if (!result.blocked) {
       if (intent === "safe-transfer") awardXp(25, "Clean payout", "cleanPayout", "success");
-      else awardXp(15, "Guild check", "firstCheck", "success");
+      else awardXp(15, "Policy check", "firstCheck", "success");
       return;
     }
     awardXp(40, "Blocked a scam path", "firstBlock", "block");
@@ -796,7 +804,7 @@ export function App() {
   }, []);
 
   async function runAssessment() {
-    // Anyone can check a spend to learn the risk. Wallet only required to count officer usage.
+    // Anyone can check a spend to learn the risk. Wallet only required to count operator usage.
     setLoading(true);
     setError(null);
     setWhyOpen(false);
@@ -832,7 +840,7 @@ export function App() {
         setAssessment(result);
         awardXp(
           result.blocked ? 40 : intent === "safe-transfer" ? 25 : 15,
-          result.blocked ? "Blocked a scam path" : intent === "safe-transfer" ? "Clean payout" : "Guild check",
+          result.blocked ? "Blocked a drain attempt" : intent === "safe-transfer" ? "Clean payout" : "Policy check",
           result.blocked ? "firstBlock" : intent === "safe-transfer" ? "cleanPayout" : "firstCheck",
           result.blocked ? "block" : "success"
         );
@@ -919,12 +927,12 @@ export function App() {
       )
     );
     setAuditLog((prev) => [
-      { incidentId, action, actor: walletAddress || "guild-officer", createdAt: new Date().toISOString() },
+      { incidentId, action, actor: walletAddress || "operator", createdAt: new Date().toISOString() },
       ...prev
     ]);
     if (action === "mitigate") {
       setPolicyPaused(true);
-      awardXp(60, "Froze the guild bank", "firstFreeze", "freeze");
+      awardXp(60, "Froze the treasury", "firstFreeze", "freeze");
       void recordGuildUsage("freeze");
     }
 
@@ -936,7 +944,7 @@ export function App() {
           headers: buildHeaders(true),
           body: JSON.stringify({
             action,
-            actor: walletAddress || "guild-officer",
+            actor: walletAddress || "operator",
             incident: target
               ? {
                   id: target.id,
@@ -1053,7 +1061,7 @@ export function App() {
                       if (e.key === "Enter") setEditingGuild(false);
                     }}
                     autoFocus
-                    aria-label="Guild name"
+                    aria-label="Treasury name"
                   />
                 ) : (
                   <button
@@ -1068,7 +1076,7 @@ export function App() {
                   </button>
                 )
               ) : (
-                "Shared team bank"
+                "Enforceable spend policy"
               )}
             </p>
           </div>
@@ -1173,9 +1181,9 @@ export function App() {
           <div className="panel" key={tab}>
             {tab === "home" && (
               <div className="home-stack">
-                <section className="policy-snapshot" aria-label="Guild bank status">
+                <section className="policy-snapshot" aria-label="Treasury policy status">
                   <div>
-                    <p className="snapshot-label">{guildName === "My Guild" ? "Your team" : guildName}</p>
+                    <p className="snapshot-label">{guildName === "My Treasury" ? "Your treasury" : guildName}</p>
                     <strong>
                       {policyPaused
                         ? "Bank locked"
@@ -1224,7 +1232,7 @@ export function App() {
                     {guildStats.guildCount > 0 ? (
                       <div>
                         <strong>{guildStats.guildCount}</strong>
-                        <span>Officers linked</span>
+                        <span>Operators linked</span>
                       </div>
                     ) : null}
                     <div>
@@ -1234,7 +1242,7 @@ export function App() {
                   </section>
                 )}
 
-                <section className="surface enroll-card" aria-label="Join for your team">
+                <section className="surface enroll-card" aria-label="Join the pilot">
                   <div className="enroll-copy">
                     <p className="snapshot-label">For teams</p>
                     <strong>{interestJoined ? "You're on the list" : "Join with email — no wallet"}</strong>
@@ -1253,7 +1261,7 @@ export function App() {
                           className="linkish"
                           onClick={async () => {
                             const text =
-                              "Arb Guardian protects our shared prize pot from fake shop links. Join the list (no wallet needed): https://arb-guardian.vercel.app";
+                              "Arb Guardian gives an agent, bot or operator money without giving it the ability to drain the account. Join the list (no wallet needed): https://arb-guardian.vercel.app";
                             try {
                               await navigator.clipboard.writeText(text);
                               setInterestMsg("Invite link copied.");
@@ -1273,10 +1281,10 @@ export function App() {
                         type="text"
                         name="guild"
                         maxLength={28}
-                        placeholder="Team or guild name"
-                        value={guildName === "My Guild" ? "" : guildName}
-                        onChange={(e) => setGuildName(e.target.value.slice(0, 28) || "My Guild")}
-                        aria-label="Team or guild name"
+                        placeholder="Team or treasury name"
+                        value={guildName === "My Treasury" ? "" : guildName}
+                        onChange={(e) => setGuildName(e.target.value.slice(0, 28) || "My Treasury")}
+                        aria-label="Team or treasury name"
                       />
                       <input
                         type="email"
@@ -1296,13 +1304,13 @@ export function App() {
                   {interestMsg && !interestJoined ? <p className="error">{interestMsg}</p> : null}
                 </section>
 
-                <section className="surface enroll-card officer-card" aria-label="Officer wallet">
+                <section className="surface enroll-card officer-card" aria-label="Operator wallet">
                   {enrolled && walletAddress ? (
                     <>
                       <div className="enroll-copy">
-                        <p className="snapshot-label">Officer</p>
+                        <p className="snapshot-label">Operator</p>
                         <strong>Wallet linked</strong>
-                        <p className="muted">You can check spends and lock the bank.</p>
+                        <p className="muted">You can check spends and freeze the treasury.</p>
                       </div>
                       <div className="enroll-done">
                         <p>
@@ -1326,7 +1334,7 @@ export function App() {
                           setOfficerOpen((v) => !v);
                         }}
                       >
-                        {officerOpen ? "Hide officer wallet" : "I'm an officer — connect wallet"}
+                        {officerOpen ? "Hide operator wallet" : "I'm an operator — connect wallet"}
                       </button>
                       {officerOpen ? (
                         <>
@@ -1338,10 +1346,10 @@ export function App() {
                               type="text"
                               name="guild-officer"
                               maxLength={28}
-                              placeholder="Guild name"
-                              value={guildName === "My Guild" ? "" : guildName}
-                              onChange={(e) => setGuildName(e.target.value.slice(0, 28) || "My Guild")}
-                              aria-label="Guild name"
+                              placeholder="Treasury name"
+                              value={guildName === "My Treasury" ? "" : guildName}
+                              onChange={(e) => setGuildName(e.target.value.slice(0, 28) || "My Treasury")}
+                              aria-label="Treasury name"
                               required
                             />
                             {!walletAddress ? (
@@ -1359,7 +1367,7 @@ export function App() {
                               <span className="chip wallet-chip">{shortAddress(walletAddress)}</span>
                             )}
                             <button type="submit" className="primary" disabled={enrollBusy || !guildName.trim()}>
-                              {enrollBusy ? "Confirming…" : "Save guild"}
+                              {enrollBusy ? "Confirming…" : "Save name"}
                             </button>
                           </form>
                           {enrollMsg ? <p className="error">{enrollMsg}</p> : null}
@@ -1445,11 +1453,11 @@ export function App() {
                     </div>
                     <div>
                       <dt>Day limit</dt>
-                      <dd title="Max the guild bank can send today">{budgetDisplay(policyState, payload.dailyLimitWei)}</dd>
+                      <dd title="Max the treasury can send today">{budgetDisplay(policyState, payload.dailyLimitWei)}</dd>
                     </div>
                     <div>
                       <dt>Spent today</dt>
-                      <dd title="Already sent from the bank today">
+                      <dd title="Already sent from the treasury today">
                         {spentDisplay(policyState, payload.spentTodayWei)}
                       </dd>
                     </div>
@@ -1479,7 +1487,7 @@ export function App() {
                       </button>
                       {!walletAddress ? (
                         <p className="muted">
-                          No wallet needed to understand the risk. Officers can{" "}
+                          No wallet needed to understand the risk. Operators can{" "}
                           <button
                             type="button"
                             className="linkish"
@@ -1503,11 +1511,11 @@ export function App() {
                       </p>
                       <p className="decision-copy">
                         {assessment.blocked
-                          ? "Do not approve this. The helper suggests locking the bank — a human must confirm in Alerts."
-                          : "Looks clean. Safe for the team to continue."}
+                          ? "Do not approve this. The policy helper suggests freezing the treasury — a human must confirm in Alerts."
+                          : "Looks clean. Within policy. You can approve this."}
                       </p>
                       <div className="officer-ai">
-                        <strong>Officer helper</strong>
+                        <strong>Policy helper</strong>
                         <p>
                           Suggests: <em>{playbookLabel(assessment.recommendedPlaybook)}</em>
                         </p>
@@ -1570,7 +1578,7 @@ export function App() {
                   </h3>
                   {policyPaused && (
                     <div className="freeze-success" style={{ marginBottom: "0.95rem" }}>
-                      <strong>Bank frozen</strong>
+                      <strong>Treasury frozen</strong>
                       <p className="muted">
                         The alert is resolved. Spending stays paused until you unfreeze.
                       </p>
@@ -1593,14 +1601,14 @@ export function App() {
                   )}
                   {openIncidents > 0 ? (
                     <p className="muted" style={{ marginBottom: "0.85rem" }}>
-                      {openIncidents} open · Helper suggests, you confirm the lock.
+                      {openIncidents} open · The policy helper suggests, you confirm the freeze.
                     </p>
                   ) : null}
                   {incidents.length === 0 && !policyPaused ? (
                     <div className="empty-state">
                       <IconAlerts size={28} />
                       <p>No alerts yet</p>
-                      <p className="muted">Blocked spends appear here for officer action.</p>
+                      <p className="muted">Blocked spends appear here for operator action.</p>
                       <button type="button" className="ghost" onClick={() => goCheck("risky-approve")}>
                         Review spend
                       </button>
@@ -1662,9 +1670,9 @@ export function App() {
                       Last action:{" "}
                       <strong>
                         {lastPlaybook.action?.includes("pause")
-                          ? "Lock the shared bank"
+                          ? "Freeze the treasury"
                           : lastPlaybook.action?.includes("unpause")
-                            ? "Unlock bank"
+                            ? "Unfreeze the treasury"
                             : lastPlaybook.action}
                       </strong>
                       {lastPlaybook.txHash ? (
@@ -1680,7 +1688,7 @@ export function App() {
                     </p>
                   )}
                   {auditLog.length === 0 && !lastPlaybook && !policyPaused ? (
-                    <p className="muted">Officer actions appear here after you respond to an alert.</p>
+                    <p className="muted">Operator actions appear here after you respond to an alert.</p>
                   ) : (
                     <ul className="clean">
                       {auditLog.slice(0, 10).map((log, idx) => (
@@ -1688,13 +1696,13 @@ export function App() {
                           <span className="mono">{new Date(log.createdAt).toLocaleString()}</span>
                           <br />
                           {log.action === "mitigate"
-                            ? "Locked the bank"
+                            ? "Froze the treasury"
                             : log.action === "ignore"
                               ? "Dismissed alert"
                               : log.action === "acknowledge"
                                 ? "Saw alert"
                                 : log.action}{" "}
-                          · {log.actor.startsWith("0x") ? shortAddress(log.actor) : "officer"}
+                          · {log.actor.startsWith("0x") ? shortAddress(log.actor) : "operator"}
                         </li>
                       ))}
                     </ul>
@@ -1720,7 +1728,7 @@ export function App() {
                     </article>
                     <article>
                       <h4>Medium</h4>
-                      <p>Ask a second officer</p>
+                      <p>Ask a second signer</p>
                     </article>
                     <article>
                       <h4>High</h4>
@@ -1742,7 +1750,7 @@ export function App() {
                     </p>
                   ) : (
                     <p className="muted" style={{ marginBottom: "0.65rem" }}>
-                      Responses follow fixed rules officers can audit.
+                      Responses follow fixed rules operators can audit.
                     </p>
                   )}
                   <ul className="clean">
@@ -1768,45 +1776,122 @@ export function App() {
             {tab === "security" && (
               <div className="grid">
                 <section className="surface span-2">
+                  <h3>What is live, and what the proof covers</h3>
+                  <p className="muted section-lead">
+                    Arbitrum Sepolia and Robinhood Chain Testnet run the earlier native-lane deployment. Those addresses
+                    are real and source-verified, but they predate the token lane and the policy attestation, so do not
+                    read them as proof of the code you are looking at. Everything below is generated from the current
+                    source by <code>npm run evidence -w packages/contracts</code> — run it and compare. Addresses and
+                    explorer links: <code>docs/live-deployment.md</code>.
+                  </p>
+                </section>
+                <section className="surface span-2">
                   <h3>
-                    <IconSecurity size={18} /> Live networks · contract quality
+                    <IconSecurity size={18} /> Contract quality · reproduced from source
                   </h3>
                   <p className="muted section-lead">
-                    Protection is live on Arbitrum Sepolia and Robinhood Chain. Day-to-day work stays in Check a spend and
-                    Alerts.
+                    Not a claim — the artifact. {guardProof.summary.passed}/{guardProof.summary.total} cases behaved as
+                    specified against a real Gnosis Safe v{PROOF_SAFE_VERSION}, with the guard installed the only way
+                    Safe permits (an owner-approved call the Safe makes to itself). Generated {PROOF_GENERATED_AT} by{" "}
+                    <code>npm run evidence -w packages/contracts</code>, which exits non-zero if any row drifts.
                   </p>
                   <div className="asset-grid">
                     <article className="asset-card">
+                      <strong>Deny by default</strong>
+                      <span>Limits</span>
+                      <p>
+                        An unconfigured wallet or Safe cannot spend at all. Zero means blocked; uncapped spending must be
+                        granted explicitly.
+                      </p>
+                    </article>
+                    <article className="asset-card">
+                      <strong>Token lane</strong>
+                      <span>USDG-ready</span>
+                      <p>
+                        Register an ERC-20, allowlist its counterparties, cap it per wallet per day in the token&apos;s
+                        own base units — 6 decimals, not wei.
+                      </p>
+                    </article>
+                    <article className="asset-card">
+                      <strong>Approval guard</strong>
+                      <span>Calldata-aware</span>
+                      <p>An unlimited approval is refused, and an unrecognised call on a registered token is rejected.</p>
+                    </article>
+                    <article className="asset-card">
+                      <strong>Policy attestation</strong>
+                      <span>Versioned</span>
+                      <p>Every decision is stamped with the policy version and digest that judged it.</p>
+                    </article>
+                    <article className="asset-card">
                       <strong>Access control</strong>
                       <span>RBAC</span>
-                      <p>Policy roles control who can pause and set limits.</p>
-                    </article>
-                    <article className="asset-card">
-                      <strong>Circuit breaker</strong>
-                      <span>Pausable</span>
-                      <p>Officer-gated freeze stops spending when needed.</p>
-                    </article>
-                    <article className="asset-card">
-                      <strong>Spend guard</strong>
-                      <span>Onchain</span>
-                      <p>Unsafe spends can revert before they clear.</p>
+                      <p>Policy roles control who can set limits, allowlist counterparties and freeze.</p>
                     </article>
                     <article className="asset-card">
                       <strong>Safe path</strong>
                       <span>Multisig guard</span>
-                      <p>Compatible treasury guard for enrolled guild wallets.</p>
-                    </article>
-                    <article className="asset-card">
-                      <strong>Arbitrum</strong>
-                      <span>Live</span>
-                      <p>Sepolia PolicyManager + ExecutionGuard + Safe.</p>
-                    </article>
-                    <article className="asset-card">
-                      <strong>Robinhood</strong>
-                      <span>{RH_READY ? "Live" : "Pending"}</span>
-                      <p>{RH_READY ? "Testnet twin deploy for the same loop." : "Deployment pending."}</p>
+                      <p>Installed inside a real Safe&apos;s execTransaction, so a blocked spend never executes.</p>
                     </article>
                   </div>
+                </section>
+                <section className="surface span-2">
+                  <h3>Guard proof · every case, with its revert reason</h3>
+                  <p className="muted section-lead">
+                    Row 1 is the same payment as row 2, executed <em>before</em> the guard was installed — and it
+                    settles. A screenshot of a blocked transaction proves nothing on its own; the before/after pair is
+                    what shows the guard is the thing making the difference.
+                  </p>
+                  <ul className="clean">
+                    {guardProof.cases.map((item) => (
+                      <li key={item.id}>
+                        <strong>{item.outcome === "blocked" ? "Refused" : "Settled"}</strong>{" — "}
+                        {item.description}{" "}
+                        {item.reason !== "—" ? (
+                          <span className="muted">
+                            · <code>{item.reason}</code>
+                          </span>
+                        ) : null}
+                        {item.pass ? null : <strong> · NOT AS SPECIFIED</strong>}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+                <section className="surface span-2">
+                  <h3>Policy attestation · replayable from logs</h3>
+                  <p className="muted section-lead">
+                    Policy is versioned and hash-chained. Each amendment emits its parameters and folds into a running
+                    digest, so the history can be recomputed from logs alone — no trust in the contract&apos;s storage —
+                    and editing an early amendment changes every later digest.
+                  </p>
+                  <ul className="clean">
+                    <li>
+                      {guardProof.policyAttestation.amendmentsReplayed} policy amendments replayed from logs:{" "}
+                      {guardProof.policyAttestation.replayFailures.length === 0 ? (
+                        <>every digest recomputed and matched</>
+                      ) : (
+                        <strong>{guardProof.policyAttestation.replayFailures.length} digest mismatch</strong>
+                      )}
+                    </li>
+                    <li>
+                      {guardProof.policyAttestation.decisionsChecked -
+                        guardProof.policyAttestation.decisionsWithUnknownPolicy}
+                      /{guardProof.policyAttestation.decisionsChecked} allowed decisions stamped with a policy version
+                      that exists in the amendment log
+                    </li>
+                    <li>
+                      {guardProof.policyAttestation.distinctPolicyVersionsInDecisions} distinct policy versions across
+                      those decisions — the stamp tracks amendments rather than reporting a constant
+                    </li>
+                    <li>
+                      Head policy version {guardProof.policyAttestation.headVersion} · digest{" "}
+                      <code>{shortDigest(guardProof.policyAttestation.headDigest)}</code>
+                    </li>
+                    <li className="muted">
+                      Blocked decisions revert, so they leave no logs of their own; they are attributed to the policy
+                      version in force at their block. The inline stamp is what makes an executed transfer reconcilable
+                      afterwards.
+                    </li>
+                  </ul>
                 </section>
                 <section className="surface">
                   <h3>Arbitrum Sepolia</h3>
@@ -1831,7 +1916,7 @@ export function App() {
                     {TREASURY_SAFE && (
                       <li>
                         <a href={addressUrl(TREASURY_SAFE)} target="_blank" rel="noreferrer">
-                          Enrolled guild Safe
+                          Enrolled treasury Safe
                         </a>
                       </li>
                     )}
@@ -1860,9 +1945,9 @@ export function App() {
                       )}
                       {RH_TREASURY_SAFE && (
                         <li>
-                          <a href={rhAddressUrl(RH_TREASURY_SAFE)} target="_blank" rel="noreferrer">
-                            Enrolled guild Safe
-                          </a>
+                        <a href={rhAddressUrl(RH_TREASURY_SAFE)} target="_blank" rel="noreferrer">
+                          Enrolled treasury Safe
+                        </a>
                         </li>
                       )}
                       <li>
@@ -1888,7 +1973,7 @@ export function App() {
                         Source
                       </a>
                     </li>
-                    <li>Category: Gaming · guild bank protection</li>
+                    <li>Category: Arbitrum-native tooling · contract-enforced spend policy</li>
                   </ul>
                 </section>
               </div>
@@ -1898,7 +1983,7 @@ export function App() {
       )}
 
       <footer className="footer">
-        <div>Arb Guardian — shared team bank protection</div>
+        <div>Arb Guardian — contract-enforced spend policy for delegated funds</div>
         <div>
           <a href="https://github.com/thesithunyein/arb-guardian" target="_blank" rel="noreferrer">
             Repo

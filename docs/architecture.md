@@ -1,6 +1,6 @@
 # Architecture
 
-Arb Guardian is a dual-chain guild-bank protection stack: onchain policy + guards, a deterministic risk engine, a policy playbook engine (no model in the loop), and an officer console.
+Arb Guardian is a dual-chain delegated-spend control stack: onchain policy + guards, a deterministic risk engine, a policy playbook engine (no model in the loop), and an operator console. Deployments and proof live in the repo; see `docs/judging-evidence-matrix.md` for where each claim is checked.
 
 Live product: [arb-guardian.vercel.app](https://arb-guardian.vercel.app)
 
@@ -10,7 +10,7 @@ Live product: [arb-guardian.vercel.app](https://arb-guardian.vercel.app)
 
 ```mermaid
 flowchart TB
-  subgraph Officer["Officer console · apps/web"]
+  subgraph Officer["Operator console · apps/web"]
     UI[Home · Review · Alerts · Playbooks · Vault]
   end
 
@@ -46,7 +46,7 @@ flowchart TB
 
 | Layer | Package / path | Responsibility |
 | --- | --- | --- |
-| Officer console | `apps/web` | Review spends, alerts, playbooks, Vault proof |
+| Operator console | `apps/web` | Review spends, alerts, playbooks, Vault proof |
 | Risk engine | `apps/api/src/riskEngine.ts` · `api/risk/assess.ts` | Deterministic scoring + block decision |
 | Agent coordinator | `apps/api/src/agentCoordinator.ts` | Score → playbook (bounded) |
 | Playbook executor | `apps/api/src/playbookExecutor.ts` · `api/incidents/[id]/action.ts` | Human-gated mitigate → `pause()` |
@@ -108,7 +108,7 @@ replayed by the evidence pack.
 flowchart TB
   Admin[Policy / Guard admin roles]
   Operator[OPERATOR_ROLE]
-  Officer[Guild officer · human]
+  Operator[Operator · human]
 
   Admin -->|set allowlist · limits · pause roles| PM[PolicyManager]
   Operator -->|validateAndRecord| EG[ExecutionGuard]
@@ -118,7 +118,7 @@ flowchart TB
 ```
 
 - Changing allowlists / limits requires policy admin — **not** the agent.  
-- Freeze on the critical path is **officer-gated** (`mitigate` → `PolicyManager.pause()`).  
+- Freeze on the critical path is **operator-gated** (`mitigate` → `PolicyManager.pause()`).  
 - Guards refuse unsafe counterparties and over-limit spends even if the UI is bypassed.
 
 ---
@@ -129,7 +129,7 @@ flowchart TB
 
 ```mermaid
 sequenceDiagram
-  participant O as Officer UI
+  participant O as Operator UI
   participant API as Risk API
   participant RE as Risk engine
   participant AC as Agent coordinator
@@ -172,7 +172,7 @@ Full bounds: [`agent-permissions-matrix.md`](agent-permissions-matrix.md).
 
 ---
 
-## Officer console surfaces
+## Operator console surfaces
 
 ```mermaid
 flowchart LR
@@ -202,7 +202,7 @@ Same Solidity artifact set; two live networks.
 ```mermaid
 flowchart TB
   subgraph Product["Product loop"]
-    UI[Officer console]
+    UI[Operator console]
     API[Risk + freeze API]
   end
 
@@ -249,7 +249,7 @@ Rewrite: `/api/*` → `api/*` handlers. Shared ephemeral store: `api/_store.ts`.
 | `POST /api/incidents/:id/action` | `acknowledge` · `mitigate` · `ignore` |
 | `GET|POST /api/policy` | Read / pause / unpause |
 | `GET /api/agent/eval` | Eval summary |
-| `GET|POST /api/waitlist` | Guild officer interest |
+| `GET|POST /api/waitlist` | Pilot / operator interest |
 
 ### Local Express (`apps/api`)
 
@@ -273,7 +273,7 @@ flowchart TB
     D4[Freeze without human click]
   end
 
-  Allowed --> Human[Officer confirms in Alerts]
+  Allowed --> Human[Operator confirms in Alerts]
   Human --> Pause[PolicyManager.pause]
 ```
 
@@ -294,7 +294,7 @@ npm run quality:gate
 ## Repository layout
 
 ```
-apps/web          Officer console (React + Vite)
+apps/web          Operator console (React + Vite)
 apps/api          Express API + risk/agent packages
 api/              Vercel serverless adapters
 packages/contracts  Solidity + Hardhat

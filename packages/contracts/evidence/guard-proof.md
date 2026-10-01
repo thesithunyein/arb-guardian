@@ -1,6 +1,6 @@
 # Arb Guardian — Guard Proof
 
-Generated 2026-10-01T06:05:21.381Z by `npm run evidence -w packages/contracts` on the in-process `hardhat` chain.
+Generated 2026-10-01T06:17:29.258Z by `npm run evidence -w packages/contracts` on the in-process `hardhat` chain.
 
 This is a reproduction, not a recording. Every row below was produced by executing the transaction against a **real Gnosis Safe v1.4.1** (real singleton, real proxy factory, real fallback handler) with `SafeTreasuryGuard` installed as its guard.
 
@@ -29,7 +29,7 @@ The script exits non-zero if any case does not behave as expected, so the table 
 | 9 | The Safe attempts an unlimited USDG approval — the classic drain primitive. | blocked | blocked | `UnlimitedApprovalNotAllowed("0x0165878A594ca255338adfa4d48449f69242Eb8F", "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc")` |
 | 10 | The Safe attempts a non-standard call on a registered token instead of falling through. | blocked | blocked | `UnsupportedTokenCall("0x0165878A594ca255338adfa4d48449f69242Eb8F", "0x40c10f19")` |
 | 11 | The Safe attempts a delegatecall, which a guard must never permit. | blocked | blocked | `DelegateCallNotAllowed()` |
-| 12 | After an officer freeze, an otherwise valid allowlisted payment is refused. | blocked | blocked | `PolicyManagerPaused()` |
+| 12 | After a policy freeze, an otherwise valid allowlisted payment is refused. | blocked | blocked | `PolicyManagerPaused()` |
 | 13 | Clearing the USDG cap to zero does not open the lane — it fails closed. | blocked | blocked | `TokenDailyLimitNotConfigured("0x0165878A594ca255338adfa4d48449f69242Eb8F", "0x294c20f3071BA768b9BC9dbfb508AD7130a598E1")` |
 | 14 | An owner calling setGuard directly (not through the Safe) is rejected by Safe 1.4.1. | blocked | blocked | `GS031` |
 | 15 | After the native cap is raised from 5 ETH to 6 ETH, the vendor payment is allowed again and is stamped with the NEW policy version. | allowed | allowed | `—` |

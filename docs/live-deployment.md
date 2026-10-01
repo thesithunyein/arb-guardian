@@ -15,7 +15,8 @@ Public on-chain qualification proof for Arb Guardian.
 >    `approve` to an allowlisted destination always passed. Approval-class calls now block by
 >    default, matched by name *and* selector, and unlimited approvals are refused outright.
 >
-> The token lane (USDG) does not exist in the deployed bytecode at all.
+> The token lane (USDG) does not exist in the deployed bytecode at all, and neither does the
+> versioned policy attestation (`policyVersion` / `policyDigest`, `PolicyAmendment` history).
 >
 > **Do not present the addresses below as the current build.** Redeploy, verify, and replace this
 > file with the new addresses and transaction hashes:
@@ -29,6 +30,10 @@ Public on-chain qualification proof for Arb Guardian.
 >
 > The deploy script writes `packages/contracts/deployments/<network>.json`, which `npm run verify`
 > reads for addresses and constructor arguments.
+>
+> The Vault tab in the web app says the same thing on screen, so a judge clicking around cannot
+> mistake these addresses for the current source. That statement is generated from this file's
+> status, not from a claim in the marketing copy.
 
 ## Arbitrum Sepolia (primary) — superseded
 

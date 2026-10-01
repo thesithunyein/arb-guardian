@@ -42,9 +42,9 @@ export async function signEnrollMessage(guildName: string): Promise<{
   const signer = await provider.getSigner();
   const address = await signer.getAddress();
   const message = [
-    "Arb Guardian guild enroll",
-    `Guild: ${guildName.trim().slice(0, 48) || "Guild"}`,
-    `Officer: ${address}`,
+    "Arb Guardian operator enroll",
+    `Treasury: ${guildName.trim().slice(0, 48) || "Treasury"}`,
+    `Operator: ${address}`,
     `Issued: ${new Date().toISOString()}`
   ].join("\n");
   const signature = await signer.signMessage(message);

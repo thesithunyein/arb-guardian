@@ -344,7 +344,7 @@ async function main() {
   cases.push(
     await attempt(
       "after_officer_freeze",
-      "After an officer freeze, an otherwise valid allowlisted payment is refused.",
+      "After a policy freeze, an otherwise valid allowlisted payment is refused.",
       "blocked",
       () => execSafeTx(vendor.address, ethers.parseEther("1"), "0x")
     )
