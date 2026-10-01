@@ -18,7 +18,7 @@
 - [x] Incident lifecycle actions (acknowledge/mitigate/ignore)
 - [x] Incident audit history UI
 - [x] Dark / light mode with brand teal tokens
-- [x] Scenario-based assess workflow (ops console UX)
+- [x] Operator-entered spend preflight: the verdict is read from the contract for the addresses supplied, and refuses when it cannot read them
 - [x] Public live dashboard on Vercel
 
 ## Go-live gate for judging

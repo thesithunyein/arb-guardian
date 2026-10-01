@@ -1527,62 +1527,42 @@ button:disabled {
   font-weight: 600;
 }
 
-.retain-card em,
-.scenario-meta {
+.retain-card em {
   font-style: normal;
   color: var(--lime);
   font-size: 0.76rem;
   font-weight: 800;
 }
 
-.scenario-list {
+/* The spend preflight: the operator enters a real treasury and a real payee. */
+.spend-field {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.3rem;
+  margin-bottom: 0.7rem;
 }
 
-.scenario {
-  text-align: left;
-  display: grid;
-  gap: 0.22rem;
-  padding: 0.9rem 0.95rem;
-  border-radius: var(--radius);
-  border: 3px solid var(--line);
-  background: rgba(8, 14, 28, 0.4);
-  color: var(--ink);
-  font-weight: 600;
-  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.22);
-}
-
-[data-theme="light"] .scenario {
-  background: rgba(255, 255, 255, 0.8);
-}
-
-.app-shell.product-mode .scenario {
-  border-width: 1px;
-  border-radius: 10px;
-  box-shadow: none;
-  background: rgba(8, 14, 28, 0.28);
-}
-
-.app-shell.product-mode .scenario.active {
-  border-color: rgba(229, 255, 93, 0.7);
-  background: rgba(229, 255, 93, 0.08);
-  box-shadow: inset 0 0 0 1px rgba(229, 255, 93, 0.18);
-}
-
-.scenario strong {
-  font-size: 0.92rem;
-}
-
-.scenario span {
+.spend-field > span {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
-.scenario.active {
-  border-color: var(--lime);
-  background: rgba(229, 255, 93, 0.1);
-  box-shadow: 3px 3px 0 var(--lime-deep);
+.spend-field .treasury-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.spend-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+}
+
+@media (max-width: 620px) {
+  .spend-form-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .result-line {
@@ -2290,11 +2270,6 @@ button:disabled {
   font-size: 0.95rem;
 }
 
-.spend-switch {
-  display: grid;
-  gap: 0.45rem;
-  margin: 0 0 1rem;
-}
 
 .quiet-stats {
   display: grid;

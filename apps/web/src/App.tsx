@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from "react";
+import { isAddress, parseEther } from "ethers";
 import { pingRpc, readOnchainPolicy, type OnchainPolicy } from "./chain";
 import {
   API_BASE,
@@ -32,7 +33,7 @@ import {
 } from "./icons";
 import { guardProof, shortDigest } from "./guardProof";
 import { driftReport } from "./deployedDrift";
-import { assessIntent, predictGuardOutcome, type RiskAssessment } from "./riskEngine";
+import { assessIntent, predictGuardOutcome, recommendPlaybook, type RiskAssessment } from "./riskEngine";
 import { useTheme } from "./useTheme";
 import { connectWallet, shortAddress, signEnrollMessage } from "./wallet";
 
@@ -182,106 +183,29 @@ type AgentEvalSummary = {
   blockedRecall: number;
 };
 
-type IntentId = "risky-approve" | "limit-breach" | "safe-transfer";
 type TabId = "home" | "review" | "alerts" | "automation" | "security";
+type SpendMethod = "transfer" | "approve";
+
+/**
+ * The spend an operator is asking about, before it goes out.
+ *
+ * This used to be three canned scenarios against `0x1111…` addresses, and the policy they were
+ * judged against came from the constants sitting next to them rather than from the chain. That
+ * let the "normal vendor payout" row be shown as allowed on a deployment where that wallet had
+ * no limit and that payee was not allowlisted. The inputs are the operator's now, and the only
+ * policy is the one read back from the contract.
+ */
+type SpendDraft = {
+  wallet: string;
+  destination: string;
+  amountEth: string;
+  method: SpendMethod;
+};
 
 /** The evidence pack writes an ISO timestamp; render it without the millisecond noise. */
 const PROOF_GENERATED_AT = guardProof.generatedAt.replace("T", " ").replace(/\.\d+Z$/, " UTC");
 const DRIFT_GENERATED_AT = driftReport.generatedAt.replace("T", " ").replace(/\.\d+Z$/, " UTC");
 const PROOF_SAFE_VERSION = guardProof.safeVersion.split(" ")[0];
-
-const TREASURY = {
-  a: "0x1111111111111111111111111111111111111111",
-  b: "0x2222222222222222222222222222222222222222",
-  c: "0x3333333333333333333333333333333333333333",
-  payroll: "0x4444444444444444444444444444444444444444",
-  unlisted: "0x5555555555555555555555555555555555555555"
-};
-
-const INTENTS: Record<
-  IntentId,
-  {
-    label: string;
-    blurb: string;
-    outcomeHint: string;
-    vendor: string;
-    walletLabel: string;
-    amountEth: string;
-    whyUsersCare: string;
-    payload: {
-      wallet: string;
-      destination: string;
-      method: string;
-      amountWei: string;
-      allowlisted: boolean;
-      dailyLimitWei: string;
-      spentTodayWei: string;
-    };
-  }
-> = {
-  "risky-approve": {
-    label: "Agent asks for standing approval",
-    blurb: "A delegate asks for permission to pull money from the treasury, from an address nobody has allowlisted",
-    outcomeHint: "unlimited approval",
-    vendor: "Unlisted address",
-    walletLabel: "Operator key A",
-    amountEth: "1.00",
-    whyUsersCare: "One bad approval is how a bounded budget turns into an unbounded one",
-    payload: {
-      wallet: TREASURY.a,
-      destination: TREASURY.unlisted,
-      method: "approve",
-      amountWei: "1000000000000000000",
-      allowlisted: false,
-      dailyLimitWei: "500000000000000000",
-      spentTodayWei: "0"
-    }
-  },
-  "limit-breach": {
-    label: "Over today's spend limit",
-    blurb: "Paying an allowlisted vendor, but the amount is bigger than the cap policy set",
-    outcomeHint: "over today's limit",
-    vendor: "Contributor payouts (approved)",
-    walletLabel: "Operator key B",
-    amountEth: "4.00",
-    whyUsersCare: "Payroll and vendor runs stay inside the ceiling whether or not the delegate respects it",
-    payload: {
-      wallet: TREASURY.b,
-      destination: TREASURY.payroll,
-      method: "transfer",
-      amountWei: "4000000000000000000",
-      allowlisted: true,
-      dailyLimitWei: "3000000000000000000",
-      spentTodayWei: "0"
-    }
-  },
-  "safe-transfer": {
-    label: "Normal vendor payout",
-    blurb: "Paying an allowlisted vendor, inside today's limit",
-    outcomeHint: "within policy",
-    vendor: "Contributor payouts (approved)",
-    walletLabel: "Operator key C",
-    amountEth: "1.00",
-    whyUsersCare: "Routine payouts keep moving without a human in the loop",
-    payload: {
-      wallet: TREASURY.c,
-      destination: TREASURY.payroll,
-      method: "transfer",
-      amountWei: "1000000000000000000",
-      allowlisted: true,
-      dailyLimitWei: "5000000000000000000",
-      spentTodayWei: "0"
-    }
-  }
-};
-
-const VENDOR_LABEL: Record<string, string> = {
-  [TREASURY.payroll]: "Contributor payouts (approved)",
-  [TREASURY.unlisted]: "Unknown marketplace",
-  [TREASURY.a]: "Operator key A",
-  [TREASURY.b]: "Operator key B",
-  [TREASURY.c]: "Operator key C"
-};
 
 const PLAYBOOK_LABELS: Record<string, string> = {
   "freeze-wallet-and-revoke-approvals": "Freeze the treasury account",
@@ -294,11 +218,15 @@ function playbookLabel(id: string) {
   return PLAYBOOK_LABELS[id] ?? id.replace(/-/g, " ");
 }
 
-function plainOutcome(assessment: RiskAssessment, intentId: IntentId) {
+/**
+ * The verdict, in the rule's own words. The old version named the scenario, so every block read as
+ * "Block — unlimited approval" whether or not that was the rule that fired.
+ */
+function plainOutcome(assessment: RiskAssessment) {
   if (!assessment.blocked) return "Allow — within policy";
-  const hint = INTENTS[intentId].outcomeHint;
-  if (assessment.totalScore >= 80) return `Block — ${hint}`;
-  return `Hold — ${hint}`;
+  const why = assessment.matches[0]?.reason ?? "outside policy";
+  if (assessment.totalScore >= 80) return `Block — ${why}`;
+  return `Hold — ${why}`;
 }
 
 function methodLabel(method: string) {
@@ -337,15 +265,37 @@ function spentDisplay(
 }
 
 function vendorName(addr: string) {
-  return VENDOR_LABEL[addr] ?? `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+  return shortAddress(addr);
+}
+
+/**
+ * A stable id for a spend that has not happened yet. Checking the same spend twice must land on
+ * the same incident, so this is computed from the spend rather than from the clock.
+ */
+function draftId(parts: string[]) {
+  const input = parts.join("|");
+  let hash = 0n;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 31n + BigInt(input.charCodeAt(i))) % 2n ** 64n;
+  }
+  return hash.toString(16).padStart(16, "0");
 }
 
 export function App() {
   const { theme, toggleTheme } = useTheme();
   const [tab, setTab] = useState<TabId>("home");
-  const [intent, setIntent] = useState<IntentId>("risky-approve");
+  // Defaults to the live treasury Safe, which is the address that actually carries a policy on
+  // chain. An operator can point it at anything.
+  const [spend, setSpend] = useState<SpendDraft>(() => ({
+    wallet: loadLocalEnroll()?.address ?? TREASURY_SAFE,
+    destination: "",
+    amountEth: "1",
+    method: "transfer"
+  }));
   const [assessment, setAssessment] = useState<RiskAssessment | null>(null);
   const [policyState, setPolicyState] = useState<OnchainPolicy | null>(null);
+  /** Whether the policy on screen came back from the contract. Never inferred from a fallback. */
+  const [policySource, setPolicySource] = useState<"unchecked" | "onchain" | "unavailable">("unchecked");
   const [guardPrediction, setGuardPrediction] = useState<{ wouldRevert: boolean; reason: string } | null>(
     null
   );
@@ -370,7 +320,6 @@ export function App() {
   const [entered, setEntered] = useState(false);
   const [treasuryName, setTreasuryName] = useState(() => loadTreasuryName());
   const [editingTreasury, setEditingTreasury] = useState(false);
-  const [spendPickerOpen, setSpendPickerOpen] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(() => loadLocalEnroll()?.address ?? null);
   const [enrolled, setEnrolled] = useState(() => !!loadLocalEnroll());
   const [enrollBusy, setEnrollBusy] = useState(false);
@@ -399,27 +348,14 @@ export function App() {
   function enterWorld() {
     setEntered(true);
     setTab("home");
-    setIntent("risky-approve");
-    setSpendPickerOpen(false);
     setAssessment(null);
     setWhyOpen(false);
   }
 
-  async function skipToFirstQuest() {
+  function goCheck() {
     setEntered(true);
-    setTab("review");
-    setIntent("risky-approve");
-    setSpendPickerOpen(false);
     setAssessment(null);
     setWhyOpen(false);
-    await runAssessment();
-  }
-
-  function goCheck(next: IntentId = "risky-approve") {
-    setIntent(next);
-    setAssessment(null);
-    setWhyOpen(false);
-    setSpendPickerOpen(false);
     setTab("review");
   }
 
@@ -434,14 +370,12 @@ export function App() {
     setLastPlaybook(null);
     setKpi({ totalAssessments: 0, blockedCount: 0, blockedRate: 0, criticalIncidentCount: 0 });
     setPolicyPaused(null);
-    setSpendPickerOpen(false);
     try {
       sessionStorage.removeItem(INCIDENTS_STORAGE);
     } catch {
       // ignore
     }
     setTab("home");
-    setIntent("risky-approve");
   }
 
   function applyTreasuryStats(data: Partial<TreasuryStats> & { yours?: { usageCount?: number; name?: string } }) {
@@ -574,13 +508,40 @@ export function App() {
     }
   }
 
-  const payload = useMemo(() => {
-    const base = INTENTS[intent].payload;
+  /**
+   * The spend, parsed and checked. A block here is a form error, not a policy decision — the
+   * policy decision needs a real address and a real amount to read the contract for.
+   */
+  const check = useMemo(() => {
+    const wallet = spend.wallet.trim();
+    const destination = spend.destination.trim();
+    let amountWei = "0";
+    let amountError: string | null = null;
+    const amount = Number(spend.amountEth.trim());
+    if (!spend.amountEth.trim()) {
+      amountError = "Enter the amount this spend moves.";
+    } else if (!Number.isFinite(amount) || amount <= 0) {
+      amountError = "The amount has to be a positive number.";
+    } else {
+      try {
+        amountWei = parseEther(spend.amountEth.trim()).toString();
+      } catch {
+        amountError = "The amount has more precision than ETH can carry.";
+      }
+    }
+    const error =
+      (isAddress(wallet) ? null : "Enter the address the money moves from — a treasury or operator key.") ??
+      (isAddress(destination) ? null : "Enter the payee address.") ??
+      amountError;
     return {
-      txHash: `0xintent-${intent}-${Date.now().toString(16)}`,
-      ...base
+      wallet,
+      destination,
+      amountWei,
+      method: spend.method,
+      error,
+      txHash: `0xdraft-${draftId([wallet.toLowerCase(), destination.toLowerCase(), amountWei, spend.method])}`
     };
-  }, [intent]);
+  }, [spend]);
 
   function buildHeaders(includeApiKey = false): HeadersInit {
     const headers: HeadersInit = { "Content-Type": "application/json" };
@@ -607,7 +568,7 @@ export function App() {
     }
     const item: IncidentItem = {
       id: `inc-${txHash}`,
-      title: `Blocked · ${INTENTS[intent].vendor} · ${INTENTS[intent].amountEth} ETH`,
+      title: `Blocked · ${vendorName(check.destination)} · ${formatEth(check.amountWei)}`,
       severity: result.totalScore >= 80 ? "critical" : "high",
       recommendedPlaybook: result.recommendedPlaybook,
       status: "open"
@@ -727,106 +688,128 @@ export function App() {
   }, []);
 
   async function runAssessment() {
-    // Anyone can check a spend to learn the risk. Wallet only required to count operator usage.
+    if (check.error) {
+      setError(check.error);
+      setTab("review");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setWhyOpen(false);
     setTab("review");
     try {
       if (runtime === "api" && API_BASE) {
+        // No policy values are sent from here. The server reads the contract for these two
+        // addresses, and where it cannot, its own defaults deny the spend rather than trust
+        // anything the browser handed it.
         const res = await fetch(`${API_BASE}/risk/assess`, {
           method: "POST",
           headers: buildHeaders(true),
           body: JSON.stringify({
-            txHash: payload.txHash,
-            wallet: payload.wallet,
-            destination: payload.destination,
-            method: payload.method,
-            amountWei: payload.amountWei,
-            allowlisted: payload.allowlisted,
-            dailyLimitWei: payload.dailyLimitWei,
-            spentTodayWei: payload.spentTodayWei
+            txHash: check.txHash,
+            wallet: check.wallet,
+            destination: check.destination,
+            method: check.method,
+            amountWei: check.amountWei
           })
         });
         if (!res.ok) throw new Error(`Review failed (${res.status})`);
         const data = (await res.json()) as {
           assessment: RiskAssessment & { matches: RiskAssessment["matches"] };
           incident: null | { id: string; title: string; recommendedPlaybook: string };
-          policyState?: OnchainPolicy;
+          policyState?: OnchainPolicy & { source?: "onchain" | "request" };
         };
         const result: RiskAssessment = {
           totalScore: data.assessment.totalScore,
           blocked: data.assessment.blocked,
           matches: data.assessment.matches,
-          recommendedPlaybook: data.incident?.recommendedPlaybook ?? assessIntent(payload).recommendedPlaybook
+          recommendedPlaybook: data.incident?.recommendedPlaybook ?? recommendPlaybook(data.assessment.totalScore)
         };
         setAssessment(result);
-        if (data.policyState) {
-          const limitWei = data.policyState.dailyLimitWei ?? payload.dailyLimitWei;
-          const spentWei = data.policyState.spentTodayWei ?? payload.spentTodayWei;
-          setPolicyState({
-            allowlisted: data.policyState.allowlisted ?? payload.allowlisted,
-            dailyLimitWei: limitWei,
-            spentTodayWei: spentWei,
-            policyPaused: Boolean((data.policyState as OnchainPolicy).policyPaused),
-            dailyLimitEth: formatEth(limitWei).replace(/ ETH$/, ""),
-            spentTodayEth: formatEth(spentWei).replace(/ ETH$/, ""),
-            source: "onchain"
-          });
-        }
+
+        const readFromChain = data.policyState?.source === "onchain" ? data.policyState : null;
+        setPolicyState(readFromChain);
+        setPolicySource(readFromChain ? "onchain" : "unavailable");
         setGuardPrediction(
-          predictGuardOutcome({
-            allowlisted: data.policyState?.allowlisted ?? payload.allowlisted,
-            dailyLimitWei: data.policyState?.dailyLimitWei ?? payload.dailyLimitWei,
-            spentTodayWei: data.policyState?.spentTodayWei ?? payload.spentTodayWei,
-            amountWei: payload.amountWei
-          })
+          readFromChain
+            ? predictGuardOutcome({
+                allowlisted: readFromChain.allowlisted,
+                dailyLimitWei: readFromChain.dailyLimitWei,
+                spentTodayWei: readFromChain.spentTodayWei,
+                amountWei: check.amountWei,
+                policyPaused: readFromChain.policyPaused
+              })
+            : null
         );
+
         if (result.blocked) {
-          const incidentId = data.incident?.id ?? `inc-${payload.txHash}`;
+          const incidentId = data.incident?.id ?? `inc-${check.txHash}`;
           setIncidents((prev) => [
             {
               id: incidentId,
               title:
                 data.incident?.title ??
-                `Blocked · ${INTENTS[intent].vendor} · ${INTENTS[intent].amountEth} ETH`,
+                `Blocked · ${vendorName(check.destination)} · ${formatEth(check.amountWei)}`,
               severity: result.totalScore >= 80 ? "critical" : "high",
               recommendedPlaybook: result.recommendedPlaybook,
               status: "open"
             },
             ...prev.filter((i) => i.id !== incidentId)
           ]);
-          setTab("alerts");
         }
         void recordTreasuryUsage("review");
         return;
       }
 
-      let policy = payload;
+      // No API in this build: read the contract directly and decide here.
+      let onchain: OnchainPolicy | null = null;
       try {
-        const onchain = await readOnchainPolicy(payload.wallet, payload.destination);
-        if (onchain) {
-          setPolicyState(onchain);
-          // Keep intent flags when onchain has no limit configured (0) so risky spends still alert.
-          policy = {
-            ...payload,
-            allowlisted: onchain.allowlisted && payload.allowlisted,
-            dailyLimitWei:
-              onchain.dailyLimitWei !== "0" ? onchain.dailyLimitWei : payload.dailyLimitWei,
-            spentTodayWei: onchain.spentTodayWei
-          };
-        } else {
-          setPolicyState(null);
-        }
+        onchain = await readOnchainPolicy(check.wallet, check.destination);
       } catch {
-        setPolicyState(null);
+        onchain = null;
       }
 
-      const result = assessIntent(policy);
-      const prediction = predictGuardOutcome(policy);
-      setGuardPrediction(prediction);
-      recordLocal(result, payload.txHash, payload.wallet);
-      if (result.blocked) setTab("alerts");
+      if (!onchain) {
+        // Reading the policy is the entire point of the check. If it did not come back, the honest
+        // answer is no — and it is reported as a refusal, so it lands in the queue like any other.
+        setPolicyState(null);
+        setPolicySource("unavailable");
+        setGuardPrediction(null);
+        recordLocal(
+          {
+            totalScore: 100,
+            blocked: true,
+            matches: [
+              {
+                ruleId: "RULE_POLICY_UNREADABLE",
+                reason: "The policy could not be read from the chain, so this spend cannot be approved",
+                severity: "critical",
+                scoreDelta: 100
+              }
+            ],
+            recommendedPlaybook: "freeze-wallet-and-revoke-approvals"
+          },
+          check.txHash,
+          check.wallet
+        );
+        void recordTreasuryUsage("review");
+        return;
+      }
+
+      setPolicyState(onchain);
+      setPolicySource("onchain");
+      const policyInput = {
+        allowlisted: onchain.allowlisted,
+        dailyLimitWei: onchain.dailyLimitWei,
+        spentTodayWei: onchain.spentTodayWei,
+        amountWei: check.amountWei,
+        method: check.method,
+        policyPaused: onchain.policyPaused
+      };
+      const result = assessIntent(policyInput);
+      setGuardPrediction(predictGuardOutcome(policyInput));
+      recordLocal(result, check.txHash, check.wallet);
       void recordTreasuryUsage("review");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Review failed");
@@ -950,7 +933,6 @@ export function App() {
     ["automation", "Playbooks", <IconAutomation key="u" size={16} />],
     ["security", "Vault", <IconSecurity key="s" size={16} />]
   ];
-  const currentSpend = INTENTS[intent];
 
   return (
     <>
@@ -1051,15 +1033,8 @@ export function App() {
             <button type="button" className="primary" onClick={enterWorld}>
               Open
             </button>
-            <button
-              type="button"
-              className="ghost"
-              onClick={() => {
-                void skipToFirstQuest();
-              }}
-              disabled={loading}
-            >
-              {loading ? "Checking…" : "See a risky spend"}
+            <button type="button" className="ghost" onClick={goCheck}>
+              Check a spend
             </button>
           </div>
           {error && <p className="error">{error}</p>}
@@ -1116,7 +1091,7 @@ export function App() {
                         {policyPaused ? "Manage lock" : "Open alerts"}
                       </button>
                     ) : (
-                      <button type="button" className="primary" onClick={() => goCheck("risky-approve")}>
+                      <button type="button" className="primary" onClick={goCheck}>
                         <IconPayment size={16} />
                         Check a spend
                       </button>
@@ -1282,104 +1257,134 @@ export function App() {
 
             {tab === "review" && (
               <div className="review-layout">
-                <section className="surface review-main">
+                <form
+                  className="surface review-main"
+                  onSubmit={(e: FormEvent) => {
+                    e.preventDefault();
+                    void runAssessment();
+                  }}
+                >
                   <div className="review-head">
                     <div>
                       <div className="review-badges">
-                        <span className="review-badge">Pending</span>
-                        {(policyState?.allowlisted ?? payload.allowlisted) ? (
-                          <span className="review-badge ok">Trusted payee</span>
-                        ) : (
-                          <span className="review-badge risk">Unknown payee</span>
-                        )}
+                        <span className="review-badge">
+                          {policySource === "onchain"
+                            ? "Read from the contract"
+                            : policySource === "unavailable"
+                              ? "Policy unreadable"
+                              : "Not checked"}
+                        </span>
+                        {policySource === "onchain" && policyState ? (
+                          policyState.allowlisted ? (
+                            <span className="review-badge ok">Trusted payee</span>
+                          ) : (
+                            <span className="review-badge risk">Unknown payee</span>
+                          )
+                        ) : null}
                       </div>
-                      <h3>{currentSpend.label}</h3>
-                      <p className="muted">{currentSpend.blurb}</p>
+                      <h3>Check a spend before it leaves</h3>
+                      <p className="muted">
+                        Give it the treasury and the payee, and it reads the policy contract for both. Nothing typed here
+                        is taken on trust over the chain.
+                      </p>
                     </div>
-                    <button
-                      type="button"
-                      className="ghost review-switch"
-                      onClick={() => {
-                        setSpendPickerOpen((v) => !v);
-                      }}
-                    >
-                      {spendPickerOpen ? "Hide queue" : "Other spends"}
-                    </button>
                   </div>
 
-                  {spendPickerOpen && (
-                    <div className="spend-switch" role="listbox" aria-label="Other spends">
-                      {(Object.keys(INTENTS) as IntentId[]).map((id) => (
-                        <button
-                          key={id}
-                          type="button"
-                          role="option"
-                          aria-selected={intent === id}
-                          className={`scenario ${intent === id ? "active" : ""}`}
-                          onClick={() => {
-                            setIntent(id);
-                            setAssessment(null);
-                            setWhyOpen(false);
-                            setSpendPickerOpen(false);
-                          }}
-                        >
-                          <strong>{INTENTS[id].label}</strong>
-                          <span className="scenario-meta">
-                            {INTENTS[id].vendor} · {INTENTS[id].amountEth} ETH
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="review-amount">
-                    <span>Amount</span>
-                    <strong>{formatEth(payload.amountWei)}</strong>
+                  <label className="spend-field">
+                    <span>From — treasury or operator address</span>
+                    <input
+                      className="treasury-input"
+                      value={spend.wallet}
+                      onChange={(e) => setSpend((s) => ({ ...s, wallet: e.target.value }))}
+                      placeholder="0x…"
+                      spellCheck={false}
+                    />
+                  </label>
+                  <label className="spend-field">
+                    <span>To — payee address</span>
+                    <input
+                      className="treasury-input"
+                      value={spend.destination}
+                      onChange={(e) => setSpend((s) => ({ ...s, destination: e.target.value }))}
+                      placeholder="0x…"
+                      spellCheck={false}
+                    />
+                  </label>
+                  <div className="spend-form-row">
+                    <label className="spend-field">
+                      <span>Amount (ETH)</span>
+                      <input
+                        className="treasury-input"
+                        value={spend.amountEth}
+                        onChange={(e) => setSpend((s) => ({ ...s, amountEth: e.target.value }))}
+                        inputMode="decimal"
+                      />
+                    </label>
+                    <label className="spend-field">
+                      <span>Type</span>
+                      <select
+                        className="treasury-input"
+                        value={spend.method}
+                        onChange={(e) => setSpend((s) => ({ ...s, method: e.target.value as SpendMethod }))}
+                      >
+                        <option value="transfer">Vendor payout</option>
+                        <option value="approve">Permission to spend</option>
+                      </select>
+                    </label>
                   </div>
+                  {check.error ? <p className="error">{check.error}</p> : null}
 
                   <dl className="meta review-meta">
                     <div>
-                      <dt>Type</dt>
-                      <dd>{methodLabel(payload.method)}</dd>
-                    </div>
-                    <div>
                       <dt>From</dt>
-                      <dd>{currentSpend.walletLabel}</dd>
+                      <dd title={check.wallet}>{check.wallet ? vendorName(check.wallet) : "—"}</dd>
                     </div>
                     <div>
                       <dt>To</dt>
-                      <dd>{currentSpend.vendor}</dd>
+                      <dd title={check.destination}>{check.destination ? vendorName(check.destination) : "—"}</dd>
+                    </div>
+                    <div>
+                      <dt>Amount</dt>
+                      <dd>{formatEth(check.amountWei)}</dd>
+                    </div>
+                    <div>
+                      <dt>Type</dt>
+                      <dd>{methodLabel(check.method)}</dd>
                     </div>
                     <div>
                       <dt>Day limit</dt>
-                      <dd title="Max the treasury can send today">{budgetDisplay(policyState, payload.dailyLimitWei)}</dd>
-                    </div>
-                    <div>
-                      <dt>Spent today</dt>
-                      <dd title="Already sent from the treasury today">
-                        {spentDisplay(policyState, payload.spentTodayWei)}
+                      <dd title="Most this address can send today">
+                        {policyState ? budgetDisplay(policyState, "0") : "—"}
                       </dd>
                     </div>
                     <div>
-                      <dt>Trusted list</dt>
-                      <dd>{(policyState?.allowlisted ?? payload.allowlisted) ? "Yes" : "No"}</dd>
+                      <dt>Spent today</dt>
+                      <dd title="Already sent from this address today">
+                        {policyState ? spentDisplay(policyState, "0") : "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Trusted payee</dt>
+                      <dd>{policyState ? (policyState.allowlisted ? "Yes" : "No") : "—"}</dd>
+                    </div>
+                    <div>
+                      <dt>Policy</dt>
+                      <dd>
+                        {!policyState ? "—" : policyState.policyPaused ? "Frozen" : "Active"}
+                      </dd>
                     </div>
                   </dl>
                   <p className="muted review-budget-hint">
-                    Day limit = max the treasury can send today. Spent today = already used. Unknown payee = not on the
-                    trusted list.
+                    {policySource === "onchain"
+                      ? "Those figures came back from the contract, for the two addresses above."
+                      : policySource === "unavailable"
+                        ? "The policy could not be read for those addresses, so this refuses rather than guesses."
+                        : "Day limit = most this address can send today. Spent today = already used. Unknown payee = not on the trusted list."}
                   </p>
 
                   {!assessment ? (
                     <div className="review-connect-gate">
-                      <button
-                        type="button"
-                        className="primary full review-cta"
-                        onClick={() => {
-                          void runAssessment();
-                        }}
-                        disabled={loading}
-                      >
+                      <button type="submit" className="primary full review-cta" disabled={loading || Boolean(check.error)}>
                         <IconCheck size={16} />
                         {loading ? "Checking…" : "Check this spend"}
                       </button>
@@ -1404,7 +1409,7 @@ export function App() {
                       <p className="result-line">
                         <span className={`status-pill ${assessment.blocked ? "blocked" : "allowed"}`}>
                           {assessment.blocked ? <IconAlerts size={14} /> : <IconCheck size={14} />}
-                          {plainOutcome(assessment, intent)}
+                          {plainOutcome(assessment)}
                         </span>
                       </p>
                       <p className="decision-copy">
@@ -1453,7 +1458,7 @@ export function App() {
                             className="ghost"
                             onClick={() => {
                               setAssessment(null);
-                              setSpendPickerOpen(true);
+                              setPolicySource("unchecked");
                             }}
                           >
                             Review another
@@ -1462,7 +1467,7 @@ export function App() {
                       </div>
                     </div>
                   )}
-                </section>
+                </form>
               </div>
             )}
 
@@ -1504,7 +1509,7 @@ export function App() {
                       <IconAlerts size={28} />
                       <p>No alerts yet</p>
                       <p className="muted">Blocked spends appear here for operator action.</p>
-                      <button type="button" className="ghost" onClick={() => goCheck("risky-approve")}>
+                      <button type="button" className="ghost" onClick={goCheck}>
                         Review spend
                       </button>
                     </div>

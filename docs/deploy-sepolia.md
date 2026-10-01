@@ -54,7 +54,7 @@ Redeploy web: `vercel --prod`
 Record 5–8 minutes showing:
 
 1. Arbiscan contract addresses
-2. Risky scenario → assess → blocked incident
+2. Enter a real treasury and an unallowlisted payee → check → blocked incident
 3. **Validate onchain via ExecutionGuard** → revert tx on Arbiscan
 4. Mitigate → policy pause tx (if operator key configured)
 5. Audit trail in dashboard

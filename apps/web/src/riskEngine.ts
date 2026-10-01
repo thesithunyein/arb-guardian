@@ -47,12 +47,25 @@ export function assessIntent(input: {
   spentTodayWei: string;
   amountWei: string;
   method: string;
+  policyPaused?: boolean;
 }): RiskAssessment {
   const amountWei = BigInt(input.amountWei);
   const dailyLimitWei = BigInt(input.dailyLimitWei);
   const spentTodayWei = BigInt(input.spentTodayWei);
   let totalScore = 0;
   const matches: RiskMatch[] = [];
+
+  if (input.policyPaused) {
+    // The guard checks the pause before anything else and reverts, so no amount of allowlisting
+    // or headroom makes a spend possible while the policy is frozen.
+    totalScore += 100;
+    matches.push({
+      ruleId: "RULE_POLICY_PAUSED",
+      reason: "The policy is frozen, so every spend is refused",
+      severity: "critical",
+      scoreDelta: 100
+    });
+  }
 
   if (!input.allowlisted) {
     totalScore += 60;
@@ -107,7 +120,12 @@ export function predictGuardOutcome(input: {
   dailyLimitWei: string;
   spentTodayWei: string;
   amountWei: string;
+  policyPaused?: boolean;
 }): { wouldRevert: boolean; reason: string } {
+  if (input.policyPaused) {
+    // `PolicyManagerPaused`, the error the guards actually revert with.
+    return { wouldRevert: true, reason: "PolicyManagerPaused" };
+  }
   if (!input.allowlisted) {
     return { wouldRevert: true, reason: "CounterpartyNotAllowlisted" };
   }
