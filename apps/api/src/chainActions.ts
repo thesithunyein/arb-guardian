@@ -38,7 +38,8 @@ export async function validateOnchain(input: {
     amountWei: BigInt(input.amountWei),
     allowlisted: policyState.allowlisted,
     dailyLimitWei: BigInt(policyState.dailyLimitWei),
-    spentTodayWei: BigInt(policyState.spentTodayWei)
+    spentTodayWei: BigInt(policyState.spentTodayWei),
+    policyPaused: policyState.policyPaused
   });
 
   recordAssessment(assessment);
@@ -127,7 +128,8 @@ export async function syncBlockedEvents(sinceBlock = 0): Promise<{ imported: num
       amountWei,
       allowlisted: policyState.allowlisted,
       dailyLimitWei: BigInt(policyState.dailyLimitWei),
-      spentTodayWei: BigInt(policyState.spentTodayWei)
+      spentTodayWei: BigInt(policyState.spentTodayWei),
+      policyPaused: policyState.policyPaused
     });
 
     recordAssessment(assessment);

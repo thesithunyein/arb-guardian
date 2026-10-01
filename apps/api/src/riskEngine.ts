@@ -9,6 +9,8 @@ export type PendingTransaction = {
   allowlisted: boolean;
   dailyLimitWei: bigint;
   spentTodayWei: bigint;
+  /** When the policy is frozen the guard reverts before it reads anything else. */
+  policyPaused?: boolean;
 };
 
 /**
@@ -37,6 +39,18 @@ export function isApprovalSurface(method: string): boolean {
 export function assessTransaction(tx: PendingTransaction): RiskAssessment {
   let totalScore = 0;
   const matches = [];
+
+  if (tx.policyPaused) {
+    // Without this the assessor would call a frozen policy's spend "allowed" while the guard
+    // reverts it — exactly the drift this product exists to catch.
+    totalScore += 100;
+    matches.push({
+      ruleId: "RULE_POLICY_PAUSED",
+      reason: "The policy is frozen, so every spend is refused",
+      severity: "critical" as const,
+      scoreDelta: 100
+    });
+  }
 
   if (!tx.allowlisted) {
     totalScore += 60;

@@ -109,7 +109,8 @@ export function createApp() {
         amountWei: BigInt(body.amountWei),
         allowlisted: policyState.allowlisted,
         dailyLimitWei: BigInt(policyState.dailyLimitWei),
-        spentTodayWei: BigInt(policyState.spentTodayWei)
+        spentTodayWei: BigInt(policyState.spentTodayWei),
+        policyPaused: policyState.policyPaused
       });
 
       recordAssessment(assessment);

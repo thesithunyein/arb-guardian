@@ -81,4 +81,21 @@ describe("riskEngine", () => {
       expect(result.blocked).toBe(false);
     });
   });
+
+  describe("frozen policy", () => {
+    /**
+     * The guard reverts `PolicyManagerPaused` before it reads an allowlist or a limit. Without
+     * this rule the assessor would bless a spend the chain is certain to refuse — the drift this
+     * product exists to surface.
+     */
+    it("blocks a spend that is otherwise fully within policy", () => {
+      const allowed = assessTransaction(tx());
+      expect(allowed.blocked).toBe(false);
+
+      const frozen = assessTransaction(tx({ policyPaused: true }));
+      expect(frozen.blocked).toBe(true);
+      expect(frozen.matches.map((m) => m.ruleId)).toContain("RULE_POLICY_PAUSED");
+      expect(frozen.matches.find((m) => m.ruleId === "RULE_POLICY_PAUSED")?.severity).toBe("critical");
+    });
+  });
 });
