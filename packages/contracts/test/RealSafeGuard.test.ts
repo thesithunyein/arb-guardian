@@ -103,17 +103,19 @@ describe("SafeTreasuryGuard + real Gnosis Safe v1.4.1", function () {
     const [admin, owner, vendor, outsider] = await ethers.getSigners();
 
     // --- real Safe infrastructure ---
-    const singleton = await new ethers.ContractFactory(SAFE.abi as never, SAFE.bytecode, admin).deploy();
+    // Safe's own build output lives outside this package, so these are deployed from raw
+    // artifacts and typed loosely rather than through `getContractFactory`.
+    const singleton: any = await new ethers.ContractFactory(SAFE.abi as never, SAFE.bytecode, admin).deploy();
     await singleton.waitForDeployment();
 
-    const proxyFactory = await new ethers.ContractFactory(
+    const proxyFactory: any = await new ethers.ContractFactory(
       PROXY_FACTORY.abi as never,
       PROXY_FACTORY.bytecode,
       admin
     ).deploy();
     await proxyFactory.waitForDeployment();
 
-    const fallbackHandler = await new ethers.ContractFactory(
+    const fallbackHandler: any = await new ethers.ContractFactory(
       FALLBACK_HANDLER.abi as never,
       FALLBACK_HANDLER.bytecode,
       admin
@@ -151,7 +153,7 @@ describe("SafeTreasuryGuard + real Gnosis Safe v1.4.1", function () {
     }
     if (!safeAddress) throw new Error("ProxyCreation event not found");
 
-    const safe = new ethers.Contract(safeAddress, SAFE.abi as never, owner);
+    const safe: any = new ethers.Contract(safeAddress, SAFE.abi as never, owner);
 
     // --- Arb Guardian policy + guard ---
     const policyFactory = await ethers.getContractFactory("PolicyManager");

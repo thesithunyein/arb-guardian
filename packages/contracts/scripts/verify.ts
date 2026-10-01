@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { run, network } from "hardhat";
+import { ethers, run, network } from "hardhat";
 
 /**
  * Verify every contract from a recorded deployment on the target explorer.
@@ -43,7 +43,7 @@ async function verifyOne(name: string, address: string, constructorArguments: un
 }
 
 async function main() {
-  const chainId = Number((await network.provider.getNetwork()).chainId);
+  const chainId = Number((await ethers.provider.getNetwork()).chainId);
   const recordPath = resolve(__dirname, "..", "deployments", `${network.name}.json`);
 
   let record: DeploymentRecord;
