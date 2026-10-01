@@ -38,9 +38,16 @@ async function verifyOne(name: string, address: string, constructorArguments: un
       return;
     }
     console.error(`${name}: verification failed — ${message}`);
-    process.exitCode = 1;
+    failed.push(name);
   }
 }
+
+/**
+ * Verification is what turns "the bytecode matches the repo" into something a reader can
+ * check without trusting us. So a failure has to be the loudest thing in the output rather
+ * than a line a closing message talks over.
+ */
+const failed: string[] = [];
 
 async function main() {
   const chainId = Number((await ethers.provider.getNetwork()).chainId);
@@ -76,7 +83,16 @@ async function main() {
     record.policyManager.address
   ]);
 
-  console.log("\nDone. Open the explorer and confirm each contract shows a verified source.");
+  if (failed.length > 0) {
+    console.error(
+      `\n${failed.length} of 3 contracts were NOT verified: ${failed.join(", ")}. ` +
+        "An unverified deployment reads as a gap on the explorer, so treat this as unfinished."
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  console.log("\nAll three contracts verified. Open the explorer and confirm.");
 }
 
 main().catch((error) => {
