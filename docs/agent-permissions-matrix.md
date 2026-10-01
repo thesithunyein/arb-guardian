@@ -83,14 +83,14 @@ sequenceDiagram
   participant PM as PolicyManager
 
   Note over PE: score ≥ 80 → freeze playbook suggested
-  PE-->>UI: Recommend Freeze guild spending
-  UI->>UI: Officer clicks Freeze
+  PE-->>UI: Recommend Freeze treasury spending
+  UI->>UI: Operator clicks Freeze
   UI->>API: POST /incidents/:id/action mitigate
   API->>PM: pause()
   PM-->>UI: Spending frozen
 ```
 
-Without the officer click, **no pause** is sent.
+Without the operator click, **no pause** is sent.
 
 ---
 
@@ -150,11 +150,11 @@ npm run quality:gate
 
 ---
 
-## What officers see in product
+## What operators see in product
 
 | UI copy | Meaning |
 | --- | --- |
-| **Suggests: Freeze guild spending** | Playbook recommendation only |
+| **Suggests: Freeze treasury spending** | Playbook recommendation only |
 | **Cannot move funds** | Hard bound #1 |
 | **Freeze needs a human click** | Hard bound #4 |
 | Playbooks · **fixed policy cases match spec** | Conformance fixture count, labelled as such |

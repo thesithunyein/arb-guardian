@@ -57,7 +57,7 @@
   color-scheme: light;
 }
 
-/* Quiet backdrop once officers are inside the product */
+/* Quiet backdrop once operators are inside the product */
 .pixel-world.quiet .pw-sky {
   background:
     radial-gradient(900px 420px at 12% -10%, rgba(61, 139, 255, 0.16), transparent 55%),
@@ -2002,19 +2002,19 @@ button:disabled {
   padding: 0.28rem 0.65rem;
 }
 
-.guild-chip {
+.treasury-chip {
   color: var(--muted);
   font-size: 0.84rem;
   font-weight: 700;
 }
 
-.app-shell.product-mode .guild-chip {
+.app-shell.product-mode .treasury-chip {
   margin-left: auto;
   font-size: 0.8rem;
   font-weight: 600;
 }
 
-.guild-input {
+.treasury-input {
   font: inherit;
   font-weight: 800;
   color: var(--ink);
@@ -2025,7 +2025,7 @@ button:disabled {
   min-width: 10rem;
 }
 
-.app-shell.product-mode .guild-input {
+.app-shell.product-mode .treasury-input {
   border-width: 1px;
   border-radius: 8px;
   font-weight: 700;
@@ -2089,7 +2089,7 @@ button:disabled {
   line-height: 1.45;
 }
 
-.officer-ai {
+.operator-ai {
   padding: 0.85rem 0.95rem;
   border: 3px solid var(--line);
   border-radius: var(--radius);
@@ -2097,31 +2097,31 @@ button:disabled {
   margin-bottom: 0.65rem;
 }
 
-.app-shell.product-mode .officer-ai {
+.app-shell.product-mode .operator-ai {
   border-width: 1px;
   border-radius: var(--radius-product);
 }
 
-.officer-ai strong {
+.operator-ai strong {
   display: block;
   font-family: var(--font-pixel);
   color: var(--accent-bright);
   margin-bottom: 0.25rem;
 }
 
-.app-shell.product-mode .officer-ai strong {
+.app-shell.product-mode .operator-ai strong {
   font-family: var(--font-sans);
   font-weight: 800;
   letter-spacing: -0.01em;
 }
 
-.officer-ai p {
+.operator-ai p {
   margin: 0.2rem 0;
   font-weight: 600;
   line-height: 1.4;
 }
 
-.officer-ai em {
+.operator-ai em {
   font-style: normal;
   color: var(--lime);
   font-weight: 800;
@@ -2332,11 +2332,11 @@ button:disabled {
   margin: 0.1rem 0 0.2rem;
 }
 
-.officer-card {
+.operator-card {
   gap: 0.65rem;
 }
 
-.officer-toggle {
+.operator-toggle {
   justify-self: start;
   font-weight: 700;
   text-align: left;
@@ -2435,14 +2435,14 @@ button.chip.wallet-chip.ok:hover:not(:disabled) {
   font-size: 0.8rem;
 }
 
-.app-shell.product-mode .brand-guild,
+.app-shell.product-mode .brand-treasury,
 .app-shell.product-mode .brand-sub .linkish {
   color: var(--muted);
   font-weight: 600;
   text-decoration: none;
 }
 
-.app-shell.product-mode .guild-input.inline-edit {
+.app-shell.product-mode .treasury-input.inline-edit {
   min-width: 8rem;
   padding: 0.15rem 0.4rem;
   font-size: 0.78rem;

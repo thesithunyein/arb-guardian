@@ -2,9 +2,17 @@ import { verifyMessage } from "ethers";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { durableEnabled, persistDurable } from "./_durable";
 import { hydrateStore } from "./_hydrate";
-import { cors, snapshotDurable, type GuildRecord } from "./_store";
+import { cors, snapshotDurable, type TreasuryRecord } from "./_store";
 
-function normalizeGuild(raw: unknown) {
+/**
+ * Enrollment is a signature over a fixed message. The prefix changed when the product
+ * stopped calling a treasury a "guild"; both are accepted so a message signed before that
+ * change still verifies.
+ */
+const ENROLL_MESSAGE_PREFIX = "Arb Guardian operator enroll";
+const LEGACY_ENROLL_MESSAGE_PREFIX = "Arb Guardian guild enroll";
+
+function normalizeTreasury(raw: unknown) {
   if (typeof raw !== "string") return "";
   return raw.trim().slice(0, 48);
 }
@@ -18,28 +26,28 @@ function shortAddress(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
-function publicGuild(g: GuildRecord) {
+function publicTreasury(t: TreasuryRecord) {
   return {
-    name: g.name,
-    owner: shortAddress(g.owner),
-    ownerFull: g.owner,
-    usageCount: g.usageCount,
-    lastActiveAt: g.lastActiveAt,
-    createdAt: g.createdAt
+    name: t.name,
+    owner: shortAddress(t.owner),
+    ownerFull: t.owner,
+    usageCount: t.usageCount,
+    lastActiveAt: t.lastActiveAt,
+    createdAt: t.createdAt
   };
 }
 
-function stats(guilds: GuildRecord[]) {
+function stats(treasuries: TreasuryRecord[]) {
   return {
-    guildCount: guilds.length,
-    officerCount: guilds.length,
-    totalUsage: guilds.reduce((n, g) => n + g.usageCount, 0),
+    treasuryCount: treasuries.length,
+    operatorCount: treasuries.length,
+    totalUsage: treasuries.reduce((n, t) => n + t.usageCount, 0),
     durable: durableEnabled(),
-    guilds: guilds
+    treasuries: treasuries
       .slice()
       .sort((a, b) => b.lastActiveAt.localeCompare(a.lastActiveAt))
       .slice(0, 24)
-      .map(publicGuild)
+      .map(publicTreasury)
   };
 }
 
@@ -50,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const s = await hydrateStore();
 
   if (req.method === "GET") {
-    return res.status(200).json(stats(s.guilds));
+    return res.status(200).json(stats(s.treasuries));
   }
 
   if (req.method !== "POST") {
@@ -65,21 +73,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!address.startsWith("0x") || address.length < 42) {
       return res.status(400).json({ error: "Valid wallet required" });
     }
-    const guild = s.guilds.find((g) => g.owner.toLowerCase() === address);
-    if (!guild) {
-      return res.status(404).json({ error: "Guild not enrolled" });
+    const treasury = s.treasuries.find((t) => t.owner.toLowerCase() === address);
+    if (!treasury) {
+      return res.status(404).json({ error: "Treasury not enrolled" });
     }
-    guild.usageCount += 1;
-    guild.lastActiveAt = new Date().toISOString();
-    guild.lastEvent = event === "freeze" ? "freeze" : "review";
+    treasury.usageCount += 1;
+    treasury.lastActiveAt = new Date().toISOString();
+    treasury.lastEvent = event === "freeze" ? "freeze" : "review";
     const merged = await persistDurable(snapshotDurable(s));
     s.waitlist = merged.waitlist;
-    s.guilds = merged.guilds;
-    const yours = s.guilds.find((g) => g.owner.toLowerCase() === address)!;
-    return res.status(200).json({ ok: true, ...stats(s.guilds), yours: publicGuild(yours) });
+    s.treasuries = merged.treasuries;
+    const yours = s.treasuries.find((t) => t.owner.toLowerCase() === address)!;
+    return res.status(200).json({ ok: true, ...stats(s.treasuries), yours: publicTreasury(yours) });
   }
 
-  const name = normalizeGuild(req.body?.name) || "Guild";
+  const name = normalizeTreasury(req.body?.name) || "Treasury";
   const address = normalizeAddress(req.body?.address);
   const message = typeof req.body?.message === "string" ? req.body.message : "";
   const signature = typeof req.body?.signature === "string" ? req.body.signature : "";
@@ -87,7 +95,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!address.startsWith("0x") || address.length < 42) {
     return res.status(400).json({ error: "Valid wallet required" });
   }
-  if (!message.includes("Arb Guardian guild enroll") || !message.includes(address)) {
+  const prefixOk =
+    message.includes(ENROLL_MESSAGE_PREFIX) || message.includes(LEGACY_ENROLL_MESSAGE_PREFIX);
+  if (!prefixOk || !message.includes(address)) {
     return res.status(400).json({ error: "Invalid enroll message" });
   }
   if (!signature.startsWith("0x") || signature.length < 80) {
@@ -106,12 +116,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const now = new Date().toISOString();
-  const existing = s.guilds.find((g) => g.owner.toLowerCase() === address.toLowerCase());
+  const existing = s.treasuries.find((t) => t.owner.toLowerCase() === address.toLowerCase());
   if (existing) {
     existing.name = name;
     existing.lastActiveAt = now;
   } else {
-    const record: GuildRecord = {
+    const record: TreasuryRecord = {
       name,
       owner: recovered,
       createdAt: now,
@@ -119,18 +129,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       usageCount: 0,
       lastEvent: "enroll"
     };
-    s.guilds.push(record);
+    s.treasuries.push(record);
   }
 
   const merged = await persistDurable(snapshotDurable(s));
   s.waitlist = merged.waitlist;
-  s.guilds = merged.guilds;
-  const yours = s.guilds.find((g) => g.owner.toLowerCase() === address.toLowerCase())!;
+  s.treasuries = merged.treasuries;
+  const yours = s.treasuries.find((t) => t.owner.toLowerCase() === address.toLowerCase())!;
 
   return res.status(200).json({
     ok: true,
     alreadyEnrolled: !!existing,
-    ...stats(s.guilds),
-    yours: publicGuild(yours)
+    ...stats(s.treasuries),
+    yours: publicTreasury(yours)
   });
 }

@@ -8,7 +8,7 @@ function normalizeEmail(raw: unknown) {
   return raw.trim().toLowerCase().slice(0, 120);
 }
 
-function normalizeGuild(raw: unknown) {
+function normalizeTreasury(raw: unknown) {
   if (typeof raw !== "string") return "";
   return raw.trim().slice(0, 48);
 }
@@ -27,20 +27,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const email = normalizeEmail(req.body?.email);
-  const guild = normalizeGuild(req.body?.guild) || "Guild";
+  const body = (req.body ?? {}) as { email?: unknown; treasury?: unknown; guild?: unknown };
+  const email = normalizeEmail(body.email);
+  // `guild` is the pre-repositioning field name, still accepted for cached clients.
+  const treasury = normalizeTreasury(body.treasury) || normalizeTreasury(body.guild) || "Treasury";
   if (!email || !email.includes("@") || email.length < 5) {
     return res.status(400).json({ error: "Valid email required" });
   }
 
   const existing = s.waitlist.find((w) => w.email === email);
   if (!existing) {
-    s.waitlist.push({ email, guild, createdAt: new Date().toISOString() });
+    s.waitlist.push({ email, treasury, createdAt: new Date().toISOString() });
   }
 
   const merged = await persistDurable(snapshotDurable(s));
   s.waitlist = merged.waitlist;
-  s.guilds = merged.guilds;
+  s.treasuries = merged.treasuries;
 
   return res.status(200).json({
     ok: true,

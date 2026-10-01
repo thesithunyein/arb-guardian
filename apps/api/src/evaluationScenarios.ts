@@ -92,7 +92,7 @@ export const evaluationScenarios: EvaluationScenario[] = [
   {
     // Approvals grant standing spending authority, so they are blocked by default
     // even when the counterparty is allowlisted and the amount is within limits.
-    // A human officer must explicitly release this one.
+    // A human operator must explicitly release this one.
     id: "approve_allowlisted_blocked_by_default",
     expectedBlocked: true,
     expectedPlaybook: "hold-transaction-and-require-admin-review",

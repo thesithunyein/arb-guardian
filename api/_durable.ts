@@ -1,15 +1,22 @@
 /**
- * Durable persistence for waitlist + guilds (Vercel KV / Upstash REST).
+ * Durable persistence for waitlist + treasury roster (Vercel KV / Upstash REST).
  * Saves always merge with Redis so one instance cannot wipe the other collection.
+ *
+ * Redis holds one blob at a stable key. Records written before the repositioning used
+ * `guilds` / `guild`; both are read back into the current field names below, so an old
+ * blob is migrated on the next write rather than lost.
  */
-import type { GuildRecord, WaitlistRecord } from "./_store";
+import type { TreasuryRecord, WaitlistRecord } from "./_store";
 
 export type DurableBlob = {
   waitlist: WaitlistRecord[];
-  guilds: GuildRecord[];
+  treasuries: TreasuryRecord[];
 };
 
 const KEY = "arb-guardian:v1";
+
+type LegacyWaitlistRow = Partial<WaitlistRecord> & { guild?: string };
+type LegacyBlob = Partial<DurableBlob> & { guilds?: TreasuryRecord[] };
 
 function kvCreds() {
   const url = (process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || "").trim();
@@ -26,6 +33,28 @@ export function durableEnabled() {
   return !!kvCreds();
 }
 
+/** Map a stored blob (current or pre-rename) into today's shape. */
+export function normalizeBlob(raw: unknown): DurableBlob {
+  const blob = (raw ?? {}) as LegacyBlob;
+  const waitlist = Array.isArray(blob.waitlist) ? blob.waitlist : [];
+  const treasuries = Array.isArray(blob.treasuries)
+    ? blob.treasuries
+    : Array.isArray(blob.guilds)
+      ? blob.guilds
+      : [];
+  return {
+    waitlist: waitlist.map((row) => {
+      const legacy = row as LegacyWaitlistRow;
+      return {
+        email: String(legacy.email ?? ""),
+        treasury: String(legacy.treasury ?? legacy.guild ?? "Treasury"),
+        createdAt: String(legacy.createdAt ?? "")
+      };
+    }),
+    treasuries
+  };
+}
+
 export async function loadDurable(): Promise<DurableBlob | null> {
   const kv = kvCreds();
   if (!kv) return null;
@@ -36,12 +65,8 @@ export async function loadDurable(): Promise<DurableBlob | null> {
     });
     if (!res.ok) return null;
     const body = (await res.json()) as { result?: string | null };
-    if (!body.result) return { waitlist: [], guilds: [] };
-    const parsed = JSON.parse(body.result) as DurableBlob;
-    return {
-      waitlist: Array.isArray(parsed.waitlist) ? parsed.waitlist : [],
-      guilds: Array.isArray(parsed.guilds) ? parsed.guilds : []
-    };
+    if (!body.result) return { waitlist: [], treasuries: [] };
+    return normalizeBlob(JSON.parse(body.result));
   } catch {
     return null;
   }
@@ -57,8 +82,8 @@ function mergeWaitlist(a: WaitlistRecord[], b: WaitlistRecord[]) {
   return Array.from(byEmail.values());
 }
 
-function mergeGuilds(a: GuildRecord[], b: GuildRecord[]) {
-  const byOwner = new Map<string, GuildRecord>();
+function mergeTreasuries(a: TreasuryRecord[], b: TreasuryRecord[]) {
+  const byOwner = new Map<string, TreasuryRecord>();
   for (const row of [...a, ...b]) {
     const key = row.owner.toLowerCase();
     const prev = byOwner.get(key);
@@ -82,7 +107,7 @@ export function mergeDurable(local: DurableBlob, remote: DurableBlob | null): Du
   if (!remote) return local;
   return {
     waitlist: mergeWaitlist(remote.waitlist, local.waitlist),
-    guilds: mergeGuilds(remote.guilds, local.guilds)
+    treasuries: mergeTreasuries(remote.treasuries, local.treasuries)
   };
 }
 

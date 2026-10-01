@@ -56,14 +56,14 @@ Three contracts plus an operator console.
 - **Deterministic operator console.** Risk scoring, alerts, playbook recommendations and an audit
   trail. No model, no LLM call — a deterministic engine cannot be prompt-injected.
 - **Human circuit breaker.** `PolicyManager.pause()` freezes all spending and requires an explicit
-  officer action in Alerts.
+  operator action in Alerts.
 
 ## Proof, not a demo
 
 A reproduction, not a recording:
 
 ```bash
-npm run evidence -w packages/contracts   # → 14/14 cases behaved as specified
+npm run evidence -w packages/contracts   # → 15/15 cases behaved as specified
 ```
 
 `packages/contracts/test/RealSafeGuard.test.ts` drives a **real Gnosis Safe v1.4.1** — real
@@ -75,7 +75,7 @@ is refused after, which is what shows the guard is making the difference.
 The generator exits non-zero if any case drifts, so the table cannot silently go stale.
 Artifacts: `packages/contracts/evidence/guard-proof.md` and `guard-proof.json`.
 
-Test totals: **57 contract tests**, 17 API tests, 14 policy-conformance fixtures.
+Test totals: **65 contract tests**, 17 API tests, 14 policy-conformance fixtures.
 
 ## Why Arbitrum / Robinhood Chain
 
@@ -143,10 +143,10 @@ natively issued Global Dollar and the lending asset in Robinhood Earn — settle
 
 ## What we validated
 
-- 57 contract tests pass, including real Gnosis Safe v1.4.1 integration and the USDG token lane
+- 65 contract tests pass, including real Gnosis Safe v1.4.1 integration and the USDG token lane
   (`npm run test -w packages/contracts`)
 - 17 API unit/integration tests pass (`npm run test -w apps/api`)
 - 14 policy-conformance fixtures pass (`npm run eval:policy -w apps/api`) — a regression suite
   over fixed cases, **not** model validation
-- Guard proof regenerates 14/14 (`npm run evidence -w packages/contracts`)
+- Guard proof regenerates 15/15 (`npm run evidence -w packages/contracts`)
 - Production builds pass for API and web

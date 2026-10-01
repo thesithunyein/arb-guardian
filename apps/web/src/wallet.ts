@@ -27,7 +27,7 @@ export async function connectWallet(): Promise<ConnectedWallet> {
   return { address, short: shorten(address) };
 }
 
-export async function signEnrollMessage(guildName: string): Promise<{
+export async function signEnrollMessage(treasuryName: string): Promise<{
   address: string;
   short: string;
   message: string;
@@ -43,7 +43,7 @@ export async function signEnrollMessage(guildName: string): Promise<{
   const address = await signer.getAddress();
   const message = [
     "Arb Guardian operator enroll",
-    `Treasury: ${guildName.trim().slice(0, 48) || "Treasury"}`,
+    `Treasury: ${treasuryName.trim().slice(0, 48) || "Treasury"}`,
     `Operator: ${address}`,
     `Issued: ${new Date().toISOString()}`
   ].join("\n");

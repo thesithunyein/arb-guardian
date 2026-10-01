@@ -10,7 +10,7 @@ Live product: [arb-guardian.vercel.app](https://arb-guardian.vercel.app)
 
 ```mermaid
 flowchart TB
-  subgraph Officer["Operator console · apps/web"]
+  subgraph Console["Operator console · apps/web"]
     UI[Home · Review · Alerts · Playbooks · Vault]
   end
 
@@ -112,7 +112,7 @@ flowchart TB
 
   Admin -->|set allowlist · limits · pause roles| PM[PolicyManager]
   Operator -->|validateAndRecord| EG[ExecutionGuard]
-  Officer -->|mitigate click → pause| PM
+  Console -->|mitigate click → pause| PM
   EG --> PM
   STG[SafeTreasuryGuard] --> PM
 ```
@@ -267,7 +267,7 @@ flowchart TB
   end
 
   subgraph Denied["Policy engine must not"]
-    D1[Move guild funds]
+    D1[Move treasury funds]
     D2[Edit allowlists / limits]
     D3[Grant admin roles]
     D4[Freeze without human click]

@@ -51,24 +51,40 @@ type BadgeState = Record<BadgeKey, boolean>;
 
 type LocalEnroll = {
   address: string;
-  guild: string;
+  treasury: string;
   message: string;
   signature: string;
   enrolledAt: string;
 };
 
-type GuildStats = {
-  guildCount: number;
-  officerCount: number;
+type TreasuryStats = {
+  treasuryCount: number;
+  operatorCount: number;
   totalUsage: number;
 };
 
 const XP_STORAGE = "arb-guardian-xp-v1";
 const BADGE_STORAGE = "arb-guardian-badges-v1";
-const GUILD_STORAGE = "arb-guardian-guild-v1";
-const ENROLL_STORAGE = "arb-guardian-guild-enroll-v1";
+const TREASURY_STORAGE = "arb-guardian-treasury-v1";
+const ENROLL_STORAGE = "arb-guardian-treasury-enroll-v1";
 const INCIDENTS_STORAGE = "arb-guardian-incidents-v1";
 const INTEREST_STORAGE = "arb-guardian-interest-v1";
+
+/**
+ * Keys and default names written before the repositioning, when a treasury was called a
+ * "guild". Read once so a returning visitor keeps their name and signed enrollment, then gone.
+ */
+const LEGACY_TREASURY_STORAGE = "arb-guardian-guild-v1";
+const LEGACY_ENROLL_STORAGE = "arb-guardian-guild-enroll-v1";
+const LEGACY_DEFAULT_NAME = "My Guild";
+
+function readStored(current: string, legacy: string) {
+  try {
+    return localStorage.getItem(current) ?? localStorage.getItem(legacy);
+  } catch {
+    return null;
+  }
+}
 
 function loadInterestJoined() {
   try {
@@ -109,13 +125,14 @@ function nextIncidentStatus(
 
 function loadLocalEnroll(): LocalEnroll | null {
   try {
-    const raw = localStorage.getItem(ENROLL_STORAGE);
+    const raw = readStored(ENROLL_STORAGE, LEGACY_ENROLL_STORAGE);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<LocalEnroll>;
+    // `guild` is the pre-repositioning field name; keep reading it so old sessions survive.
+    const parsed = JSON.parse(raw) as Partial<LocalEnroll> & { guild?: string };
     if (!parsed.address || !parsed.signature || !parsed.message) return null;
     return {
       address: parsed.address,
-      guild: parsed.guild || "My Treasury",
+      treasury: parsed.treasury || parsed.guild || "My Treasury",
       message: parsed.message,
       signature: parsed.signature,
       enrolledAt: parsed.enrolledAt || new Date().toISOString()
@@ -128,6 +145,7 @@ function loadLocalEnroll(): LocalEnroll | null {
 function saveLocalEnroll(record: LocalEnroll) {
   try {
     localStorage.setItem(ENROLL_STORAGE, JSON.stringify(record));
+    localStorage.removeItem(LEGACY_ENROLL_STORAGE);
   } catch {
     // ignore
   }
@@ -136,6 +154,7 @@ function saveLocalEnroll(record: LocalEnroll) {
 function clearLocalEnroll() {
   try {
     localStorage.removeItem(ENROLL_STORAGE);
+    localStorage.removeItem(LEGACY_ENROLL_STORAGE);
   } catch {
     // ignore
   }
@@ -166,11 +185,11 @@ function loadBadges(): BadgeState {
   }
 }
 
-function loadGuildName() {
+function loadTreasuryName() {
   try {
-    const stored = localStorage.getItem(GUILD_STORAGE)?.trim();
-    // Existing visitors have the pre-repositioning default name cached; treat it as unset.
-    if (!stored || stored === "My Guild" || stored === "My Treasury") return "My Treasury";
+    const stored = readStored(TREASURY_STORAGE, LEGACY_TREASURY_STORAGE)?.trim();
+    // Both the pre-repositioning default and ours mean "unset".
+    if (!stored || stored === LEGACY_DEFAULT_NAME || stored === "My Treasury") return "My Treasury";
     return stored;
   } catch {
     return "My Treasury";
@@ -391,21 +410,21 @@ export function App() {
   const [badges, setBadges] = useState<BadgeState>(() => loadBadges());
   const [sfxMuted, setSfxMutedState] = useState(() => loadSfxMuted());
   const [entered, setEntered] = useState(false);
-  const [guildName, setGuildName] = useState(() => loadGuildName());
-  const [editingGuild, setEditingGuild] = useState(false);
+  const [treasuryName, setTreasuryName] = useState(() => loadTreasuryName());
+  const [editingTreasury, setEditingTreasury] = useState(false);
   const [spendPickerOpen, setSpendPickerOpen] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(() => loadLocalEnroll()?.address ?? null);
   const [enrolled, setEnrolled] = useState(() => !!loadLocalEnroll());
   const [enrollBusy, setEnrollBusy] = useState(false);
   const [enrollMsg, setEnrollMsg] = useState<string | null>(null);
-  const [guildStats, setGuildStats] = useState<GuildStats>({ guildCount: 0, officerCount: 0, totalUsage: 0 });
+  const [treasuryStats, setTreasuryStats] = useState<TreasuryStats>({ treasuryCount: 0, operatorCount: 0, totalUsage: 0 });
   const [myUsage, setMyUsage] = useState(0);
   const [interestJoined, setInterestJoined] = useState(() => loadInterestJoined());
   const [interestEmail, setInterestEmail] = useState("");
   const [interestCount, setInterestCount] = useState(0);
   const [interestBusy, setInterestBusy] = useState(false);
   const [interestMsg, setInterestMsg] = useState<string | null>(null);
-  const [officerOpen, setOfficerOpen] = useState(false);
+  const [operatorOpen, setOperatorOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -425,11 +444,11 @@ export function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(GUILD_STORAGE, guildName);
+      localStorage.setItem(TREASURY_STORAGE, treasuryName);
     } catch {
       // ignore
     }
-  }, [guildName]);
+  }, [treasuryName]);
 
   useEffect(() => {
     persistIncidents(incidents);
@@ -502,16 +521,16 @@ export function App() {
     setIntent("risky-approve");
   }
 
-  function applyGuildStats(data: Partial<GuildStats> & { yours?: { usageCount?: number; name?: string } }) {
-    if (typeof data.guildCount === "number") {
-      setGuildStats({
-        guildCount: data.guildCount,
-        officerCount: typeof data.officerCount === "number" ? data.officerCount : data.guildCount,
+  function applyTreasuryStats(data: Partial<TreasuryStats> & { yours?: { usageCount?: number; name?: string } }) {
+    if (typeof data.treasuryCount === "number") {
+      setTreasuryStats({
+        treasuryCount: data.treasuryCount,
+        operatorCount: typeof data.operatorCount === "number" ? data.operatorCount : data.treasuryCount,
         totalUsage: typeof data.totalUsage === "number" ? data.totalUsage : 0
       });
     }
     if (data.yours && typeof data.yours.usageCount === "number") setMyUsage(data.yours.usageCount);
-    if (data.yours?.name) setGuildName(data.yours.name.slice(0, 28));
+    if (data.yours?.name) setTreasuryName(data.yours.name.slice(0, 28));
   }
 
   async function handleConnectWallet() {
@@ -550,7 +569,7 @@ export function App() {
       const res = await fetch(`${API_BASE}/waitlist`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, guild: guildName.trim() || "Treasury" })
+        body: JSON.stringify({ email, treasury: treasuryName.trim() || "Treasury" })
       });
       const data = (await res.json().catch(() => ({}))) as {
         count?: number;
@@ -564,7 +583,7 @@ export function App() {
       try {
         localStorage.setItem(INTEREST_STORAGE, "1");
         localStorage.setItem(`${INTEREST_STORAGE}:email`, email);
-        localStorage.setItem(`${INTEREST_STORAGE}:guild`, guildName.trim() || "Treasury");
+        localStorage.setItem(`${INTEREST_STORAGE}:treasury`, treasuryName.trim() || "Treasury");
       } catch {
         // ignore
       }
@@ -576,15 +595,15 @@ export function App() {
     }
   }
 
-  async function enrollGuild(e?: FormEvent) {
+  async function enrollTreasury(e?: FormEvent) {
     e?.preventDefault();
-    const name = guildName.trim() || "My Treasury";
+    const name = treasuryName.trim() || "My Treasury";
     setEnrollBusy(true);
     setEnrollMsg(null);
     try {
       const signed = await signEnrollMessage(name);
       setWalletAddress(signed.address);
-      const res = await fetch(`${API_BASE}/guilds`, {
+      const res = await fetch(`${API_BASE}/treasurys`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -594,7 +613,7 @@ export function App() {
           signature: signed.signature
         })
       });
-      const data = (await res.json().catch(() => ({}))) as Partial<GuildStats> & {
+      const data = (await res.json().catch(() => ({}))) as Partial<TreasuryStats> & {
         alreadyEnrolled?: boolean;
         yours?: { usageCount?: number; name?: string };
         error?: string;
@@ -602,14 +621,14 @@ export function App() {
       if (!res.ok) throw new Error(data.error || "Could not enroll");
       const record: LocalEnroll = {
         address: signed.address,
-        guild: name,
+        treasury: name,
         message: signed.message,
         signature: signed.signature,
         enrolledAt: new Date().toISOString()
       };
       saveLocalEnroll(record);
       setEnrolled(true);
-      applyGuildStats(data);
+      applyTreasuryStats(data);
       setEnrollMsg(null);
       void sfxSuccess();
     } catch (err) {
@@ -619,18 +638,18 @@ export function App() {
     }
   }
 
-  async function recordGuildUsage(event: "review" | "freeze") {
+  async function recordTreasuryUsage(event: "review" | "freeze") {
     const address = walletAddress || loadLocalEnroll()?.address;
     if (!address || !enrolled) return;
     try {
-      const res = await fetch(`${API_BASE}/guilds`, {
+      const res = await fetch(`${API_BASE}/treasurys`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ op: "usage", address, event })
       });
       if (!res.ok) return;
-      const data = (await res.json()) as Partial<GuildStats> & { yours?: { usageCount?: number } };
-      applyGuildStats(data);
+      const data = (await res.json()) as Partial<TreasuryStats> & { yours?: { usageCount?: number } };
+      applyTreasuryStats(data);
     } catch {
       // ignore — usage proof is best-effort
     }
@@ -699,14 +718,14 @@ export function App() {
     if (local?.address) {
       setWalletAddress(local.address);
       setEnrolled(true);
-      if (local.guild) setGuildName(local.guild.slice(0, 28));
+      if (local.treasury) setTreasuryName(local.treasury.slice(0, 28));
     }
-    fetch(`${API_BASE}/guilds`)
+    fetch(`${API_BASE}/treasurys`)
       .then((r) => (r.ok ? r.json() : null))
       .then(async (data) => {
         if (!data) return;
-        applyGuildStats(data as Partial<GuildStats> & { guilds?: Array<{ ownerFull?: string; usageCount?: number }> });
-        const list = (data as { guilds?: Array<{ ownerFull?: string; usageCount?: number }> }).guilds ?? [];
+        applyTreasuryStats(data as Partial<TreasuryStats> & { treasurys?: Array<{ ownerFull?: string; usageCount?: number }> });
+        const list = (data as { treasurys?: Array<{ ownerFull?: string; usageCount?: number }> }).treasurys ?? [];
         if (local) {
           const mine = list.find((g) => g.ownerFull?.toLowerCase() === local.address.toLowerCase());
           if (mine) {
@@ -714,19 +733,19 @@ export function App() {
           } else {
             // Re-publish signed enroll so roster survives serverless cold starts
             try {
-              const res = await fetch(`${API_BASE}/guilds`, {
+              const res = await fetch(`${API_BASE}/treasurys`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  name: local.guild,
+                  name: local.treasury,
                   address: local.address,
                   message: local.message,
                   signature: local.signature
                 })
               });
               if (res.ok) {
-                const body = (await res.json()) as Partial<GuildStats> & { yours?: { usageCount?: number } };
-                applyGuildStats(body);
+                const body = (await res.json()) as Partial<TreasuryStats> & { yours?: { usageCount?: number } };
+                applyTreasuryStats(body);
               }
             } catch {
               // keep local session even if sync fails
@@ -881,7 +900,7 @@ export function App() {
           ]);
           setTab("alerts");
         }
-        void recordGuildUsage("review");
+        void recordTreasuryUsage("review");
         return;
       }
 
@@ -910,7 +929,7 @@ export function App() {
       setGuardPrediction(prediction);
       recordLocal(result, payload.txHash, payload.wallet);
       if (result.blocked) setTab("alerts");
-      void recordGuildUsage("review");
+      void recordTreasuryUsage("review");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Review failed");
     } finally {
@@ -933,7 +952,7 @@ export function App() {
     if (action === "mitigate") {
       setPolicyPaused(true);
       awardXp(60, "Froze the treasury", "firstFreeze", "freeze");
-      void recordGuildUsage("freeze");
+      void recordTreasuryUsage("freeze");
     }
 
     try {
@@ -1051,14 +1070,14 @@ export function App() {
             </h1>
             <p className="brand-sub">
               {entered ? (
-                editingGuild ? (
+                editingTreasury ? (
                   <input
-                    className="guild-input inline-edit"
-                    value={guildName}
-                    onChange={(e) => setGuildName(e.target.value.slice(0, 28))}
-                    onBlur={() => setEditingGuild(false)}
+                    className="treasury-input inline-edit"
+                    value={treasuryName}
+                    onChange={(e) => setTreasuryName(e.target.value.slice(0, 28))}
+                    onBlur={() => setEditingTreasury(false)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") setEditingGuild(false);
+                      if (e.key === "Enter") setEditingTreasury(false);
                     }}
                     autoFocus
                     aria-label="Treasury name"
@@ -1066,13 +1085,13 @@ export function App() {
                 ) : (
                   <button
                     type="button"
-                    className="linkish inline brand-guild"
+                    className="linkish inline brand-treasury"
                     onClick={() => {
                       void sfxClick();
-                      setEditingGuild(true);
+                      setEditingTreasury(true);
                     }}
                   >
-                    {guildName}
+                    {treasuryName}
                   </button>
                 )
               ) : (
@@ -1183,7 +1202,7 @@ export function App() {
               <div className="home-stack">
                 <section className="policy-snapshot" aria-label="Treasury policy status">
                   <div>
-                    <p className="snapshot-label">{guildName === "My Treasury" ? "Your treasury" : guildName}</p>
+                    <p className="snapshot-label">{treasuryName === "My Treasury" ? "Your treasury" : treasuryName}</p>
                     <strong>
                       {policyPaused
                         ? "Bank locked"
@@ -1221,7 +1240,7 @@ export function App() {
                   </div>
                 </section>
 
-                {(interestCount > 0 || guildStats.guildCount > 0 || (enrolled ? myUsage : kpi.totalAssessments) > 0) && (
+                {(interestCount > 0 || treasuryStats.treasuryCount > 0 || (enrolled ? myUsage : kpi.totalAssessments) > 0) && (
                   <section className="surface quiet-stats" aria-label="Activity">
                     {interestCount > 0 ? (
                       <div>
@@ -1229,9 +1248,9 @@ export function App() {
                         <span>Teams interested</span>
                       </div>
                     ) : null}
-                    {guildStats.guildCount > 0 ? (
+                    {treasuryStats.treasuryCount > 0 ? (
                       <div>
-                        <strong>{guildStats.guildCount}</strong>
+                        <strong>{treasuryStats.treasuryCount}</strong>
                         <span>Operators linked</span>
                       </div>
                     ) : null}
@@ -1247,7 +1266,7 @@ export function App() {
                     <p className="snapshot-label">For teams</p>
                     <strong>{interestJoined ? "You're on the list" : "Join with email — no wallet"}</strong>
                     <p className="muted">
-                      Treasury owners and operators: leave your team name and email. We'll follow up when enroll opens.
+                      Treasury owners and operators: leave your treasury name and email. We'll follow up when enroll opens.
                     </p>
                   </div>
                   {interestJoined ? (
@@ -1279,12 +1298,12 @@ export function App() {
                     <form className="enroll-form" onSubmit={joinInterest}>
                       <input
                         type="text"
-                        name="guild"
+                        name="treasury"
                         maxLength={28}
-                        placeholder="Team or treasury name"
-                        value={guildName === "My Treasury" ? "" : guildName}
-                        onChange={(e) => setGuildName(e.target.value.slice(0, 28) || "My Treasury")}
-                        aria-label="Team or treasury name"
+                        placeholder="Treasury name"
+                        value={treasuryName === "My Treasury" ? "" : treasuryName}
+                        onChange={(e) => setTreasuryName(e.target.value.slice(0, 28) || "My Treasury")}
+                        aria-label="Treasury name"
                       />
                       <input
                         type="email"
@@ -1304,7 +1323,7 @@ export function App() {
                   {interestMsg && !interestJoined ? <p className="error">{interestMsg}</p> : null}
                 </section>
 
-                <section className="surface enroll-card officer-card" aria-label="Operator wallet">
+                <section className="surface enroll-card operator-card" aria-label="Operator wallet">
                   {enrolled && walletAddress ? (
                     <>
                       <div className="enroll-copy">
@@ -1314,7 +1333,7 @@ export function App() {
                       </div>
                       <div className="enroll-done">
                         <p>
-                          <strong>{guildName}</strong>
+                          <strong>{treasuryName}</strong>
                           <span className="muted"> · {shortAddress(walletAddress)}</span>
                         </p>
                         <p>
@@ -1328,27 +1347,27 @@ export function App() {
                     <>
                       <button
                         type="button"
-                        className="officer-toggle linkish"
+                        className="operator-toggle linkish"
                         onClick={() => {
                           void sfxClick();
-                          setOfficerOpen((v) => !v);
+                          setOperatorOpen((v) => !v);
                         }}
                       >
-                        {officerOpen ? "Hide operator wallet" : "I'm an operator — connect wallet"}
+                        {operatorOpen ? "Hide operator wallet" : "I'm an operator — connect wallet"}
                       </button>
-                      {officerOpen ? (
+                      {operatorOpen ? (
                         <>
                           <p className="muted" style={{ margin: 0 }}>
                             Optional. Link once so checks and freezes count for your treasury.
                           </p>
-                          <form className="enroll-form" onSubmit={enrollGuild}>
+                          <form className="enroll-form" onSubmit={enrollTreasury}>
                             <input
                               type="text"
-                              name="guild-officer"
+                              name="treasury-operator"
                               maxLength={28}
                               placeholder="Treasury name"
-                              value={guildName === "My Treasury" ? "" : guildName}
-                              onChange={(e) => setGuildName(e.target.value.slice(0, 28) || "My Treasury")}
+                              value={treasuryName === "My Treasury" ? "" : treasuryName}
+                              onChange={(e) => setTreasuryName(e.target.value.slice(0, 28) || "My Treasury")}
                               aria-label="Treasury name"
                               required
                             />
@@ -1366,7 +1385,7 @@ export function App() {
                             ) : (
                               <span className="chip wallet-chip">{shortAddress(walletAddress)}</span>
                             )}
-                            <button type="submit" className="primary" disabled={enrollBusy || !guildName.trim()}>
+                            <button type="submit" className="primary" disabled={enrollBusy || !treasuryName.trim()}>
                               {enrollBusy ? "Confirming…" : "Save name"}
                             </button>
                           </form>
@@ -1514,7 +1533,7 @@ export function App() {
                           ? "Do not approve this. The policy helper suggests freezing the treasury — a human must confirm in Alerts."
                           : "Looks clean. Within policy. You can approve this."}
                       </p>
-                      <div className="officer-ai">
+                      <div className="operator-ai">
                         <strong>Policy helper</strong>
                         <p>
                           Suggests: <em>{playbookLabel(assessment.recommendedPlaybook)}</em>
@@ -1527,7 +1546,7 @@ export function App() {
                       {whyOpen && (
                         <ul className="clean why-list">
                           {assessment.matches.length === 0 ? (
-                            <li>No rule flags — destination and amount are inside guild limits.</li>
+                            <li>No rule flags — destination and amount are inside treasury limits.</li>
                           ) : (
                             assessment.matches.map((m) => (
                               <li key={m.ruleId}>

@@ -293,7 +293,7 @@ describe("SafeTreasuryGuard + real Gnosis Safe v1.4.1", function () {
     ).to.be.revertedWithCustomError(ctx.guard, "DailyLimitExceeded");
   });
 
-  it("BLOCKS everything after an officer freezes the policy manager", async function () {
+  it("BLOCKS everything after an operator freezes the policy manager", async function () {
     const ctx = await setup();
     await installGuard(ctx);
 
@@ -448,7 +448,7 @@ describe("SafeTreasuryGuard + real Gnosis Safe v1.4.1", function () {
       expect(await ctx.guard.pendingTokenSpend(ctx.safeAddress)).to.equal(0n);
     });
 
-    it("still enforces the token lane after an officer freeze", async function () {
+    it("still enforces the token lane after an operator freeze", async function () {
       const ctx = await setup();
       await installGuard(ctx);
       await ctx.policy.pause();

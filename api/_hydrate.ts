@@ -18,12 +18,12 @@ export async function hydrateStore() {
     if (!emails.has(row.email.toLowerCase())) s.waitlist.push(row);
   }
 
-  const owners = new Map(s.guilds.map((g) => [g.owner.toLowerCase(), g]));
-  for (const row of data.guilds) {
+  const owners = new Map(s.treasuries.map((t) => [t.owner.toLowerCase(), t]));
+  for (const row of data.treasuries) {
     const key = row.owner.toLowerCase();
     const prev = owners.get(key);
     if (!prev) {
-      s.guilds.push(row);
+      s.treasuries.push(row);
       owners.set(key, row);
     } else {
       prev.usageCount = Math.max(prev.usageCount, row.usageCount);

@@ -17,7 +17,7 @@ type Audit = {
   createdAt: string;
 };
 
-export type GuildRecord = {
+export type TreasuryRecord = {
   name: string;
   owner: string;
   createdAt: string;
@@ -26,7 +26,7 @@ export type GuildRecord = {
   lastEvent: string;
 };
 
-export type WaitlistRecord = { email: string; guild: string; createdAt: string };
+export type WaitlistRecord = { email: string; treasury: string; createdAt: string };
 
 const g = globalThis as typeof globalThis & {
   __arbGuardianStore?: {
@@ -37,7 +37,7 @@ const g = globalThis as typeof globalThis & {
     incidents: Incident[];
     audit: Audit[];
     waitlist: WaitlistRecord[];
-    guilds: GuildRecord[];
+    treasuries: TreasuryRecord[];
     durableHydrated?: boolean;
   };
 };
@@ -52,12 +52,16 @@ export function store() {
       incidents: [],
       audit: [],
       waitlist: [],
-      guilds: [],
+      treasuries: [],
       durableHydrated: false
     };
   }
   if (!g.__arbGuardianStore.waitlist) g.__arbGuardianStore.waitlist = [];
-  if (!g.__arbGuardianStore.guilds) g.__arbGuardianStore.guilds = [];
+  if (!Array.isArray(g.__arbGuardianStore.treasuries)) {
+    // A warm instance started before the rename still holds the old roster field.
+    const legacy = (g.__arbGuardianStore as { guilds?: TreasuryRecord[] }).guilds;
+    g.__arbGuardianStore.treasuries = Array.isArray(legacy) ? legacy : [];
+  }
   return g.__arbGuardianStore;
 }
 
@@ -68,5 +72,5 @@ export function cors(res: { setHeader: (k: string, v: string) => void }) {
 }
 
 export function snapshotDurable(s: ReturnType<typeof store>) {
-  return { waitlist: s.waitlist, guilds: s.guilds };
+  return { waitlist: s.waitlist, treasuries: s.treasuries };
 }

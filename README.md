@@ -111,7 +111,7 @@ The table it generates is the readable version of the claim, including every rev
 | 6 | 6,000 USDG, above the cap | blocked | blocked | `TokenDailyLimitExceeded(token, safe, 7.2e9, 5e9)` |
 | 9 | **Unlimited USDG approval** — the classic drain primitive | blocked | blocked | `UnlimitedApprovalNotAllowed(token, spender)` |
 | 10 | Non-standard call on a registered token | blocked | blocked | `UnsupportedTokenCall(token, 0x40c10f19)` |
-| 12 | Valid payment after an officer freeze | blocked | blocked | `PolicyManagerPaused()` |
+| 12 | Valid payment after an operator freeze | blocked | blocked | `PolicyManagerPaused()` |
 | 13 | USDG cap cleared to zero | blocked | blocked | `TokenDailyLimitNotConfigured(token, safe)` |
 | 14 | Owner calling `setGuard` directly, not through the Safe | blocked | blocked | `GS031` |
 | 15 | After the native cap is raised 5 ETH → 6 ETH, the same vendor payment again | allowed | allowed | — (stamped with the **new** policy version) |
@@ -283,7 +283,7 @@ Full addresses, explorers and transaction hashes: [`docs/live-deployment.md`](do
 - **Contracts:** Solidity 0.8.25, OpenZeppelin (AccessControl, Pausable), Hardhat
 - **API:** TypeScript, deterministic risk engine + policy conformance fixtures
 - **Web:** React + Vite
-- **Ops:** `npm run quality:gate` — 57 contract tests, API tests, policy conformance (14 cases), builds
+- **Ops:** `npm run quality:gate` — 65 contract tests, 17 API tests, policy conformance (14 fixtures), builds
 
 ## Develop
 

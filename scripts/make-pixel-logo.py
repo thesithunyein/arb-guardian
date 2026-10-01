@@ -87,7 +87,7 @@ put(16, 22, LIME)
 put(15, 23, LIME)
 put(16, 23, LIME)
 
-# gold asset gem (guild treasury mark)
+# gold asset gem (treasury mark)
 gem = [
     (14, 12),
     (15, 12),

@@ -339,11 +339,11 @@ async function main() {
     )
   );
 
-  // ---- Officer freeze stops everything.
+  // ---- Operator freeze stops everything.
   await policy.pause();
   cases.push(
     await attempt(
-      "after_officer_freeze",
+      "after_operator_freeze",
       "After a policy freeze, an otherwise valid allowlisted payment is refused.",
       "blocked",
       () => execSafeTx(vendor.address, ethers.parseEther("1"), "0x")

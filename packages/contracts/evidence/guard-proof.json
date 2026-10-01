@@ -1,6 +1,6 @@
 {
   "kind": "arb-guardian-guard-proof",
-  "generatedAt": "2026-10-01T06:39:00.441Z",
+  "generatedAt": "2026-10-01T07:20:01.366Z",
   "hardhatNetwork": "hardhat",
   "safeVersion": "1.4.1 (real contracts, not a shell)",
   "addresses": {
@@ -151,7 +151,7 @@
       "pass": true
     },
     {
-      "id": "after_officer_freeze",
+      "id": "after_operator_freeze",
       "description": "After a policy freeze, an otherwise valid allowlisted payment is refused.",
       "expected": "blocked",
       "outcome": "blocked",
