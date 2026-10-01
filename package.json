@@ -28,6 +28,10 @@
     "check:deployed": "node scripts/check-deployed-drift.mjs",
     "check:settlement": "node scripts/check-settlement-token.mjs",
     "demo:sheet": "node scripts/demo-sheet.mjs",
+    "deploy:preflight": "node scripts/deploy-preflight.mjs",
+    "redeploy:sepolia": "npm run deploy:sepolia:full -w packages/contracts && npm run verify -w packages/contracts -- --network arbitrumSepolia",
+    "redeploy:robinhood": "npm run deploy:robinhood:full -w packages/contracts && npm run verify -w packages/contracts -- --network robinhoodTestnet",
+    "repoint": "node scripts/repoint-deployment.mjs",
     "push:audit": "node scripts/push-safe-audit.mjs",
     "preflight": "npm run quality:gate && npm run check:deployed && npm run check:settlement && npm run submission:check && npm run push:audit"
   },
