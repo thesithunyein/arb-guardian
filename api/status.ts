@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { cors, store } from "./_store";
+import { durableBackend, durableEnabled } from "./_durable";
+import { hydrateStore } from "./_hydrate";
+import { cors, counterTotal } from "./_store";
 
 const POLICY_MANAGER = (
   process.env.VITE_POLICY_MANAGER_ADDRESS ||
@@ -18,11 +20,11 @@ const SAFE_GUARD = (
 ).trim();
 const DEPLOYMENT_STATUS = process.env.SUBMISSION_DEPLOYMENT_STATUS === "current" ? "current" : "superseded";
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   const ready = DEPLOYMENT_STATUS === "current" && Boolean(POLICY_MANAGER && EXECUTION_GUARD);
-  const s = store();
+  const s = await hydrateStore();
   return res.status(200).json({
     service: "arb-guardian-api",
     version: "0.2.0",
@@ -39,11 +41,18 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       source: ready ? "env" : "recorded-superseded",
       status: DEPLOYMENT_STATUS
     },
+    persistence: {
+      durable: durableEnabled(),
+      backend: durableBackend()
+    },
     kpis: {
-      totalAssessments: s.assessments,
-      blockedCount: s.blocked,
-      blockedRate: s.assessments ? s.blocked / s.assessments : 0,
-      criticalIncidentCount: s.critical
+      totalAssessments: counterTotal(s.counters.assessments),
+      blockedCount: counterTotal(s.counters.blocked),
+      blockedRate: (() => {
+        const total = counterTotal(s.counters.assessments);
+        return total ? Number((counterTotal(s.counters.blocked) / total).toFixed(4)) : 0;
+      })(),
+      criticalIncidentCount: counterTotal(s.counters.critical)
     }
   });
 }

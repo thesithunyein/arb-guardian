@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { cors, store } from "../_store";
+import { durableBackend, durableEnabled, persistDurable } from "../_durable";
+import { hydrateStore } from "../_hydrate";
+import { bumpCounter, cors, recordAssessment, snapshotDurable, upsertIncident } from "../_store";
 
 type Match = { ruleId: string; reason: string; severity: string; scoreDelta: number };
 
@@ -58,7 +60,7 @@ function assess(body: {
   return { totalScore, blocked, matches, recommendedPlaybook };
 }
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
@@ -69,11 +71,25 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const result = assess(body);
-  const s = store();
-  s.assessments += 1;
-  s.scoreSum += result.totalScore;
-  if (result.blocked) s.blocked += 1;
-  if (result.blocked && result.totalScore >= 80) s.critical += 1;
+  const s = await hydrateStore();
+  const generatedAt = new Date().toISOString();
+
+  bumpCounter(s.counters.assessments);
+  bumpCounter(s.counters.scoreSum, result.totalScore);
+  if (result.blocked) bumpCounter(s.counters.blocked);
+  if (result.blocked && result.totalScore >= 80) bumpCounter(s.counters.critical);
+
+  recordAssessment({
+    txHash: String(body.txHash),
+    wallet: String(body.wallet),
+    destination: String(body.destination),
+    method: String(body.method),
+    amountWei: String(body.amountWei),
+    totalScore: result.totalScore,
+    blocked: result.blocked,
+    ruleIds: result.matches.map((m) => m.ruleId),
+    generatedAt
+  });
 
   const assessment = {
     ...result,
@@ -81,12 +97,12 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     wallet: body.wallet,
     destination: body.destination,
     method: body.method,
-    generatedAt: new Date().toISOString()
+    generatedAt
   };
 
   let incident = null;
   if (result.blocked) {
-    incident = {
+    incident = upsertIncident({
       id: `inc-${body.txHash}`,
       title: `Blocked transaction for ${String(body.wallet).slice(0, 8)}...`,
       details: `Risk score ${result.totalScore}. Action gated by policy.`,
@@ -95,10 +111,16 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       status: "open",
       recommendedPlaybook: result.recommendedPlaybook,
       evidence: result.matches.map((m) => `${m.ruleId}: ${m.reason}`),
-      createdAt: new Date().toISOString()
-    };
-    s.incidents = [incident, ...s.incidents.filter((i) => i.id !== incident!.id)].slice(0, 50);
+      createdAt: generatedAt
+    });
   }
+
+  // Persist first, then answer with the merged view, so a second instance sees this write and
+  // this response can never claim more than the store holds.
+  const merged = await persistDurable(snapshotDurable(s));
+  s.incidents = merged.incidents;
+  s.assessments = merged.assessments;
+  s.counters = merged.counters;
 
   return res.status(200).json({
     assessment,
@@ -108,6 +130,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       dailyLimitWei: String(body.dailyLimitWei ?? "0"),
       spentTodayWei: String(body.spentTodayWei ?? "0"),
       source: "request"
-    }
+    },
+    persistence: { durable: durableEnabled(), backend: durableBackend() }
   });
 }

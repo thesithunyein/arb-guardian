@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { JsonRpcProvider, Wallet, Contract } from "ethers";
-import { cors, store } from "../../_store";
+import { durableBackend, durableEnabled, persistDurable } from "../../_durable";
+import { hydrateStore } from "../../_hydrate";
+import { appendAudit, cors, snapshotDurable, upsertIncident, type Incident } from "../../_store";
 
 const POLICY_ABI = ["function pause() external", "function unpause() external", "function paused() view returns (bool)"];
 
@@ -38,23 +40,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "invalid_action" });
   }
 
-  const s = store();
+  const s = await hydrateStore();
   let incident = s.incidents.find((i) => i.id === incidentId);
 
-  // Serverless instances do not share memory — accept client-provided incident snapshot.
+  // Serverless instances do not share memory — accept a client-provided incident snapshot,
+  // and record it durably so the next instance to serve this incident already has it.
   if (!incident && req.body?.incident && typeof req.body.incident === "object") {
-    const incoming = req.body.incident as {
-      id?: string;
-      title?: string;
-      details?: string;
-      wallet?: string;
-      severity?: string;
-      status?: string;
-      recommendedPlaybook?: string;
-      evidence?: string[];
-      createdAt?: string;
-    };
-    incident = {
+    const incoming = req.body.incident as Partial<Incident>;
+    incident = upsertIncident({
       id: incoming.id || incidentId,
       title: incoming.title || `Incident ${incidentId}`,
       details: incoming.details || "",
@@ -64,8 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       recommendedPlaybook: incoming.recommendedPlaybook || "hold-transaction-and-require-admin-review",
       evidence: Array.isArray(incoming.evidence) ? incoming.evidence : [],
       createdAt: incoming.createdAt || new Date().toISOString()
-    };
-    s.incidents = [incident, ...s.incidents.filter((i) => i.id !== incident!.id)].slice(0, 50);
+    });
   }
 
   if (!incident) return res.status(404).json({ error: "incident_not_found" });
@@ -73,13 +65,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (action === "mitigate") incident.status = "mitigated";
   if (action === "ignore") incident.status = "ignored";
   if (action === "acknowledge" && incident.status === "open") incident.status = "acknowledged";
+  incident = upsertIncident(incident);
 
-  s.audit.unshift({
+  appendAudit({
     incidentId,
     action,
     actor,
     createdAt: new Date().toISOString()
   });
+
+  // The decision is durable before the playbook runs: an on-chain pause that later fails must
+  // not erase the recorded operator action.
+  const merged = await persistDurable(snapshotDurable(s));
+  s.incidents = merged.incidents;
+  s.audit = merged.audit;
+  incident = s.incidents.find((i) => i.id === incidentId) ?? incident;
 
   let playbookExecution = null;
   if (action === "mitigate" && incident.recommendedPlaybook === "freeze-wallet-and-revoke-approvals") {
@@ -137,6 +137,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   return res.status(200).json({
     incident,
-    playbookExecution
+    playbookExecution,
+    persistence: { durable: durableEnabled(), backend: durableBackend() }
   });
 }
