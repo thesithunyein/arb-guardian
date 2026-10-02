@@ -10,14 +10,15 @@
 - [x] Request schema validation (Zod)
 - [x] Incident action endpoint with explicit audit trail
 - [x] KPI endpoint for measurable PMF evidence
-- [x] Durable local persistence for runtime state
+- [x] Local runtime persistence for development and tests
+- [ ] Durable production persistence for incidents, KPI, audit history, and waitlist
 - [x] Rate limiting and API auth middleware
 
 ## Product quality
 - [x] Evidence-first risk explanations with rule IDs
 - [x] Incident lifecycle actions (acknowledge/mitigate/ignore)
 - [x] Incident audit history UI
-- [x] Dark / light mode with brand teal tokens
+- [x] Dark / light mode with neutral product tokens
 - [x] Scenario-based assess workflow (ops console UX)
 - [x] Public live dashboard on Vercel
 
@@ -33,9 +34,9 @@
 ## Bounty criteria map
 | Criterion | Status |
 | --- | --- |
-| Deployed on Arbitrum chain | Existing Sepolia addresses are superseded; corrected redeploy required — see `docs/live-deployment.md` |
+| Deployed on Arbitrum chain | Existing Sepolia addresses are superseded; current qualification and corrected redeploy remain unconfirmed — see `docs/live-deployment.md` |
 | Smart contract quality | Ready (tests + RBAC + pause) |
-| Product-market fit | Ready (treasury ops console) |
-| Innovation / creativity | Ready (deterministic agent playbooks) |
-| Real problem solving | Ready (block before execution) |
-| Best agentic track | Ready (eval harness + bounded actions) |
+| Product-market fit | Evidence-ready workflow; pilot metrics still required |
+| Innovation / creativity | Evidence-ready Safe enforcement + policy attestation; comparative proof still required |
+| Real problem solving | Reproducible local proof; live Safe transaction evidence still required |
+| Best agentic track | Deterministic, bounded actions; no autonomous fund movement |
