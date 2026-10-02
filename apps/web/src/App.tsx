@@ -1100,6 +1100,22 @@ export function App() {
             </p>
           </div>
         </a>
+        {!entered && (
+          <nav className="landing-nav" aria-label="Public site">
+            <a href="#landing-how-it-works">How it works</a>
+            <a href="#landing-faq">FAQ</a>
+            <a
+              href="https://github.com/thesithunyein/arb-guardian/tree/master/docs"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Docs
+            </a>
+            <button type="button" className="landing-nav-cta" onClick={enterWorld}>
+              Open workspace
+            </button>
+          </nav>
+        )}
         <div className="topbar-actions">
           {entered && (
             <span
