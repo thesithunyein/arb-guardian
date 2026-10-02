@@ -29,7 +29,7 @@
 - [x] Corrected deployment on both lanes (2026-10-02), byte-matched to this source by `npm run check:deployed`
 - [x] Source published, keylessly: Sourcify answers `exact_match` for all six contracts (creation and runtime bytecode), recorded in `packages/contracts/evidence/sourcify.json` by `npm run verify:sourcify`
 - [x] Every contract reads as verified on its explorer panel — Arbitrum Sepolia (Blockscout) and Robinhood Chain Testnet
-- [ ] Arbiscan's own source panel — the one open verification item. `npm run verify:arbiscan` submits, waits, reads the result back and records it (`evidence/arbiscan.json`, rendered on the site); it needs `ARBISCAN_API_KEY`, records `pending_key` and exits 0 without one, and already runs inside `npm run preflight`
+- [ ] Arbiscan's own source panel — the one open verification item, and it is waiting only on a free Etherscan API key (`ARBISCAN_API_KEY` in `.env`). `npm run verify:arbiscan` submits, waits, reads the result back and records it (`evidence/arbiscan.json`, rendered on the site); without a key it records `pending_key` and exits 0, and an unreadable panel is recorded as `read_failed` rather than as an unpublished contract. It already runs inside `npm run preflight`
 - [x] Guard installed on a real Gnosis Safe through that Safe's own `execTransaction`, on both lanes
 - [x] Allowed and refused Safe transactions recorded onchain (both lanes)
 - [x] Durable production storage: incidents, KPI and audit history survive a new serverless instance (`/api/health` reports `vercel-kv`, reachable)

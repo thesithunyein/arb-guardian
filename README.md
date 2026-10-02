@@ -263,14 +263,16 @@ published criteria, the honest current position is:
 
 ### Priority order
 
-1. **Source-publish the Arbiscan panel specifically.** Add `ARBISCAN_API_KEY` and run
-   `npm run verify:arbiscan` — it submits all three contracts from the build-info's own compiler
-   input, waits for the queue, reads the result back from Arbiscan, writes
+1. **Source-publish the Arbiscan panel specifically.** This needs one thing that does not exist yet:
+   a free Etherscan API key. Put `ARBISCAN_API_KEY=<key>` in `.env` (the recorder reads that file
+   itself) and run `npm run verify:arbiscan` — it submits all three contracts from the build-info's
+   own compiler input, waits for the queue, reads the result back from Arbiscan, writes
    `evidence/arbiscan.json`, and the site then shows it beside the Sourcify record. It already runs
    inside `npm run preflight`, so the step happens on the normal path rather than being remembered;
-   without a key it records `pending_key` and exits 0. Everything else is already published: Sourcify
-   answers `exact_match` for all six contracts and their explorer panels read as verified, so this is
-   one explorer's panel rather than an open verification gap.
+   without a key it records `pending_key` and exits 0, and a key that cannot read the panel is
+   recorded as `read_failed` rather than as an unpublished contract. Everything else is already
+   published: Sourcify answers `exact_match` for all six contracts and their explorer panels read as
+   verified, so this is one explorer's panel rather than an open verification gap.
 2. **Narrate the demo.** A silent capture of the live product already exists
    (`docs/demo/walkthrough-2026-10-02.md`); what is missing is a voice track over it.
 3. **Run a small pilot.** Measure review time, false positives, blocked unsafe requests, and

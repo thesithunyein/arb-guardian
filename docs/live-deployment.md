@@ -97,15 +97,27 @@ from the build-info, not the working tree — with the constructor arguments the
 then polls the queue and **reads the result back from Arbiscan** before recording anything. Its output
 is `packages/contracts/evidence/arbiscan.json`, which the site renders next to the Sourcify record.
 
-Three properties are deliberate:
+Four properties are deliberate:
 
-- **No key, no silence.** It records `pending_key` per contract, prints the one command that would
+- **It reads `.env` itself**, the same file the hardhat config reads, so putting the key where every
+  other secret in this repository lives is enough; a key exported for one run overrides the file.
+- **No key, no silence.** It records `pending_key` per contract, prints the three steps that would
   finish it, and exits 0, so a preflight run does not fail for someone who has not signed up for a
   key.
 - **A missing key cannot erase a fact.** An earlier confirmed publication is preserved when the key
   is absent on a later run; only the read-back date moves.
-- **It never assumes success.** A submission is recorded as published only if `getsourcecode` then
-  reports the source present; otherwise it writes `not published`, the queue message, and exits 1.
+- **It never assumes success, and never invents a failure.** A submission is recorded as published
+  only if `getsourcecode` then reports the source present. A panel that could not be *read* — an
+  invalid or rate-limited key returns a string rather than a contract entry — is recorded as
+  `read_failed` with the API's own message and exits 1, rather than being reported as an unpublished
+  contract, which is a different fact.
+
+To publish, the remaining steps are:
+
+1. Create a free Etherscan account and an API key (one key covers Arbitrum Sepolia through the v2
+   multichain API).
+2. Add `ARBISCAN_API_KEY=<key>` to `.env` in the repository root.
+3. `npm run verify:arbiscan`
 
 `npm run verify:arbiscan -- --dry-run` is the way to check the request without a key: it prints the
 qualified contract name, the compiler version (`v0.8.25+commit.b61c2a91`), the number of sources, and

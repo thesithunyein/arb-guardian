@@ -23,6 +23,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { encodeAddressArgs, standardJsonInput } from "./lib/build-info.mjs";
+import { loadEnvFiles } from "./lib/env.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CONTRACTS = join(ROOT, "packages", "contracts");
@@ -94,7 +95,15 @@ async function apiPost(form) {
   return { status: response.status, body: parsed, text };
 }
 
-/** Read what Arbiscan says about a contract, independent of any submission we made. */
+/**
+ * Read what Arbiscan says about a contract, independent of any submission we made.
+ *
+ * On an error the API answers with `result` as a plain string, not a one-element array — an invalid
+ * key does it. Indexing that string yields its first character, which reads as a contract with no
+ * source and turns "the key is wrong" into "the contract is unpublished". Both are unverified, but
+ * only one of them is true, so a non-array result is reported as a failed read with the API's own
+ * message.
+ */
 async function readPanel(chainId, apiKey, address) {
   const result = await api({
     chainid: String(chainId),
@@ -103,8 +112,15 @@ async function readPanel(chainId, apiKey, address) {
     address,
     apikey: apiKey
   });
-  const entry = result.body?.result?.[0];
-  if (!entry) return { published: null, status: result.body?.message ?? `HTTP ${result.status}`, error: result.body?.result ?? null };
+  const raw = result.body?.result;
+  const entry = Array.isArray(raw) ? raw[0] : null;
+  if (!entry || typeof entry !== "object") {
+    return {
+      published: null,
+      status: "read_failed",
+      error: `${result.body?.message ?? `HTTP ${result.status}`} — ${typeof raw === "string" ? raw : "no contract entry returned"}`
+    };
+  }
   const source = typeof entry.SourceCode === "string" ? entry.SourceCode.trim() : "";
   const abi = typeof entry.ABI === "string" ? entry.ABI : "";
   const unverified = abi.includes("Contract source code not verified");
@@ -198,12 +214,19 @@ async function main() {
     throw new Error(`No deployment record at ${DEPLOYMENT}; run the deploy script first.`);
   }
   const record = JSON.parse(readFileSync(DEPLOYMENT, "utf8"));
+
+  // `.env` is where this repository keeps explorer keys, so read it here too: a key pasted there
+  // and not picked up is the one way this script could look like it was ignoring one.
+  const env = loadEnvFiles(ROOT);
   const apiKey = (process.env.ARBISCAN_API_KEY ?? "").trim();
   const prior = previousReport();
   const priorByAddress = new Map((prior?.contracts ?? []).map((c) => [c.address.toLowerCase(), c]));
 
   console.log(`\nArbiscan source verification · ${record.network} (chain ${record.chainId})`);
   console.log(`  explorer   ${EXPLORER}`);
+  console.log(
+    `  env files  ${env.files.length > 0 ? env.files.join(", ") : "none found"}${env.names.includes("ARBISCAN_API_KEY") ? " (key came from .env)" : ""}`
+  );
   console.log(`  api key    ${apiKey ? "present" : "absent (ARBISCAN_API_KEY)"}`);
   console.log(
     `  mode       ${dryRun ? "dry run (build the request, send nothing)" : statusOnly ? "status only (no submissions)" : "submit + verify"}`
@@ -269,6 +292,17 @@ async function main() {
       continue;
     }
 
+    // An unreadable panel is not an unpublished one. Submitting blind would be guessing, and the
+    // usual cause is the key itself, so say so and stop.
+    if (panelFirst.published === null) {
+      entry.status = "read_failed";
+      entry.readBack = panelFirst;
+      entry.error = panelFirst.error;
+      contracts.push(entry);
+      console.log(`    could not read the panel — ${panelFirst.error}`);
+      continue;
+    }
+
     if (statusOnly) {
       entry.status = "not_published";
       entry.readBack = panelFirst;
@@ -331,9 +365,13 @@ async function main() {
   );
   if (!apiKey) {
     console.log(
-      "One step remains and it cannot be taken from here: set ARBISCAN_API_KEY, then run\n" +
-        "  npm run verify:arbiscan\n" +
-        "This script will then submit, wait, read the result back, and update the site's record."
+      "One step remains and it cannot be taken from here: get a key and put it in .env.\n" +
+        "  1. Create a free Etherscan account, then Account > API Keys > Add (one key covers\n" +
+        "     Arbitrum Sepolia through the v2 multichain API).\n" +
+        "  2. Add ARBISCAN_API_KEY=<key> to .env in the repository root. This script reads .env.\n" +
+        "  3. Run: npm run verify:arbiscan\n" +
+        "It will submit, wait for the queue, read the result back from Arbiscan, and rewrite\n" +
+        "evidence/arbiscan.json, which the site renders next to the Sourcify record."
     );
     return;
   }
@@ -345,10 +383,17 @@ async function main() {
 
   const failed = contracts.filter((c) => c.published !== true);
   if (failed.length > 0) {
+    const unread = failed.filter((c) => c.status === "read_failed");
     console.error(
       `\n${failed.length} of ${total} contracts are not published on Arbiscan: ` +
         `${failed.map((c) => c.contract).join(", ")}. The site must keep saying so; fix or retry.`
     );
+    if (unread.length > 0) {
+      console.error(
+        `The panel could not be read for ${unread.length} of them (${unread[0].error}). ` +
+          "Etherscan needs a valid key with access to chain 421614 before this can be called a result."
+      );
+    }
     process.exitCode = 1;
   }
 }
