@@ -1231,6 +1231,80 @@ export function App() {
               </p>
             </div>
           </section>
+
+          <section className="landing-section" aria-labelledby="landing-how-it-works">
+            <div className="section-intro">
+              <p className="snapshot-label">How it works</p>
+              <h3 id="landing-how-it-works">A clear control loop for every payment.</h3>
+              <p className="muted">
+                Start with the request, not the blockchain. Arb Guardian gives your team one place to check, decide,
+                and respond.
+              </p>
+            </div>
+            <div className="steps-grid">
+              <article>
+                <span className="step-number">01</span>
+                <strong>Set the policy</strong>
+                <p className="muted">Define trusted payees, spending limits, and review rules.</p>
+              </article>
+              <article>
+                <span className="step-number">02</span>
+                <strong>Review the request</strong>
+                <p className="muted">See the amount, destination, and exact rule result before approval.</p>
+              </article>
+              <article>
+                <span className="step-number">03</span>
+                <strong>Act with confidence</strong>
+                <p className="muted">Allow safe requests, investigate alerts, or freeze spending when needed.</p>
+              </article>
+            </div>
+          </section>
+
+          <section className="landing-section" aria-labelledby="landing-faq">
+            <div className="section-intro">
+              <p className="snapshot-label">FAQ</p>
+              <h3 id="landing-faq">Answers before you connect a wallet.</h3>
+              <p className="muted">
+                You can explore the workflow without a wallet. Connect one only when you are ready to manage a
+                treasury.
+              </p>
+            </div>
+            <div className="faq-list">
+              <details>
+                <summary>Who is Arb Guardian for?</summary>
+                <p className="muted">
+                  Finance and operations teams that manage a shared wallet, community fund, grant budget, or automated
+                  payment account.
+                </p>
+              </details>
+              <details>
+                <summary>Does Arb Guardian move funds?</summary>
+                <p className="muted">
+                  No. It checks payment requests and enforces policy. Your Safe and signers remain in control.
+                </p>
+              </details>
+              <details>
+                <summary>What happens when a request breaks policy?</summary>
+                <p className="muted">
+                  The request is blocked, the rule result is explained, and the team can review the alert or freeze
+                  the treasury.
+                </p>
+              </details>
+              <details>
+                <summary>Can I use it with a Safe?</summary>
+                <p className="muted">
+                  Yes. The Safe Treasury Guard is designed to check transactions before the Safe executes them.
+                </p>
+              </details>
+              <details>
+                <summary>What is live today?</summary>
+                <p className="muted">
+                  The review workflow and product interface are live. Contract deployments shown in Security are
+                  recorded testnet evidence and are clearly marked when they do not match the current source.
+                </p>
+              </details>
+            </div>
+          </section>
         </main>
       ) : (
         <>
@@ -1456,50 +1530,6 @@ export function App() {
                   )}
                 </section>
 
-                <section className="surface info-section" aria-labelledby="how-it-works">
-                  <p className="snapshot-label">How it works</p>
-                  <h3 id="how-it-works">A simple control loop for treasury teams</h3>
-                  <div className="steps-grid">
-                    <article>
-                      <span className="step-number">01</span>
-                      <strong>Set the policy</strong>
-                      <p className="muted">Choose payees, assets, and daily limits.</p>
-                    </article>
-                    <article>
-                      <span className="step-number">02</span>
-                      <strong>Review the spend</strong>
-                      <p className="muted">See the amount, payee, and rules before approval.</p>
-                    </article>
-                    <article>
-                      <span className="step-number">03</span>
-                      <strong>Act with confidence</strong>
-                      <p className="muted">Allow safe requests. Block risky ones. Freeze when needed.</p>
-                    </article>
-                  </div>
-                </section>
-
-                <section className="surface info-section" aria-labelledby="faq">
-                  <p className="snapshot-label">FAQ</p>
-                  <h3 id="faq">Questions teams ask first</h3>
-                  <div className="faq-list">
-                    <details>
-                      <summary>Who is Arb Guardian for?</summary>
-                      <p className="muted">DAOs, onchain companies, grant teams, and operators who share treasury access.</p>
-                    </details>
-                    <details>
-                      <summary>Does it move funds for me?</summary>
-                      <p className="muted">No. It checks requests and enforces policy. Your Safe and signers stay in control.</p>
-                    </details>
-                    <details>
-                      <summary>What happens when a request breaks policy?</summary>
-                      <p className="muted">The request is blocked. The team sees the reason and can review the alert.</p>
-                    </details>
-                    <details>
-                      <summary>Can I use it with a Safe?</summary>
-                      <p className="muted">Yes. SafeTreasuryGuard is designed for Safe transaction guards.</p>
-                    </details>
-                  </div>
-                </section>
               </div>
             )}
 
@@ -1639,7 +1669,7 @@ export function App() {
                           : "Looks clean. Within policy. You can approve this."}
                       </p>
                       <div className="operator-ai">
-                        <strong>Policy helper</strong>
+                        <strong>Policy engine</strong>
                         <p>
                           Suggests: <em>{playbookLabel(assessment.recommendedPlaybook)}</em>
                         </p>
@@ -1708,7 +1738,7 @@ export function App() {
                       </p>
                       <div className="cta-row left">
                         <button type="button" className="primary" onClick={goVault}>
-                          See live networks
+                          View security evidence
                         </button>
                         <button
                           type="button"
@@ -1725,7 +1755,7 @@ export function App() {
                   )}
                   {openIncidents > 0 ? (
                     <p className="muted" style={{ marginBottom: "0.85rem" }}>
-                      {openIncidents} open · The policy helper suggests, you confirm the freeze.
+                      {openIncidents} open · The policy engine suggests a response. You confirm the freeze.
                     </p>
                   ) : null}
                   {incidents.length === 0 && !policyPaused ? (
@@ -1754,7 +1784,7 @@ export function App() {
                             <p className="muted">
                               {incident.status === "mitigated"
                                 ? "Resolved · freeze confirmed"
-                                : `${incident.status} · Helper: ${playbookLabel(incident.recommendedPlaybook)}`}
+                                : `${incident.status} · Suggested response: ${playbookLabel(incident.recommendedPlaybook)}`}
                             </p>
                             {isOpen ? (
                               <div className="actions">
@@ -1864,7 +1894,7 @@ export function App() {
                   </div>
                 </section>
                 <section className="surface">
-                  <h3>What the helper can do</h3>
+                  <h3>What the policy engine can do</h3>
                   {agentEval ? (
                     <p className="muted" style={{ marginBottom: "0.65rem" }}>
                       {agentEval.passed}/{agentEval.total} fixed policy cases match spec (
