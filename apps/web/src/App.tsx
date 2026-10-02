@@ -411,7 +411,7 @@ export function App() {
   const [xp, setXp] = useState(() => loadXp());
   const [badges, setBadges] = useState<BadgeState>(() => loadBadges());
   const [sfxMuted, setSfxMutedState] = useState(() => loadSfxMuted());
-  const [entered, setEntered] = useState(true);
+  const [entered, setEntered] = useState(false);
   const [treasuryName, setTreasuryName] = useState(() => loadTreasuryName());
   const [editingTreasury, setEditingTreasury] = useState(false);
   const [spendPickerOpen, setSpendPickerOpen] = useState(false);
