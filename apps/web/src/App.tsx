@@ -1104,13 +1104,7 @@ export function App() {
           <nav className="landing-nav" aria-label="Public site">
             <a href="#landing-how-it-works">How it works</a>
             <a href="#landing-faq">FAQ</a>
-            <a
-              href="https://github.com/thesithunyein/arb-guardian/tree/master/docs"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Docs
-            </a>
+            <a href="#docs">Docs</a>
             <button type="button" className="landing-nav-cta" onClick={enterWorld}>
               Open workspace
             </button>
@@ -1319,6 +1313,44 @@ export function App() {
                   recorded testnet evidence and are clearly marked when they do not match the current source.
                 </p>
               </details>
+            </div>
+          </section>
+
+          <section className="landing-section" aria-labelledby="docs">
+            <div className="section-intro">
+              <p className="snapshot-label">Docs</p>
+              <h3 id="docs">Understand the controls before you connect.</h3>
+              <p className="muted">
+                Learn the operating model, review flow, and current deployment status in plain language.
+              </p>
+            </div>
+            <div className="landing-grid">
+              <a className="landing-card" href="#landing-how-it-works">
+                <span>
+                  <strong>How it works</strong>
+                  <span className="muted">Follow a payment from request to decision.</span>
+                </span>
+                <span aria-hidden="true">→</span>
+              </a>
+              <a className="landing-card" href="#landing-faq">
+                <span>
+                  <strong>FAQ</strong>
+                  <span className="muted">Get practical answers before onboarding.</span>
+                </span>
+                <span aria-hidden="true">→</span>
+              </a>
+              <a
+                className="landing-card"
+                href="https://github.com/thesithunyein/arb-guardian/tree/master/docs"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span>
+                  <strong>Technical reference</strong>
+                  <span className="muted">Read deployment and production details.</span>
+                </span>
+                <span aria-hidden="true">↗</span>
+              </a>
             </div>
           </section>
         </main>
@@ -2219,13 +2251,7 @@ export function App() {
           <div className="footer-links" aria-label="Footer navigation">
             <a href="#landing-how-it-works">How it works</a>
             <a href="#landing-faq">FAQ</a>
-            <a
-              href="https://github.com/thesithunyein/arb-guardian/tree/master/docs"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Docs
-            </a>
+            <a href="#docs">Docs</a>
             <a href="https://github.com/thesithunyein/arb-guardian" target="_blank" rel="noreferrer">
               GitHub
             </a>
