@@ -1,34 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from "react";
-import { isAddress, parseEther, type Contract } from "ethers";
-import {
-  UNLIMITED_LIMIT,
-  parseBaseUnits,
-  setCounterparty,
-  // Aliased: this component already has a React state setter by that name.
-  setPolicyPaused as submitPolicyPause,
-  setTokenCounterparty,
-  setTokenDailyLimit,
-  setTokenRegistered,
-  setWalletDailyLimit,
-  type PolicyAction,
-  type PolicyChange
-} from "@arb-guardian/shared";
-import { getReadProvider, pingRpc, readOnchainPolicy, type OnchainPolicy } from "./chain";
-import {
-  canPerform,
-  connectAdmin,
-  explainMissingRole,
-  hasInjectedWallet,
-  isValidAddress,
-  readAdminView,
-  submitChange,
-  type AdminSigner,
-  type AdminView
-} from "./admin";
+import { pingRpc, readOnchainPolicy, type OnchainPolicy } from "./chain";
 import {
   API_BASE,
   API_KEY,
-  CHAIN_ID,
   DEPLOYMENT_READY,
   EXECUTION_GUARD,
   POLICY_MANAGER,
@@ -39,14 +13,11 @@ import {
   RH_TREASURY_SAFE,
   SAFE_TREASURY_GUARD,
   TREASURY_SAFE,
-  USDG,
-  USDG_DECIMALS,
   addressUrl,
   rhAddressUrl,
   txUrl
 } from "./config";
-import { settlementGeneratedAt, settlementTokenFor, settlementTokenVerified } from "./settlementToken";
-import { BrandBackdrop } from "./BrandBackdrop";
+import { LandingBackdrop } from "./LandingBackdrop";
 import {
   IconAlerts,
   IconAutomation,
@@ -55,16 +26,29 @@ import {
   IconHome,
   IconMoon,
   IconPayment,
-  IconPolicy,
   IconReview,
   IconSecurity,
+  IconSoundOff,
+  IconSoundOn,
   IconSun
 } from "./icons";
 import { guardProof, shortDigest } from "./guardProof";
 import { driftReport } from "./deployedDrift";
-import { assessIntent, predictGuardOutcome, recommendPlaybook, type RiskAssessment } from "./riskEngine";
+import { assessIntent, predictGuardOutcome, type RiskAssessment } from "./riskEngine";
+import {
+  loadSfxMuted,
+  setSfxMuted,
+  sfxBlock,
+  sfxClick,
+  sfxFreeze,
+  sfxSuccess,
+  sfxXp
+} from "./sfx";
 import { useTheme } from "./useTheme";
 import { connectWallet, shortAddress, signEnrollMessage } from "./wallet";
+
+type BadgeKey = "firstCheck" | "firstBlock" | "firstFreeze" | "cleanPayout";
+type BadgeState = Record<BadgeKey, boolean>;
 
 type LocalEnroll = {
   address: string;
@@ -80,6 +64,8 @@ type TreasuryStats = {
   totalUsage: number;
 };
 
+const XP_STORAGE = "arb-guardian-xp-v1";
+const BADGE_STORAGE = "arb-guardian-badges-v1";
 const TREASURY_STORAGE = "arb-guardian-treasury-v1";
 const ENROLL_STORAGE = "arb-guardian-treasury-enroll-v1";
 const INCIDENTS_STORAGE = "arb-guardian-incidents-v1";
@@ -175,6 +161,31 @@ function clearLocalEnroll() {
   }
 }
 
+function loadXp() {
+  try {
+    const n = Number(localStorage.getItem(XP_STORAGE) ?? "0");
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function loadBadges(): BadgeState {
+  try {
+    const raw = localStorage.getItem(BADGE_STORAGE);
+    if (!raw) return { firstCheck: false, firstBlock: false, firstFreeze: false, cleanPayout: false };
+    const parsed = JSON.parse(raw) as Partial<BadgeState>;
+    return {
+      firstCheck: !!parsed.firstCheck,
+      firstBlock: !!parsed.firstBlock,
+      firstFreeze: !!parsed.firstFreeze,
+      cleanPayout: !!parsed.cleanPayout
+    };
+  } catch {
+    return { firstCheck: false, firstBlock: false, firstFreeze: false, cleanPayout: false };
+  }
+}
+
 function loadTreasuryName() {
   try {
     const stored = readStored(TREASURY_STORAGE, LEGACY_TREASURY_STORAGE)?.trim();
@@ -212,29 +223,106 @@ type AgentEvalSummary = {
   blockedRecall: number;
 };
 
-type TabId = "home" | "review" | "alerts" | "automation" | "policy" | "security";
-type SpendMethod = "transfer" | "approve";
-
-/**
- * The spend an operator is asking about, before it goes out.
- *
- * This used to be three canned scenarios against `0x1111…` addresses, and the policy they were
- * judged against came from the constants sitting next to them rather than from the chain. That
- * let the "normal vendor payout" row be shown as allowed on a deployment where that wallet had
- * no limit and that payee was not allowlisted. The inputs are the operator's now, and the only
- * policy is the one read back from the contract.
- */
-type SpendDraft = {
-  wallet: string;
-  destination: string;
-  amountEth: string;
-  method: SpendMethod;
-};
+type IntentId = "risky-approve" | "limit-breach" | "safe-transfer";
+type TabId = "home" | "review" | "alerts" | "automation" | "security";
 
 /** The evidence pack writes an ISO timestamp; render it without the millisecond noise. */
 const PROOF_GENERATED_AT = guardProof.generatedAt.replace("T", " ").replace(/\.\d+Z$/, " UTC");
 const DRIFT_GENERATED_AT = driftReport.generatedAt.replace("T", " ").replace(/\.\d+Z$/, " UTC");
 const PROOF_SAFE_VERSION = guardProof.safeVersion.split(" ")[0];
+
+const TREASURY = {
+  a: "0x1111111111111111111111111111111111111111",
+  b: "0x2222222222222222222222222222222222222222",
+  c: "0x3333333333333333333333333333333333333333",
+  payroll: "0x4444444444444444444444444444444444444444",
+  unlisted: "0x5555555555555555555555555555555555555555"
+};
+
+const INTENTS: Record<
+  IntentId,
+  {
+    label: string;
+    blurb: string;
+    outcomeHint: string;
+    vendor: string;
+    walletLabel: string;
+    amountEth: string;
+    whyUsersCare: string;
+    payload: {
+      wallet: string;
+      destination: string;
+      method: string;
+      amountWei: string;
+      allowlisted: boolean;
+      dailyLimitWei: string;
+      spentTodayWei: string;
+    };
+  }
+> = {
+  "risky-approve": {
+    label: "Agent asks for standing approval",
+    blurb: "A delegate asks for permission to pull money from the treasury, from an address nobody has allowlisted",
+    outcomeHint: "standing approval",
+    vendor: "Unlisted address",
+    walletLabel: "Operator key A",
+    amountEth: "1.00",
+    whyUsersCare: "One bad approval is how a bounded budget turns into an unbounded one",
+    payload: {
+      wallet: TREASURY.a,
+      destination: TREASURY.unlisted,
+      method: "approve",
+      amountWei: "1000000000000000000",
+      allowlisted: false,
+      dailyLimitWei: "500000000000000000",
+      spentTodayWei: "0"
+    }
+  },
+  "limit-breach": {
+    label: "Over today's spend limit",
+    blurb: "Paying an allowlisted vendor, but the amount is bigger than the cap policy set",
+    outcomeHint: "over today's limit",
+    vendor: "Contributor payouts (approved)",
+    walletLabel: "Operator key B",
+    amountEth: "4.00",
+    whyUsersCare: "Payroll and vendor runs stay inside the ceiling whether or not the delegate respects it",
+    payload: {
+      wallet: TREASURY.b,
+      destination: TREASURY.payroll,
+      method: "transfer",
+      amountWei: "4000000000000000000",
+      allowlisted: true,
+      dailyLimitWei: "3000000000000000000",
+      spentTodayWei: "0"
+    }
+  },
+  "safe-transfer": {
+    label: "Normal vendor payout",
+    blurb: "Paying an allowlisted vendor, inside today's limit",
+    outcomeHint: "within policy",
+    vendor: "Contributor payouts (approved)",
+    walletLabel: "Operator key C",
+    amountEth: "1.00",
+    whyUsersCare: "Routine payouts keep moving without a human in the loop",
+    payload: {
+      wallet: TREASURY.c,
+      destination: TREASURY.payroll,
+      method: "transfer",
+      amountWei: "1000000000000000000",
+      allowlisted: true,
+      dailyLimitWei: "5000000000000000000",
+      spentTodayWei: "0"
+    }
+  }
+};
+
+const VENDOR_LABEL: Record<string, string> = {
+  [TREASURY.payroll]: "Contributor payouts (approved)",
+  [TREASURY.unlisted]: "Unknown marketplace",
+  [TREASURY.a]: "Operator key A",
+  [TREASURY.b]: "Operator key B",
+  [TREASURY.c]: "Operator key C"
+};
 
 const PLAYBOOK_LABELS: Record<string, string> = {
   "freeze-wallet-and-revoke-approvals": "Freeze the treasury account",
@@ -247,15 +335,11 @@ function playbookLabel(id: string) {
   return PLAYBOOK_LABELS[id] ?? id.replace(/-/g, " ");
 }
 
-/**
- * The verdict, in the rule's own words. The old version named the scenario, so every block read as
- * "Block — unlimited approval" whether or not that was the rule that fired.
- */
-function plainOutcome(assessment: RiskAssessment) {
-  if (!assessment.blocked) return "Allow — within policy";
-  const why = assessment.matches[0]?.reason ?? "outside policy";
-  if (assessment.totalScore >= 80) return `Block — ${why}`;
-  return `Hold — ${why}`;
+function plainOutcome(assessment: RiskAssessment, intentId: IntentId) {
+  if (!assessment.blocked) return "Allow: within policy";
+  const hint = INTENTS[intentId].outcomeHint;
+  if (assessment.totalScore >= 80) return `Block: ${hint}`;
+  return `Hold: ${hint}`;
 }
 
 function methodLabel(method: string) {
@@ -265,9 +349,9 @@ function methodLabel(method: string) {
 }
 
 function formatEth(wei: string | undefined | null) {
-  if (wei == null || wei === "" || wei === "undefined") return "—";
+  if (wei == null || wei === "" || wei === "undefined") return "Not set";
   const n = Number(wei) / 1e18;
-  if (!Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "Not set";
   return `${n.toLocaleString(undefined, { maximumFractionDigits: 4 })} ETH`;
 }
 
@@ -294,37 +378,15 @@ function spentDisplay(
 }
 
 function vendorName(addr: string) {
-  return shortAddress(addr);
-}
-
-/**
- * A stable id for a spend that has not happened yet. Checking the same spend twice must land on
- * the same incident, so this is computed from the spend rather than from the clock.
- */
-function draftId(parts: string[]) {
-  const input = parts.join("|");
-  let hash = 0n;
-  for (let i = 0; i < input.length; i += 1) {
-    hash = (hash * 31n + BigInt(input.charCodeAt(i))) % 2n ** 64n;
-  }
-  return hash.toString(16).padStart(16, "0");
+  return VENDOR_LABEL[addr] ?? `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
 export function App() {
   const { theme, toggleTheme } = useTheme();
   const [tab, setTab] = useState<TabId>("home");
-  // Defaults to the live treasury Safe, which is the address that actually carries a policy on
-  // chain. An operator can point it at anything.
-  const [spend, setSpend] = useState<SpendDraft>(() => ({
-    wallet: loadLocalEnroll()?.address ?? TREASURY_SAFE,
-    destination: "",
-    amountEth: "1",
-    method: "transfer"
-  }));
+  const [intent, setIntent] = useState<IntentId>("risky-approve");
   const [assessment, setAssessment] = useState<RiskAssessment | null>(null);
   const [policyState, setPolicyState] = useState<OnchainPolicy | null>(null);
-  /** Whether the policy on screen came back from the contract. Never inferred from a fallback. */
-  const [policySource, setPolicySource] = useState<"unchecked" | "onchain" | "unavailable">("unchecked");
   const [guardPrediction, setGuardPrediction] = useState<{ wouldRevert: boolean; reason: string } | null>(
     null
   );
@@ -346,9 +408,13 @@ export function App() {
   const [agentEval, setAgentEval] = useState<AgentEvalSummary | null>(null);
   const [policyPaused, setPolicyPaused] = useState<boolean | null>(null);
   const [whyOpen, setWhyOpen] = useState(false);
+  const [xp, setXp] = useState(() => loadXp());
+  const [badges, setBadges] = useState<BadgeState>(() => loadBadges());
+  const [sfxMuted, setSfxMutedState] = useState(() => loadSfxMuted());
   const [entered, setEntered] = useState(false);
   const [treasuryName, setTreasuryName] = useState(() => loadTreasuryName());
   const [editingTreasury, setEditingTreasury] = useState(false);
+  const [spendPickerOpen, setSpendPickerOpen] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(() => loadLocalEnroll()?.address ?? null);
   const [enrolled, setEnrolled] = useState(() => !!loadLocalEnroll());
   const [enrollBusy, setEnrollBusy] = useState(false);
@@ -362,25 +428,21 @@ export function App() {
   const [interestMsg, setInterestMsg] = useState<string | null>(null);
   const [operatorOpen, setOperatorOpen] = useState(false);
 
-  // ------------------------------------------------- the policy console (administering it)
-  // A wallet only when the operator connects one; reads work without it.
-  const [adminSigner, setAdminSigner] = useState<AdminSigner | null>(null);
-  /** The treasury or wallet whose rules are on screen. */
-  const [adminTarget, setAdminTarget] = useState(TREASURY_SAFE);
-  const [adminView, setAdminView] = useState<AdminView | null>(null);
-  const [adminError, setAdminError] = useState<string | null>(null);
-  const [adminBusy, setAdminBusy] = useState(false);
-  const [adminNotice, setAdminNotice] = useState<{ ok: boolean; text: string; txHash?: string } | null>(
-    null
-  );
-  const [payeeInput, setPayeeInput] = useState("");
-  const [limitInput, setLimitInput] = useState("5");
-  // Prefilled with the issuer's USDG address, verified on-chain by `npm run check:settlement`.
-  // A token lane is the one place where pasting the wrong address silently disables enforcement.
-  const [tokenInput, setTokenInput] = useState(USDG);
-  const [tokenRecipientInput, setTokenRecipientInput] = useState("");
-  const [tokenLimitInput, setTokenLimitInput] = useState("5000");
-  const [tokenDecimalsInput, setTokenDecimalsInput] = useState(String(USDG_DECIMALS));
+  useEffect(() => {
+    try {
+      localStorage.setItem(XP_STORAGE, String(xp));
+    } catch {
+      // ignore
+    }
+  }, [xp]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(BADGE_STORAGE, JSON.stringify(badges));
+    } catch {
+      // ignore
+    }
+  }, [badges]);
 
   useEffect(() => {
     try {
@@ -394,37 +456,71 @@ export function App() {
     persistIncidents(incidents);
   }, [incidents]);
 
+  function toggleMute() {
+    const next = !sfxMuted;
+    setSfxMuted(next);
+    setSfxMutedState(next);
+    if (!next) void sfxClick();
+  }
+
   function enterWorld() {
     setEntered(true);
     setTab("home");
+    setIntent("risky-approve");
+    setSpendPickerOpen(false);
     setAssessment(null);
     setWhyOpen(false);
+    void sfxClick();
   }
 
-  function goCheck() {
+  async function skipToFirstQuest() {
     setEntered(true);
+    setTab("review");
+    setIntent("risky-approve");
+    setSpendPickerOpen(false);
     setAssessment(null);
     setWhyOpen(false);
+    void sfxClick();
+    await runAssessment();
+  }
+
+  function goCheck(next: IntentId = "risky-approve") {
+    void sfxClick();
+    setIntent(next);
+    setAssessment(null);
+    setWhyOpen(false);
+    setSpendPickerOpen(false);
     setTab("review");
   }
 
   function goVault() {
+    void sfxClick();
     setTab("security");
   }
 
   function resetSession() {
+    void sfxClick();
+    setXp(0);
+    setBadges({ firstCheck: false, firstBlock: false, firstFreeze: false, cleanPayout: false });
     setAssessment(null);
     setIncidents([]);
     setAuditLog([]);
     setLastPlaybook(null);
     setKpi({ totalAssessments: 0, blockedCount: 0, blockedRate: 0, criticalIncidentCount: 0 });
     setPolicyPaused(null);
+    setSpendPickerOpen(false);
     try {
+      localStorage.setItem(XP_STORAGE, "0");
+      localStorage.setItem(
+        BADGE_STORAGE,
+        JSON.stringify({ firstCheck: false, firstBlock: false, firstFreeze: false, cleanPayout: false })
+      );
       sessionStorage.removeItem(INCIDENTS_STORAGE);
     } catch {
       // ignore
     }
     setTab("home");
+    setIntent("risky-approve");
   }
 
   function applyTreasuryStats(data: Partial<TreasuryStats> & { yours?: { usageCount?: number; name?: string } }) {
@@ -445,6 +541,7 @@ export function App() {
     try {
       const wallet = await connectWallet();
       setWalletAddress(wallet.address);
+      void sfxClick();
     } catch (err) {
       setEnrollMsg(err instanceof Error ? err.message : "Could not connect wallet");
     } finally {
@@ -453,6 +550,7 @@ export function App() {
   }
 
   function disconnectWallet() {
+    void sfxClick();
     clearLocalEnroll();
     setWalletAddress(null);
     setEnrolled(false);
@@ -491,6 +589,7 @@ export function App() {
       } catch {
         // ignore
       }
+      void sfxSuccess();
     } catch (err) {
       setInterestMsg(err instanceof Error ? err.message : "Could not save. Try again.");
     } finally {
@@ -533,6 +632,7 @@ export function App() {
       setEnrolled(true);
       applyTreasuryStats(data);
       setEnrollMsg(null);
+      void sfxSuccess();
     } catch (err) {
       setEnrollMsg(err instanceof Error ? err.message : "Could not load policy state");
     } finally {
@@ -553,44 +653,29 @@ export function App() {
       const data = (await res.json()) as Partial<TreasuryStats> & { yours?: { usageCount?: number } };
       applyTreasuryStats(data);
     } catch {
-      // ignore — usage proof is best-effort
+      // Ignore. Usage proof is best effort.
     }
   }
 
-  /**
-   * The spend, parsed and checked. A block here is a form error, not a policy decision — the
-   * policy decision needs a real address and a real amount to read the contract for.
-   */
-  const check = useMemo(() => {
-    const wallet = spend.wallet.trim();
-    const destination = spend.destination.trim();
-    let amountWei = "0";
-    let amountError: string | null = null;
-    const amount = Number(spend.amountEth.trim());
-    if (!spend.amountEth.trim()) {
-      amountError = "Enter the amount this spend moves.";
-    } else if (!Number.isFinite(amount) || amount <= 0) {
-      amountError = "The amount has to be a positive number.";
-    } else {
-      try {
-        amountWei = parseEther(spend.amountEth.trim()).toString();
-      } catch {
-        amountError = "The amount has more precision than ETH can carry.";
-      }
+  function awardXp(amount: number, _label: string, badgeKey?: BadgeKey, tone: "xp" | "block" | "success" | "freeze" = "xp") {
+    setXp((v) => v + amount);
+    // No toast chrome in product mode. Keep subtle sound only.
+    if (tone === "block") void sfxBlock();
+    else if (tone === "success") void sfxSuccess();
+    else if (tone === "freeze") void sfxFreeze();
+    else void sfxXp();
+    if (badgeKey && !badges[badgeKey]) {
+      setBadges((b) => ({ ...b, [badgeKey]: true }));
     }
-    const error =
-      (isAddress(wallet) ? null : "Enter the address the money moves from — a treasury or operator key.") ??
-      (isAddress(destination) ? null : "Enter the payee address.") ??
-      amountError;
+  }
+
+  const payload = useMemo(() => {
+    const base = INTENTS[intent].payload;
     return {
-      wallet,
-      destination,
-      amountWei,
-      method: spend.method,
-      error,
-      txHash: `0xdraft-${draftId([wallet.toLowerCase(), destination.toLowerCase(), amountWei, spend.method])}`
+      txHash: `0xintent-${intent}-${Date.now().toString(16)}`,
+      ...base
     };
-  }, [spend]);
+  }, [intent]);
 
   function buildHeaders(includeApiKey = false): HeadersInit {
     const headers: HeadersInit = { "Content-Type": "application/json" };
@@ -613,11 +698,14 @@ export function App() {
       };
     });
     if (!result.blocked) {
+      if (intent === "safe-transfer") awardXp(25, "Clean payout", "cleanPayout", "success");
+      else awardXp(15, "Policy check", "firstCheck", "success");
       return;
     }
+    awardXp(40, "Blocked a scam path", "firstBlock", "block");
     const item: IncidentItem = {
       id: `inc-${txHash}`,
-      title: `Blocked · ${vendorName(check.destination)} · ${formatEth(check.amountWei)}`,
+      title: `Blocked · ${INTENTS[intent].vendor} · ${INTENTS[intent].amountEth} ETH`,
       severity: result.totalScore >= 80 ? "critical" : "high",
       recommendedPlaybook: result.recommendedPlaybook,
       status: "open"
@@ -628,7 +716,7 @@ export function App() {
   useEffect(() => {
     pingRpc().then(setRpcLive);
     const local = loadLocalEnroll();
-    // Always restore local session first — never flash disconnected while API syncs.
+    // Always restore local session first. Never flash disconnected while API syncs.
     if (local?.address) {
       setWalletAddress(local.address);
       setEnrolled(true);
@@ -698,7 +786,7 @@ export function App() {
         ]);
       })
       .then(([incidentsData, kpiData, evalData, policyData]) => {
-        // Ephemeral serverless memory can be empty on another instance — never wipe local alerts.
+        // Ephemeral serverless memory can be empty on another instance. Never wipe local alerts.
         const remote = ((incidentsData as { items?: IncidentItem[] }).items ?? []).filter(Boolean);
         if (remote.length > 0) {
           setIncidents((prev) => {
@@ -737,128 +825,112 @@ export function App() {
   }, []);
 
   async function runAssessment() {
-    if (check.error) {
-      setError(check.error);
-      setTab("review");
-      return;
-    }
-
+    // Anyone can check a spend to learn the risk. Wallet only required to count operator usage.
     setLoading(true);
     setError(null);
     setWhyOpen(false);
     setTab("review");
     try {
       if (runtime === "api" && API_BASE) {
-        // No policy values are sent from here. The server reads the contract for these two
-        // addresses, and where it cannot, its own defaults deny the spend rather than trust
-        // anything the browser handed it.
         const res = await fetch(`${API_BASE}/risk/assess`, {
           method: "POST",
           headers: buildHeaders(true),
           body: JSON.stringify({
-            txHash: check.txHash,
-            wallet: check.wallet,
-            destination: check.destination,
-            method: check.method,
-            amountWei: check.amountWei
+            txHash: payload.txHash,
+            wallet: payload.wallet,
+            destination: payload.destination,
+            method: payload.method,
+            amountWei: payload.amountWei,
+            allowlisted: payload.allowlisted,
+            dailyLimitWei: payload.dailyLimitWei,
+            spentTodayWei: payload.spentTodayWei
           })
         });
         if (!res.ok) throw new Error(`Review failed (${res.status})`);
         const data = (await res.json()) as {
           assessment: RiskAssessment & { matches: RiskAssessment["matches"] };
           incident: null | { id: string; title: string; recommendedPlaybook: string };
-          policyState?: OnchainPolicy & { source?: "onchain" | "request" };
+          policyState?: OnchainPolicy;
         };
         const result: RiskAssessment = {
           totalScore: data.assessment.totalScore,
           blocked: data.assessment.blocked,
           matches: data.assessment.matches,
-          recommendedPlaybook: data.incident?.recommendedPlaybook ?? recommendPlaybook(data.assessment.totalScore)
+          recommendedPlaybook: data.incident?.recommendedPlaybook ?? assessIntent(payload).recommendedPlaybook
         };
         setAssessment(result);
-
-        const readFromChain = data.policyState?.source === "onchain" ? data.policyState : null;
-        setPolicyState(readFromChain);
-        setPolicySource(readFromChain ? "onchain" : "unavailable");
-        setGuardPrediction(
-          readFromChain
-            ? predictGuardOutcome({
-                allowlisted: readFromChain.allowlisted,
-                dailyLimitWei: readFromChain.dailyLimitWei,
-                spentTodayWei: readFromChain.spentTodayWei,
-                amountWei: check.amountWei,
-                policyPaused: readFromChain.policyPaused
-              })
-            : null
+        awardXp(
+          result.blocked ? 40 : intent === "safe-transfer" ? 25 : 15,
+          result.blocked ? "Blocked a drain attempt" : intent === "safe-transfer" ? "Clean payout" : "Policy check",
+          result.blocked ? "firstBlock" : intent === "safe-transfer" ? "cleanPayout" : "firstCheck",
+          result.blocked ? "block" : "success"
         );
-
+        if (data.policyState) {
+          const limitWei = data.policyState.dailyLimitWei ?? payload.dailyLimitWei;
+          const spentWei = data.policyState.spentTodayWei ?? payload.spentTodayWei;
+          setPolicyState({
+            allowlisted: data.policyState.allowlisted ?? payload.allowlisted,
+            dailyLimitWei: limitWei,
+            spentTodayWei: spentWei,
+            policyPaused: Boolean((data.policyState as OnchainPolicy).policyPaused),
+            dailyLimitEth: formatEth(limitWei).replace(/ ETH$/, ""),
+            spentTodayEth: formatEth(spentWei).replace(/ ETH$/, ""),
+            source: "onchain"
+          });
+        }
+        setGuardPrediction(
+          predictGuardOutcome({
+            allowlisted: data.policyState?.allowlisted ?? payload.allowlisted,
+            dailyLimitWei: data.policyState?.dailyLimitWei ?? payload.dailyLimitWei,
+            spentTodayWei: data.policyState?.spentTodayWei ?? payload.spentTodayWei,
+            amountWei: payload.amountWei
+          })
+        );
         if (result.blocked) {
-          const incidentId = data.incident?.id ?? `inc-${check.txHash}`;
+          const incidentId = data.incident?.id ?? `inc-${payload.txHash}`;
           setIncidents((prev) => [
             {
               id: incidentId,
               title:
                 data.incident?.title ??
-                `Blocked · ${vendorName(check.destination)} · ${formatEth(check.amountWei)}`,
+                `Blocked · ${INTENTS[intent].vendor} · ${INTENTS[intent].amountEth} ETH`,
               severity: result.totalScore >= 80 ? "critical" : "high",
               recommendedPlaybook: result.recommendedPlaybook,
               status: "open"
             },
             ...prev.filter((i) => i.id !== incidentId)
           ]);
+          setTab("alerts");
         }
         void recordTreasuryUsage("review");
         return;
       }
 
-      // No API in this build: read the contract directly and decide here.
-      let onchain: OnchainPolicy | null = null;
+      let policy = payload;
       try {
-        onchain = await readOnchainPolicy(check.wallet, check.destination);
+        const onchain = await readOnchainPolicy(payload.wallet, payload.destination);
+        if (onchain) {
+          setPolicyState(onchain);
+          // Keep intent flags when onchain has no limit configured (0) so risky spends still alert.
+          policy = {
+            ...payload,
+            allowlisted: onchain.allowlisted && payload.allowlisted,
+            dailyLimitWei:
+              onchain.dailyLimitWei !== "0" ? onchain.dailyLimitWei : payload.dailyLimitWei,
+            spentTodayWei: onchain.spentTodayWei
+          };
+        } else {
+          setPolicyState(null);
+        }
       } catch {
-        onchain = null;
-      }
-
-      if (!onchain) {
-        // Reading the policy is the entire point of the check. If it did not come back, the honest
-        // answer is no — and it is reported as a refusal, so it lands in the queue like any other.
         setPolicyState(null);
-        setPolicySource("unavailable");
-        setGuardPrediction(null);
-        recordLocal(
-          {
-            totalScore: 100,
-            blocked: true,
-            matches: [
-              {
-                ruleId: "RULE_POLICY_UNREADABLE",
-                reason: "The policy could not be read from the chain, so this spend cannot be approved",
-                severity: "critical",
-                scoreDelta: 100
-              }
-            ],
-            recommendedPlaybook: "freeze-wallet-and-revoke-approvals"
-          },
-          check.txHash,
-          check.wallet
-        );
-        void recordTreasuryUsage("review");
-        return;
       }
 
-      setPolicyState(onchain);
-      setPolicySource("onchain");
-      const policyInput = {
-        allowlisted: onchain.allowlisted,
-        dailyLimitWei: onchain.dailyLimitWei,
-        spentTodayWei: onchain.spentTodayWei,
-        amountWei: check.amountWei,
-        method: check.method,
-        policyPaused: onchain.policyPaused
-      };
-      const result = assessIntent(policyInput);
-      setGuardPrediction(predictGuardOutcome(policyInput));
-      recordLocal(result, check.txHash, check.wallet);
+      const result = assessIntent(policy);
+      const prediction = predictGuardOutcome(policy);
+      setGuardPrediction(prediction);
+      recordLocal(result, payload.txHash, payload.wallet);
+      if (result.blocked) setTab("alerts");
       void recordTreasuryUsage("review");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Review failed");
@@ -867,204 +939,9 @@ export function App() {
     }
   }
 
-  // Read the policy for the address in the field, with the connected wallet's permissions —
-  // not the treasury's, because `hasRole` answers for one address and the operator may hold none.
-  useEffect(() => {
-    if (tab !== "policy") return;
-    if (!isValidAddress(adminTarget)) {
-      setAdminView(null);
-      setAdminError("Enter the address whose policy you want to see.");
-      return;
-    }
-    let cancelled = false;
-    setAdminError(null);
-    (async () => {
-      try {
-        const view = await readAdminView(
-          adminSigner?.signer ?? getReadProvider(),
-          adminTarget,
-          adminSigner?.address ?? null
-        );
-        if (!cancelled) setAdminView(view);
-      } catch (err) {
-        if (!cancelled) {
-          setAdminView(null);
-          setAdminError(err instanceof Error ? err.message : "Could not read the policy from the chain");
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [tab, adminTarget, adminSigner]);
-
-  /**
-   * One path for every change: propose it to the wallet, then re-read the contract. The re-read is
-   * what makes the result a fact — the policy head moves, or the change did not land.
-   */
-  async function runChange(label: string, run: (policy: Contract) => Promise<PolicyChange>) {
-    if (!adminSigner) {
-      setAdminNotice({ ok: false, text: "Connect the wallet that administers this treasury first." });
-      return;
-    }
-    setAdminBusy(true);
-    setAdminNotice(null);
-    try {
-      const result = await submitChange(adminSigner.signer, run);
-      if (!result.ok) {
-        setAdminNotice({ ok: false, text: result.refusal.operatorMessage });
-        return;
-      }
-      setAdminNotice({
-        ok: true,
-        text: `${label} — the contract now reports policy version ${result.change.head.version.toString()}, digest ${result.change.head.digest.slice(0, 14)}…`,
-        txHash: result.change.txHash
-      });
-      setAdminView(await readAdminView(adminSigner.signer, adminTarget, adminSigner.address));
-    } catch (err) {
-      setAdminNotice({ ok: false, text: err instanceof Error ? err.message : "That change failed" });
-    } finally {
-      setAdminBusy(false);
-    }
-  }
-
-  /** Whether the connected wallet may make this change, and why not when it may not. */
-  function adminGate(action: PolicyAction) {
-    if (!adminSigner) {
-      return { allowed: false, why: "Connect the wallet that administers this treasury to change anything." };
-    }
-    if (!adminView) {
-      return { allowed: false, why: "The policy has not been read yet." };
-    }
-    if (!canPerform(adminView.roles, action)) {
-      return { allowed: false, why: explainMissingRole(action, adminView.manager) };
-    }
-    return { allowed: true, why: "" };
-  }
-
-  async function connectAdminWallet() {
-    setAdminError(null);
-    setAdminNotice(null);
-    try {
-      const connected = await connectAdmin();
-      setAdminSigner(connected);
-      setWalletAddress((prev) => prev ?? connected.address);
-    } catch (err) {
-      setAdminError(err instanceof Error ? err.message : "Could not connect a wallet");
-    }
-  }
-
-  async function saveLimit() {
-    const gate = adminGate("setWalletDailyLimit");
-    if (!gate.allowed) {
-      setAdminNotice({ ok: false, text: gate.why });
-      return;
-    }
-    let limitWei: bigint;
-    if (limitInput.trim().toLowerCase() === "unlimited") {
-      limitWei = UNLIMITED_LIMIT;
-    } else {
-      try {
-        limitWei = parseEther(limitInput.trim());
-      } catch {
-        setAdminNotice({ ok: false, text: "The limit has to be a number, or the word unlimited." });
-        return;
-      }
-    }
-    const target = adminTarget;
-    await runChange(`Daily limit set on ${shortAddress(target)}`, (policy) =>
-      setWalletDailyLimit(policy, target, limitWei)
-    );
-  }
-
-  async function savePayee(allowed: boolean) {
-    const gate = adminGate("setCounterparty");
-    if (!gate.allowed) {
-      setAdminNotice({ ok: false, text: gate.why });
-      return;
-    }
-    if (!isValidAddress(payeeInput.trim())) {
-      setAdminNotice({ ok: false, text: "That is not a payee address." });
-      return;
-    }
-    const payee = payeeInput.trim();
-    await runChange(`${allowed ? "Allowlisted" : "Removed"} ${shortAddress(payee)}`, (policy) =>
-      setCounterparty(policy, payee, allowed)
-    );
-  }
-
-  async function savePaused(paused: boolean) {
-    const gate = adminGate(paused ? "pause" : "unpause");
-    if (!gate.allowed) {
-      setAdminNotice({ ok: false, text: gate.why });
-      return;
-    }
-    await runChange(paused ? "Policy frozen" : "Policy unfrozen", (policy) =>
-      submitPolicyPause(policy, paused)
-    );
-  }
-
-  async function registerToken() {
-    const gate = adminGate("setTokenRegistered");
-    if (!gate.allowed) {
-      setAdminNotice({ ok: false, text: gate.why });
-      return;
-    }
-    if (!isValidAddress(tokenInput.trim())) {
-      setAdminNotice({ ok: false, text: "That is not a token address." });
-      return;
-    }
-    const token = tokenInput.trim();
-    await runChange(`Registered ${shortAddress(token)} for enforcement`, (policy) =>
-      setTokenRegistered(policy, token, true)
-    );
-  }
-
-  async function saveTokenRecipient(allowed: boolean) {
-    const gate = adminGate("setTokenCounterparty");
-    if (!gate.allowed) {
-      setAdminNotice({ ok: false, text: gate.why });
-      return;
-    }
-    if (!isValidAddress(tokenInput.trim()) || !isValidAddress(tokenRecipientInput.trim())) {
-      setAdminNotice({ ok: false, text: "Give both the token and the recipient address." });
-      return;
-    }
-    const token = tokenInput.trim();
-    const recipient = tokenRecipientInput.trim();
-    await runChange(
-      `${allowed ? "Allowlisted" : "Removed"} ${shortAddress(recipient)} for ${shortAddress(token)}`,
-      (policy) => setTokenCounterparty(policy, token, recipient, allowed)
-    );
-  }
-
-  async function saveTokenLimit() {
-    const gate = adminGate("setTokenDailyLimit");
-    if (!gate.allowed) {
-      setAdminNotice({ ok: false, text: gate.why });
-      return;
-    }
-    if (!isValidAddress(tokenInput.trim())) {
-      setAdminNotice({ ok: false, text: "That is not a token address." });
-      return;
-    }
-    const decimals = Number(tokenDecimalsInput.trim());
-    const parsed = parseBaseUnits(tokenLimitInput.trim(), Number.isInteger(decimals) ? decimals : 6);
-    if (!parsed.ok) {
-      setAdminNotice({ ok: false, text: parsed.error });
-      return;
-    }
-    const token = tokenInput.trim();
-    const target = adminTarget;
-    await runChange(
-      `Token cap of ${tokenLimitInput.trim()} set on ${shortAddress(target)}`,
-      (policy) => setTokenDailyLimit(policy, token, target, parsed.value)
-    );
-  }
-
   async function applyAction(incidentId: string, action: "acknowledge" | "mitigate" | "ignore") {
     setError(null);
-    // Optimistic local update first — serverless GET must never wipe this queue.
+    // Optimistic local update first. Serverless GET must never wipe this queue.
     setIncidents((prev) =>
       prev.map((item) =>
         item.id === incidentId ? { ...item, status: nextIncidentStatus(item.status, action) } : item
@@ -1076,6 +953,7 @@ export function App() {
     ]);
     if (action === "mitigate") {
       setPolicyPaused(true);
+      awardXp(60, "Froze the treasury", "firstFreeze", "freeze");
       void recordTreasuryUsage("freeze");
     }
 
@@ -1167,23 +1045,19 @@ export function App() {
     }
   }
 
-  /** The settlement token as read from its contract on this chain, or null if none is declared. */
-  const settlement = settlementTokenFor(CHAIN_ID);
   const openIncidents = incidents.filter((i) => i.status === "open").length;
-  const statusLabel = policyPaused ? "Frozen" : DEPLOYMENT_READY ? "Online" : "Ready";
+  const statusLabel = policyPaused ? "Frozen" : DEPLOYMENT_READY ? "Protected" : "Setup needed";
 
   const coreTabs: Array<[TabId, string, ReactElement]> = [
-    ["home", "Home", <IconHome key="h" size={16} />],
+    ["home", "Overview", <IconHome key="h" size={16} />],
     ["review", "Review", <IconReview key="r" size={16} />],
     ["alerts", openIncidents ? `Alerts (${openIncidents})` : "Alerts", <IconAlerts key="a" size={16} />],
-    ["automation", "Playbooks", <IconAutomation key="u" size={16} />],
-    ["policy", "Policy", <IconPolicy key="p" size={16} />],
-    ["security", "Vault", <IconSecurity key="s" size={16} />]
+    ["automation", "Automations", <IconAutomation key="u" size={16} />]
   ];
+  const currentSpend = INTENTS[intent];
 
   return (
     <>
-      <BrandBackdrop />
       <div className={`app-shell ${entered ? "entered product-mode" : "title-screen"}`}>
       <header className="topbar">
         <a className="brand" href="/" aria-label="Arb Guardian home">
@@ -1213,6 +1087,7 @@ export function App() {
                     type="button"
                     className="linkish inline brand-treasury"
                     onClick={() => {
+                      void sfxClick();
                       setEditingTreasury(true);
                     }}
                   >
@@ -1220,11 +1095,21 @@ export function App() {
                   </button>
                 )
               ) : (
-                "Enforceable spend policy"
+                "Shared funds, safer decisions"
               )}
             </p>
           </div>
         </a>
+        {!entered && (
+          <nav className="landing-nav" aria-label="Public site">
+            <a href="#landing-how-it-works">How it works</a>
+            <a href="#landing-faq">FAQ</a>
+            <a href="#docs">Docs</a>
+            <button type="button" className="landing-nav-cta" onClick={enterWorld}>
+              Open workspace
+            </button>
+          </nav>
+        )}
         <div className="topbar-actions">
           {entered && (
             <span
@@ -1254,8 +1139,18 @@ export function App() {
             ))}
           <button
             type="button"
+            className={`icon-btn ${sfxMuted ? "" : "active"}`}
+            onClick={toggleMute}
+            aria-label={sfxMuted ? "Unmute sounds" : "Mute sounds"}
+            title={sfxMuted ? "Sound off" : "Sound on"}
+          >
+            {sfxMuted ? <IconSoundOff size={16} /> : <IconSoundOn size={16} />}
+          </button>
+          <button
+            type="button"
             className="icon-btn"
             onClick={() => {
+              void sfxClick();
               toggleTheme();
             }}
             aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
@@ -1266,26 +1161,199 @@ export function App() {
       </header>
 
       {!entered ? (
-        <section className="hero title-hero">
-          <img className="hero-logo" src="/logo.png" alt="Arb Guardian" width={112} height={112} />
-          <p className="hero-kicker">ENFORCEABLE SPEND POLICY</p>
-          <h2>
-            <span className="accent">Arb</span> Guardian
-          </h2>
-          <p className="hero-lead">
-            Give an agent, bot or operator money without giving it the ability to drain the account. Check the spend
-            before it clears — and lock the treasury when it looks wrong.
-          </p>
-          <div className="cta-row">
-            <button type="button" className="primary" onClick={enterWorld}>
-              Open
-            </button>
-            <button type="button" className="ghost" onClick={goCheck}>
-              Check a spend
-            </button>
-          </div>
-          {error && <p className="error">{error}</p>}
-        </section>
+        <main className="landing">
+          <LandingBackdrop />
+          <section className="hero title-hero">
+            <div className="hero-copy">
+              <p className="hero-kicker">TREASURY CONTROL FOR SHARED FUNDS</p>
+              <h2>
+                <span className="accent">Know</span> before money moves.
+              </h2>
+              <p className="hero-lead">
+                Clear rules for every payment. A calm review before approval. A fast way to stop unusual spending.
+              </p>
+              <div className="cta-row">
+                <button type="button" className="primary" onClick={enterWorld}>
+                  Open workspace
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => {
+                    void skipToFirstQuest();
+                  }}
+                  disabled={loading}
+                >
+                  {loading ? "Checking…" : "Review a payment"}
+                </button>
+              </div>
+              {error && <p className="error">{error}</p>}
+            </div>
+            <div className="hero-orbit" aria-hidden="true">
+              <div className="orbit-ring orbit-ring-one" />
+              <div className="orbit-ring orbit-ring-two" />
+              <div className="orbit-core">
+                <img src="/logo.png" alt="" width={78} height={78} />
+              </div>
+              <span className="orbit-node node-one" />
+              <span className="orbit-node node-two" />
+              <span className="orbit-node node-three" />
+            </div>
+          </section>
+
+          <section className="landing-section" aria-labelledby="problem-heading">
+            <div className="section-intro">
+              <p className="snapshot-label">A safer operating rhythm</p>
+              <h3 id="problem-heading">Shared access should not mean shared risk.</h3>
+            </div>
+            <div className="landing-grid">
+              <article className="landing-card">
+                <span className="step-number">01</span>
+                <strong>Set the rule</strong>
+                <p className="muted">Choose trusted recipients, spending limits, and review rules.</p>
+              </article>
+              <article className="landing-card">
+                <span className="step-number">02</span>
+                <strong>Review the request</strong>
+                <p className="muted">See what is being paid and why it passes or fails policy.</p>
+              </article>
+              <article className="landing-card">
+                <span className="step-number">03</span>
+                <strong>Protect the fund</strong>
+                <p className="muted">Block unusual requests and freeze spending when needed.</p>
+              </article>
+            </div>
+          </section>
+
+          <section className="landing-section landing-audience" aria-labelledby="audience-heading">
+            <div className="section-intro">
+              <p className="snapshot-label">Who it is for</p>
+              <h3 id="audience-heading">Useful before you know the crypto terms.</h3>
+            </div>
+            <div className="audience-copy">
+              <p className="muted">
+                If your team manages a shared wallet, community fund, grant budget, or automated payment account,
+                the problem is the same: people need permission to spend without unlimited access.
+              </p>
+              <p className="muted">
+                Arb Guardian is made for operators first. The onchain layer adds enforcement for digital assets, but
+                the workflow is familiar to any finance or operations team.
+              </p>
+            </div>
+          </section>
+
+          <section className="landing-section" aria-labelledby="landing-how-it-works">
+            <div className="section-intro">
+              <p className="snapshot-label">How it works</p>
+              <h3 id="landing-how-it-works">A clear control loop for every payment.</h3>
+              <p className="muted">
+                Start with the request, not the blockchain. Arb Guardian gives your team one place to check, decide,
+                and respond.
+              </p>
+            </div>
+            <div className="steps-grid">
+              <article>
+                <span className="step-number">01</span>
+                <strong>Set the policy</strong>
+                <p className="muted">Define trusted payees, spending limits, and review rules.</p>
+              </article>
+              <article>
+                <span className="step-number">02</span>
+                <strong>Review the request</strong>
+                <p className="muted">See the amount, destination, and exact rule result before approval.</p>
+              </article>
+              <article>
+                <span className="step-number">03</span>
+                <strong>Act with confidence</strong>
+                <p className="muted">Allow safe requests, investigate alerts, or freeze spending when needed.</p>
+              </article>
+            </div>
+          </section>
+
+          <section className="landing-section" aria-labelledby="landing-faq">
+            <div className="section-intro">
+              <p className="snapshot-label">FAQ</p>
+              <h3 id="landing-faq">Answers before you connect a wallet.</h3>
+              <p className="muted">
+                You can explore the workflow without a wallet. Connect one only when you are ready to manage a
+                treasury.
+              </p>
+            </div>
+            <div className="faq-list">
+              <details>
+                <summary>Who is Arb Guardian for?</summary>
+                <p className="muted">
+                  Finance and operations teams that manage a shared wallet, community fund, grant budget, or automated
+                  payment account.
+                </p>
+              </details>
+              <details>
+                <summary>Does Arb Guardian move funds?</summary>
+                <p className="muted">
+                  No. It checks payment requests and enforces policy. Your Safe and signers remain in control.
+                </p>
+              </details>
+              <details>
+                <summary>What happens when a request breaks policy?</summary>
+                <p className="muted">
+                  The request is blocked, the rule result is explained, and the team can review the alert or freeze
+                  the treasury.
+                </p>
+              </details>
+              <details>
+                <summary>Can I use it with a Safe?</summary>
+                <p className="muted">
+                  Yes. The Safe Treasury Guard is designed to check transactions before the Safe executes them.
+                </p>
+              </details>
+              <details>
+                <summary>What is live today?</summary>
+                <p className="muted">
+                  The review workflow and product interface are live. Contract deployments shown in Security are
+                  recorded testnet evidence and are clearly marked when they do not match the current source.
+                </p>
+              </details>
+            </div>
+          </section>
+
+          <section className="landing-section" aria-labelledby="docs">
+            <div className="section-intro">
+              <p className="snapshot-label">Docs</p>
+              <h3 id="docs">Understand the controls before you connect.</h3>
+              <p className="muted">
+                Learn the operating model, review flow, and current deployment status in plain language.
+              </p>
+            </div>
+            <div className="landing-grid">
+              <a className="landing-card" href="#landing-how-it-works">
+                <span>
+                  <strong>How it works</strong>
+                  <span className="muted">Follow a payment from request to decision.</span>
+                </span>
+                <span aria-hidden="true">→</span>
+              </a>
+              <a className="landing-card" href="#landing-faq">
+                <span>
+                  <strong>FAQ</strong>
+                  <span className="muted">Get practical answers before onboarding.</span>
+                </span>
+                <span aria-hidden="true">→</span>
+              </a>
+              <a
+                className="landing-card"
+                href="https://github.com/thesithunyein/arb-guardian/tree/master/docs"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span>
+                  <strong>Technical reference</strong>
+                  <span className="muted">Read deployment and production details.</span>
+                </span>
+                <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+          </section>
+        </main>
       ) : (
         <>
           <nav className="tabs" aria-label="Primary">
@@ -1295,6 +1363,7 @@ export function App() {
                 type="button"
                 className={`tab ${tab === id ? "active" : ""}`}
                 onClick={() => {
+                  void sfxClick();
                   setTab(id);
                 }}
               >
@@ -1312,7 +1381,7 @@ export function App() {
                     <p className="snapshot-label">{treasuryName === "My Treasury" ? "Your treasury" : treasuryName}</p>
                     <strong>
                       {policyPaused
-                        ? "Bank locked"
+                        ? "Spending frozen"
                         : openIncidents > 0
                           ? `${openIncidents} alert${openIncidents === 1 ? "" : "s"} need a decision`
                           : "Ready to check a spend"}
@@ -1321,7 +1390,7 @@ export function App() {
                       {policyPaused
                         ? "Unlock from Alerts when it is safe"
                         : openIncidents > 0
-                          ? "Open Alerts to lock the treasury or dismiss"
+                          ? "Review Alerts to lock the treasury or dismiss"
                           : "See if a spend is safe before anyone approves it"}
                     </p>
                   </div>
@@ -1331,14 +1400,15 @@ export function App() {
                         type="button"
                         className="primary"
                         onClick={() => {
+                          void sfxClick();
                           setTab("alerts");
                         }}
                       >
                         <IconAlerts size={16} />
-                        {policyPaused ? "Manage lock" : "Open alerts"}
+                        {policyPaused ? "Manage lock" : "Review alerts"}
                       </button>
                     ) : (
-                      <button type="button" className="primary" onClick={goCheck}>
+                      <button type="button" className="primary" onClick={() => goCheck("risky-approve")}>
                         <IconPayment size={16} />
                         Check a spend
                       </button>
@@ -1367,18 +1437,18 @@ export function App() {
                   </section>
                 )}
 
-                <section className="surface enroll-card" aria-label="Join the pilot">
+                <section className="surface enroll-card" aria-label="Product updates">
                   <div className="enroll-copy">
                     <p className="snapshot-label">For teams</p>
-                    <strong>{interestJoined ? "You're on the list" : "Join with email — no wallet"}</strong>
+                    <strong>{interestJoined ? "You're on the list" : "Get product updates"}</strong>
                     <p className="muted">
-                      Treasury owners and operators: leave your treasury name and email. We'll follow up when enroll opens.
+                      Treasury owners and operators can get launch updates. No wallet needed.
                     </p>
                   </div>
                   {interestJoined ? (
                     <div className="enroll-done">
                       <p>
-                        <strong>{interestMsg || "Thanks — you're on the list."}</strong>
+                        <strong>{interestMsg || "You are on the list."}</strong>
                       </p>
                       <p>
                         <button
@@ -1386,12 +1456,13 @@ export function App() {
                           className="linkish"
                           onClick={async () => {
                             const text =
-                              "Arb Guardian gives an agent, bot or operator money without giving it the ability to drain the account. Join the list (no wallet needed): https://arb-guardian.vercel.app";
+                              "Arb Guardian helps teams control shared spending before money moves. Join the list: https://arb-guardian.sithunyein.com";
                             try {
                               await navigator.clipboard.writeText(text);
                               setInterestMsg("Invite link copied.");
+                              void sfxSuccess();
                             } catch {
-                              setInterestMsg("Copy failed — share arb-guardian.vercel.app");
+                              setInterestMsg("Copy failed. Share arb-guardian.sithunyein.com");
                             }
                           }}
                         >
@@ -1401,25 +1472,29 @@ export function App() {
                     </div>
                   ) : (
                     <form className="enroll-form" onSubmit={joinInterest}>
-                      <input
-                        type="text"
-                        name="treasury"
-                        maxLength={28}
-                        placeholder="Treasury name"
-                        value={treasuryName === "My Treasury" ? "" : treasuryName}
-                        onChange={(e) => setTreasuryName(e.target.value.slice(0, 28) || "My Treasury")}
-                        aria-label="Treasury name"
-                      />
-                      <input
-                        type="email"
-                        name="email"
-                        autoComplete="email"
-                        placeholder="you@team.gg"
-                        value={interestEmail}
-                        onChange={(e) => setInterestEmail(e.target.value)}
-                        aria-label="Email"
-                        required
-                      />
+                      <label className="field-label">
+                        <span>Team name</span>
+                        <input
+                          type="text"
+                          name="treasury"
+                          maxLength={28}
+                          placeholder="Your team"
+                          value={treasuryName === "My Treasury" ? "" : treasuryName}
+                          onChange={(e) => setTreasuryName(e.target.value.slice(0, 28) || "My Treasury")}
+                        />
+                      </label>
+                      <label className="field-label">
+                        <span>Email</span>
+                        <input
+                          type="email"
+                          name="email"
+                          autoComplete="email"
+                          placeholder="you@company.com"
+                          value={interestEmail}
+                          onChange={(e) => setInterestEmail(e.target.value)}
+                          required
+                        />
+                      </label>
                       <button type="submit" className="primary" disabled={interestBusy}>
                         {interestBusy ? "Saving…" : "Join list"}
                       </button>
@@ -1434,7 +1509,7 @@ export function App() {
                       <div className="enroll-copy">
                         <p className="snapshot-label">Operator</p>
                         <strong>Wallet linked</strong>
-                        <p className="muted">You can check spends and freeze the treasury.</p>
+                        <p className="muted">                        Check spends and freeze the treasury.</p>
                       </div>
                       <div className="enroll-done">
                         <p>
@@ -1454,27 +1529,30 @@ export function App() {
                         type="button"
                         className="operator-toggle linkish"
                         onClick={() => {
+                          void sfxClick();
                           setOperatorOpen((v) => !v);
                         }}
                       >
-                        {operatorOpen ? "Hide operator wallet" : "I'm an operator — connect wallet"}
+                        {operatorOpen ? "Hide operator wallet" : "Connect an operator wallet"}
                       </button>
                       {operatorOpen ? (
                         <>
                           <p className="muted" style={{ margin: 0 }}>
-                            Optional. Link once so checks and freezes count for your treasury.
+                            Link a wallet to check spends and freeze your treasury.
                           </p>
                           <form className="enroll-form" onSubmit={enrollTreasury}>
-                            <input
-                              type="text"
-                              name="treasury-operator"
-                              maxLength={28}
-                              placeholder="Treasury name"
-                              value={treasuryName === "My Treasury" ? "" : treasuryName}
-                              onChange={(e) => setTreasuryName(e.target.value.slice(0, 28) || "My Treasury")}
-                              aria-label="Treasury name"
-                              required
-                            />
+                            <label className="field-label">
+                              <span>Team name</span>
+                              <input
+                                type="text"
+                                name="treasury-operator"
+                                maxLength={28}
+                                placeholder="Your team"
+                                value={treasuryName === "My Treasury" ? "" : treasuryName}
+                                onChange={(e) => setTreasuryName(e.target.value.slice(0, 28) || "My Treasury")}
+                                required
+                              />
+                            </label>
                             {!walletAddress ? (
                               <button
                                 type="button"
@@ -1499,139 +1577,113 @@ export function App() {
                     </>
                   )}
                 </section>
+
               </div>
             )}
 
             {tab === "review" && (
               <div className="review-layout">
-                <form
-                  className="surface review-main"
-                  onSubmit={(e: FormEvent) => {
-                    e.preventDefault();
-                    void runAssessment();
-                  }}
-                >
+                <section className="surface review-main">
                   <div className="review-head">
                     <div>
                       <div className="review-badges">
-                        <span className="review-badge">
-                          {policySource === "onchain"
-                            ? "Read from the contract"
-                            : policySource === "unavailable"
-                              ? "Policy unreadable"
-                              : "Not checked"}
-                        </span>
-                        {policySource === "onchain" && policyState ? (
-                          policyState.allowlisted ? (
-                            <span className="review-badge ok">Trusted payee</span>
-                          ) : (
-                            <span className="review-badge risk">Unknown payee</span>
-                          )
-                        ) : null}
+                        <span className="review-badge">Pending</span>
+                        {(policyState?.allowlisted ?? payload.allowlisted) ? (
+                          <span className="review-badge ok">Trusted payee</span>
+                        ) : (
+                          <span className="review-badge risk">Unknown payee</span>
+                        )}
                       </div>
-                      <h3>Check a spend before it leaves</h3>
-                      <p className="muted">
-                        Give it the treasury and the payee, and it reads the policy contract for both. Nothing typed here
-                        is taken on trust over the chain.
-                      </p>
+                      <h3>{currentSpend.label}</h3>
+                      <p className="muted">{currentSpend.blurb}</p>
                     </div>
+                    <button
+                      type="button"
+                      className="ghost review-switch"
+                      onClick={() => {
+                        void sfxClick();
+                        setSpendPickerOpen((v) => !v);
+                      }}
+                    >
+                      {spendPickerOpen ? "Hide queue" : "Other spends"}
+                    </button>
                   </div>
 
-                  <label className="spend-field">
-                    <span>From — treasury or operator address</span>
-                    <input
-                      className="treasury-input"
-                      value={spend.wallet}
-                      onChange={(e) => setSpend((s) => ({ ...s, wallet: e.target.value }))}
-                      placeholder="0x…"
-                      spellCheck={false}
-                    />
-                  </label>
-                  <label className="spend-field">
-                    <span>To — payee address</span>
-                    <input
-                      className="treasury-input"
-                      value={spend.destination}
-                      onChange={(e) => setSpend((s) => ({ ...s, destination: e.target.value }))}
-                      placeholder="0x…"
-                      spellCheck={false}
-                    />
-                  </label>
-                  <div className="spend-form-row">
-                    <label className="spend-field">
-                      <span>Amount (ETH)</span>
-                      <input
-                        className="treasury-input"
-                        value={spend.amountEth}
-                        onChange={(e) => setSpend((s) => ({ ...s, amountEth: e.target.value }))}
-                        inputMode="decimal"
-                      />
-                    </label>
-                    <label className="spend-field">
-                      <span>Type</span>
-                      <select
-                        className="treasury-input"
-                        value={spend.method}
-                        onChange={(e) => setSpend((s) => ({ ...s, method: e.target.value as SpendMethod }))}
-                      >
-                        <option value="transfer">Vendor payout</option>
-                        <option value="approve">Permission to spend</option>
-                      </select>
-                    </label>
+                  {spendPickerOpen && (
+                    <div className="spend-switch" role="listbox" aria-label="Other spends">
+                      {(Object.keys(INTENTS) as IntentId[]).map((id) => (
+                        <button
+                          key={id}
+                          type="button"
+                          role="option"
+                          aria-selected={intent === id}
+                          className={`scenario ${intent === id ? "active" : ""}`}
+                          onClick={() => {
+                            void sfxClick();
+                            setIntent(id);
+                            setAssessment(null);
+                            setWhyOpen(false);
+                            setSpendPickerOpen(false);
+                          }}
+                        >
+                          <strong>{INTENTS[id].label}</strong>
+                          <span className="scenario-meta">
+                            {INTENTS[id].vendor} · {INTENTS[id].amountEth} ETH
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="review-amount">
+                    <span>Amount</span>
+                    <strong>{formatEth(payload.amountWei)}</strong>
                   </div>
-                  {check.error ? <p className="error">{check.error}</p> : null}
 
                   <dl className="meta review-meta">
                     <div>
+                      <dt>Type</dt>
+                      <dd>{methodLabel(payload.method)}</dd>
+                    </div>
+                    <div>
                       <dt>From</dt>
-                      <dd title={check.wallet}>{check.wallet ? vendorName(check.wallet) : "—"}</dd>
+                      <dd>{currentSpend.walletLabel}</dd>
                     </div>
                     <div>
                       <dt>To</dt>
-                      <dd title={check.destination}>{check.destination ? vendorName(check.destination) : "—"}</dd>
-                    </div>
-                    <div>
-                      <dt>Amount</dt>
-                      <dd>{formatEth(check.amountWei)}</dd>
-                    </div>
-                    <div>
-                      <dt>Type</dt>
-                      <dd>{methodLabel(check.method)}</dd>
+                      <dd>{currentSpend.vendor}</dd>
                     </div>
                     <div>
                       <dt>Day limit</dt>
-                      <dd title="Most this address can send today">
-                        {policyState ? budgetDisplay(policyState, "0") : "—"}
-                      </dd>
+                      <dd title="Max the treasury can send today">{budgetDisplay(policyState, payload.dailyLimitWei)}</dd>
                     </div>
                     <div>
                       <dt>Spent today</dt>
-                      <dd title="Already sent from this address today">
-                        {policyState ? spentDisplay(policyState, "0") : "—"}
+                      <dd title="Already sent from the treasury today">
+                        {spentDisplay(policyState, payload.spentTodayWei)}
                       </dd>
                     </div>
                     <div>
-                      <dt>Trusted payee</dt>
-                      <dd>{policyState ? (policyState.allowlisted ? "Yes" : "No") : "—"}</dd>
-                    </div>
-                    <div>
-                      <dt>Policy</dt>
-                      <dd>
-                        {!policyState ? "—" : policyState.policyPaused ? "Frozen" : "Active"}
-                      </dd>
+                      <dt>Trusted list</dt>
+                      <dd>{(policyState?.allowlisted ?? payload.allowlisted) ? "Yes" : "No"}</dd>
                     </div>
                   </dl>
                   <p className="muted review-budget-hint">
-                    {policySource === "onchain"
-                      ? "Those figures came back from the contract, for the two addresses above."
-                      : policySource === "unavailable"
-                        ? "The policy could not be read for those addresses, so this refuses rather than guesses."
-                        : "Day limit = most this address can send today. Spent today = already used. Unknown payee = not on the trusted list."}
+                    Day limit = max the treasury can send today. Spent today = already used. Unknown payee = not on the
+                    trusted list.
                   </p>
 
                   {!assessment ? (
                     <div className="review-connect-gate">
-                      <button type="submit" className="primary full review-cta" disabled={loading || Boolean(check.error)}>
+                      <button
+                        type="button"
+                        className="primary full review-cta"
+                        onClick={() => {
+                          void sfxClick();
+                          void runAssessment();
+                        }}
+                        disabled={loading}
+                      >
                         <IconCheck size={16} />
                         {loading ? "Checking…" : "Check this spend"}
                       </button>
@@ -1656,16 +1708,16 @@ export function App() {
                       <p className="result-line">
                         <span className={`status-pill ${assessment.blocked ? "blocked" : "allowed"}`}>
                           {assessment.blocked ? <IconAlerts size={14} /> : <IconCheck size={14} />}
-                          {plainOutcome(assessment)}
+                          {plainOutcome(assessment, intent)}
                         </span>
                       </p>
                       <p className="decision-copy">
                         {assessment.blocked
-                          ? "Do not approve this. The policy helper suggests freezing the treasury — a human must confirm in Alerts."
+                          ? "Do not approve this. Review the alert before you freeze the treasury."
                           : "Looks clean. Within policy. You can approve this."}
                       </p>
                       <div className="operator-ai">
-                        <strong>Policy helper</strong>
+                        <strong>Policy engine</strong>
                         <p>
                           Suggests: <em>{playbookLabel(assessment.recommendedPlaybook)}</em>
                         </p>
@@ -1677,7 +1729,7 @@ export function App() {
                       {whyOpen && (
                         <ul className="clean why-list">
                           {assessment.matches.length === 0 ? (
-                            <li>No rule flags — destination and amount are inside treasury limits.</li>
+                            <li>No rule flags. Destination and amount are inside treasury limits.</li>
                           ) : (
                             assessment.matches.map((m) => (
                               <li key={m.ruleId}>
@@ -1693,19 +1745,21 @@ export function App() {
                             type="button"
                             className="primary"
                             onClick={() => {
+                              void sfxClick();
                               setTab("alerts");
                             }}
                           >
                             <IconAlerts size={16} />
-                            Open alerts
+                            Review alerts
                           </button>
                         ) : (
                           <button
                             type="button"
                             className="ghost"
                             onClick={() => {
+                              void sfxClick();
                               setAssessment(null);
-                              setPolicySource("unchecked");
+                              setSpendPickerOpen(true);
                             }}
                           >
                             Review another
@@ -1714,7 +1768,7 @@ export function App() {
                       </div>
                     </div>
                   )}
-                </form>
+                </section>
               </div>
             )}
 
@@ -1732,12 +1786,13 @@ export function App() {
                       </p>
                       <div className="cta-row left">
                         <button type="button" className="primary" onClick={goVault}>
-                          See live networks
+                          View security evidence
                         </button>
                         <button
                           type="button"
                           className="ghost"
                           onClick={() => {
+                            void sfxClick();
                             void unpausePolicy();
                           }}
                         >
@@ -1748,7 +1803,7 @@ export function App() {
                   )}
                   {openIncidents > 0 ? (
                     <p className="muted" style={{ marginBottom: "0.85rem" }}>
-                      {openIncidents} open · The policy helper suggests, you confirm the freeze.
+                      {openIncidents} open · The policy engine suggests a response. You confirm the freeze.
                     </p>
                   ) : null}
                   {incidents.length === 0 && !policyPaused ? (
@@ -1756,7 +1811,7 @@ export function App() {
                       <IconAlerts size={28} />
                       <p>No alerts yet</p>
                       <p className="muted">Blocked spends appear here for operator action.</p>
-                      <button type="button" className="ghost" onClick={goCheck}>
+                      <button type="button" className="ghost" onClick={() => goCheck("risky-approve")}>
                         Review spend
                       </button>
                     </div>
@@ -1777,7 +1832,7 @@ export function App() {
                             <p className="muted">
                               {incident.status === "mitigated"
                                 ? "Resolved · freeze confirmed"
-                                : `${incident.status} · Helper: ${playbookLabel(incident.recommendedPlaybook)}`}
+                                : `${incident.status} · Suggested response: ${playbookLabel(incident.recommendedPlaybook)}`}
                             </p>
                             {isOpen ? (
                               <div className="actions">
@@ -1785,6 +1840,7 @@ export function App() {
                                   type="button"
                                   className="primary"
                                   onClick={() => {
+                                    void sfxClick();
                                     void applyAction(incident.id, "mitigate");
                                   }}
                                 >
@@ -1795,6 +1851,7 @@ export function App() {
                                   type="button"
                                   className="ghost"
                                   onClick={() => {
+                                    void sfxClick();
                                     void applyAction(incident.id, "ignore");
                                   }}
                                 >
@@ -1863,8 +1920,7 @@ export function App() {
                     <IconAutomation size={18} /> Playbooks
                   </h3>
                   <p className="muted">
-                    Clear responses for each risk level. The helper only suggests — freezing the treasury still needs
-                    your click in Alerts.
+                    Clear responses for each risk level. A human confirms every freeze.
                   </p>
                   <div className="evidence-grid" style={{ marginTop: "1rem" }}>
                     <article>
@@ -1886,12 +1942,11 @@ export function App() {
                   </div>
                 </section>
                 <section className="surface">
-                  <h3>What the helper can do</h3>
+                  <h3>What the policy engine can do</h3>
                   {agentEval ? (
                     <p className="muted" style={{ marginBottom: "0.65rem" }}>
                       {agentEval.passed}/{agentEval.total} fixed policy cases match spec (
-                      {((agentEval.conformanceRate ?? 0) * 100).toFixed(0)}%). Regression fixtures only — not
-                      model validation.
+                      {((agentEval.conformanceRate ?? 0) * 100).toFixed(0)}%). Regression fixtures only.
                     </p>
                   ) : (
                     <p className="muted" style={{ marginBottom: "0.65rem" }}>
@@ -1918,350 +1973,6 @@ export function App() {
               </div>
             )}
 
-            {tab === "policy" && (
-              <div className="grid">
-                <section className="surface span-2">
-                  <h3>
-                    <IconPolicy size={18} /> Policy console
-                  </h3>
-                  <p className="muted section-lead">
-                    These are the rules the guard enforces on chain. Every change is signed by your own wallet and then
-                    read back from the contract, so the version and digest below are the contract's answer rather than
-                    ours.
-                  </p>
-
-                  <div className="admin-connect">
-                    {adminSigner ? (
-                      <span className="chip wallet-chip" title={adminSigner.address}>
-                        Signing as {shortAddress(adminSigner.address)}
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="primary"
-                        onClick={() => {
-                          void connectAdminWallet();
-                        }}
-                        disabled={!hasInjectedWallet()}
-                        title={
-                          hasInjectedWallet()
-                            ? "Use the wallet that administers this treasury"
-                            : "No browser wallet was detected in this browser"
-                        }
-                      >
-                        Connect a wallet
-                      </button>
-                    )}
-                    {!hasInjectedWallet() ? (
-                      <span className="muted">
-                        No browser wallet detected — the page stays read-only, which is safe.
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <label className="spend-field">
-                    <span>Treasury or wallet to administer</span>
-                    <input
-                      className="treasury-input"
-                      value={adminTarget}
-                      onChange={(e) => setAdminTarget(e.target.value)}
-                      placeholder="0x…"
-                      spellCheck={false}
-                    />
-                  </label>
-
-                  {adminError ? <p className="error">{adminError}</p> : null}
-
-                  {adminView ? (
-                    <>
-                      <dl className="meta review-meta">
-                        <div>
-                          <dt>Native daily limit</dt>
-                          <dd>{formatEth(adminView.wallet.dailyLimitWei.toString())}</dd>
-                        </div>
-                        <div>
-                          <dt>Spent today</dt>
-                          <dd>{formatEth(adminView.wallet.spentTodayWei.toString())}</dd>
-                        </div>
-                        <div>
-                          <dt>Policy state</dt>
-                          <dd>{adminView.paused ? "Frozen" : "Active"}</dd>
-                        </div>
-                        <div>
-                          <dt>Policy version</dt>
-                          <dd>
-                            {adminView.attestation.supported && adminView.attestation.head
-                              ? adminView.attestation.head.version.toString()
-                              : "Not published"}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Policy digest</dt>
-                          <dd title={adminView.attestation.head?.digest ?? ""}>
-                            {adminView.attestation.supported && adminView.attestation.head
-                              ? `${adminView.attestation.head.digest.slice(0, 14)}…`
-                              : "—"}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>Your permissions</dt>
-                          <dd>
-                            {adminSigner
-                              ? adminView.roles.policyAdmin
-                                ? adminView.roles.defaultAdmin
-                                  ? "Policy admin + admin"
-                                  : "Policy admin"
-                                : adminView.roles.defaultAdmin
-                                  ? "Admin only"
-                                  : "None on this treasury"
-                              : "Connect a wallet"}
-                          </dd>
-                        </div>
-                      </dl>
-
-                      {!adminView.attestation.supported ? (
-                        <p className="muted">
-                          This deployment was built before the versioned policy attestation, so it publishes no policy
-                          version or digest. The limits above are still read from it, and the guards still enforce the
-                          native lane — but a change here cannot be stamped to a policy version until the current build is
-                          deployed.
-                        </p>
-                      ) : null}
-
-                      <div className="admin-actions">
-                        <div className="admin-action">
-                          <strong>Daily limit for this address</strong>
-                          <div className="admin-row">
-                            <input
-                              className="treasury-input"
-                              value={limitInput}
-                              onChange={(e) => setLimitInput(e.target.value)}
-                              aria-label="Daily limit"
-                            />
-                            <span className="muted">ETH, or the word unlimited</span>
-                            <button
-                              type="button"
-                              className="primary"
-                              onClick={() => {
-                                void saveLimit();
-                              }}
-                              disabled={adminBusy || !adminGate("setWalletDailyLimit").allowed}
-                            >
-                              Save limit
-                            </button>
-                          </div>
-                          {!adminGate("setWalletDailyLimit").allowed ? (
-                            <p className="muted">{adminGate("setWalletDailyLimit").why}</p>
-                          ) : null}
-                        </div>
-
-                        <div className="admin-action">
-                          <strong>Payee allowlist</strong>
-                          <div className="admin-row">
-                            <input
-                              className="treasury-input"
-                              value={payeeInput}
-                              onChange={(e) => setPayeeInput(e.target.value)}
-                              placeholder="0x… payee"
-                              spellCheck={false}
-                              aria-label="Payee address"
-                            />
-                            <button
-                              type="button"
-                              className="primary"
-                              onClick={() => {
-                                void savePayee(true);
-                              }}
-                              disabled={adminBusy || !adminGate("setCounterparty").allowed}
-                            >
-                              Allow
-                            </button>
-                            <button
-                              type="button"
-                              className="ghost"
-                              onClick={() => {
-                                void savePayee(false);
-                              }}
-                              disabled={adminBusy || !adminGate("setCounterparty").allowed}
-                            >
-                              Revoke
-                            </button>
-                          </div>
-                          {!adminGate("setCounterparty").allowed ? (
-                            <p className="muted">{adminGate("setCounterparty").why}</p>
-                          ) : null}
-                        </div>
-
-                        <div className="admin-action">
-                          <strong>Freeze</strong>
-                          <div className="admin-row">
-                            <button
-                              type="button"
-                              className="primary"
-                              onClick={() => {
-                                void savePaused(true);
-                              }}
-                              disabled={adminBusy || adminView.paused || !adminGate("pause").allowed}
-                            >
-                              <IconFreeze size={16} /> Freeze the policy
-                            </button>
-                            <button
-                              type="button"
-                              className="ghost"
-                              onClick={() => {
-                                void savePaused(false);
-                              }}
-                              disabled={adminBusy || !adminView.paused || !adminGate("unpause").allowed}
-                            >
-                              Unfreeze
-                            </button>
-                          </div>
-                          <p className="muted">
-                            A freeze refuses every spend at the guard, and it also blocks further policy edits — including
-                            removing the freeze — so unfreezing needs a default admin.
-                          </p>
-                          {!adminView.paused && !adminGate("pause").allowed ? (
-                            <p className="muted">{adminGate("pause").why}</p>
-                          ) : null}
-                          {adminView.paused && !adminGate("unpause").allowed ? (
-                            <p className="muted">{adminGate("unpause").why}</p>
-                          ) : null}
-                        </div>
-
-                        <div className="admin-action">
-                          <strong>Token lane</strong>
-                          <p className="muted">
-                            A registered token is enforced in its own units: which recipients may be paid, and the daily cap
-                            for this address. Clearing a cap to zero closes the lane rather than opening it.
-                          </p>
-                          <p className="muted">
-                            {!settlement
-                              ? "No settlement token is declared for this chain."
-                              : !settlementTokenVerified
-                                ? "The declared settlement token did not answer as the manifest expects — see npm run check:settlement."
-                                : null}
-                            {settlement && settlementTokenVerified ? (
-                              <>
-                                Fields are prefilled with the issuer’s {settlement.symbol} — {settlement.name},
-                                {" "}
-                                {settlement.decimals} decimals — at{" "}
-                                <a
-                                  className="linkish"
-                                  href={addressUrl(settlement.address)}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  {shortAddress(settlement.address)}
-                                </a>
-                                {`. Read from that contract ${settlementGeneratedAt}, not copied from the docs.`}
-                              </>
-                            ) : null}
-                          </p>
-                          <div className="admin-row">
-                            <input
-                              className="treasury-input"
-                              value={tokenInput}
-                              onChange={(e) => setTokenInput(e.target.value)}
-                              placeholder="0x… token"
-                              spellCheck={false}
-                              aria-label="Token address"
-                            />
-                            <button
-                              type="button"
-                              className="primary"
-                              onClick={() => {
-                                void registerToken();
-                              }}
-                              disabled={adminBusy || !adminGate("setTokenRegistered").allowed}
-                            >
-                              Enforce this token
-                            </button>
-                          </div>
-                          {!adminGate("setTokenRegistered").allowed ? (
-                            <p className="muted">{adminGate("setTokenRegistered").why}</p>
-                          ) : null}
-                          <div className="admin-row">
-                            <input
-                              className="treasury-input"
-                              value={tokenRecipientInput}
-                              onChange={(e) => setTokenRecipientInput(e.target.value)}
-                              placeholder="0x… recipient"
-                              spellCheck={false}
-                              aria-label="Token recipient"
-                            />
-                            <button
-                              type="button"
-                              className="primary"
-                              onClick={() => {
-                                void saveTokenRecipient(true);
-                              }}
-                              disabled={adminBusy || !adminGate("setTokenCounterparty").allowed}
-                            >
-                              Allow recipient
-                            </button>
-                            <button
-                              type="button"
-                              className="ghost"
-                              onClick={() => {
-                                void saveTokenRecipient(false);
-                              }}
-                              disabled={adminBusy || !adminGate("setTokenCounterparty").allowed}
-                            >
-                              Revoke
-                            </button>
-                          </div>
-                          {!adminGate("setTokenCounterparty").allowed ? (
-                            <p className="muted">{adminGate("setTokenCounterparty").why}</p>
-                          ) : null}
-                          <div className="admin-row">
-                            <input
-                              className="treasury-input admin-narrow"
-                              value={tokenLimitInput}
-                              onChange={(e) => setTokenLimitInput(e.target.value)}
-                              aria-label="Token daily cap"
-                            />
-                            <input
-                              className="treasury-input admin-narrow"
-                              value={tokenDecimalsInput}
-                              onChange={(e) => setTokenDecimalsInput(e.target.value)}
-                              inputMode="numeric"
-                              aria-label="Token decimals"
-                            />
-                            <span className="muted">cap, decimals</span>
-                            <button
-                              type="button"
-                              className="primary"
-                              onClick={() => {
-                                void saveTokenLimit();
-                              }}
-                              disabled={adminBusy || !adminGate("setTokenDailyLimit").allowed}
-                            >
-                              Save cap
-                            </button>
-                          </div>
-                          {!adminGate("setTokenDailyLimit").allowed ? (
-                            <p className="muted">{adminGate("setTokenDailyLimit").why}</p>
-                          ) : null}
-                        </div>
-                      </div>
-                    </>
-                  ) : null}
-
-                  {adminNotice ? (
-                    <div className={adminNotice.ok ? "freeze-success" : "error-block"}>
-                      <strong>{adminNotice.ok ? "Change landed" : "Refused"}</strong>
-                      <p className="muted">{adminNotice.text}</p>
-                      {adminNotice.txHash ? (
-                        <a className="linkish" href={txUrl(adminNotice.txHash)} target="_blank" rel="noreferrer">
-                          See the transaction
-                        </a>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </section>
-              </div>
-            )}
-
             {tab === "security" && (
               <div className="grid">
                 <section className="surface span-2">
@@ -2270,7 +1981,7 @@ export function App() {
                     Arbitrum Sepolia and Robinhood Chain Testnet run the earlier native-lane deployment. Those addresses
                     are real and source-verified, but they predate the token lane and the policy attestation, so do not
                     read them as proof of the code you are looking at. Everything below is generated from the current
-                    source by <code>npm run evidence -w packages/contracts</code> — run it and compare. Addresses and
+                    source by <code>npm run evidence -w packages/contracts</code>. Run it and compare. Addresses and
                     explorer links: <code>docs/live-deployment.md</code>.
                   </p>
                   <p className="muted section-lead">
@@ -2289,7 +2000,7 @@ export function App() {
                     {driftReport.summary.unreachable > 0
                       ? `, ${driftReport.summary.unreachable} unreachable`
                       : ""}
-                    . A drifted contract is one whose deployed source is not the source you are reading now — the honest
+                    . A drifted contract is one whose deployed source is not the source you are reading now. The honest
                     status of both networks until the redeploy. {driftReport.note} Generated {DRIFT_GENERATED_AT} by{" "}
                     <code>npm run check:deployed</code>, which fails when a network&apos;s declared status and the chain
                     disagree.
@@ -2300,8 +2011,8 @@ export function App() {
                         <strong>{network.label}</strong> · chain {network.chainId} · declared {" "}
                         <code>{network.declared}</code>
                         {network.declared === "superseded"
-                          ? " — expected to differ from this source, and it does"
-                          : " — expected to match this source"}
+                          ? ": expected to differ from this source, and it does"
+                          : ": expected to match this source"}
                       </p>
                       <ul className="clean">
                         {network.contracts.map((c) => (
@@ -2315,7 +2026,7 @@ export function App() {
                                     ? "No code"
                                     : "Not read"}
                             </strong>
-                            {" — "}
+                            {": "}
                             <a href={c.url} target="_blank" rel="noreferrer noopener">
                               {c.contract}
                             </a>
@@ -2337,7 +2048,7 @@ export function App() {
                     <IconSecurity size={18} /> Contract quality · reproduced from source
                   </h3>
                   <p className="muted section-lead">
-                    Not a claim — the artifact. {guardProof.summary.passed}/{guardProof.summary.total} cases behaved as
+                    Not a claim. This is the artifact. {guardProof.summary.passed}/{guardProof.summary.total} cases behaved as
                     specified against a real Gnosis Safe v{PROOF_SAFE_VERSION}, with the guard installed the only way
                     Safe permits (an owner-approved call the Safe makes to itself). Generated {PROOF_GENERATED_AT} by{" "}
                     <code>npm run evidence -w packages/contracts</code>, which exits non-zero if any row drifts.
@@ -2356,13 +2067,13 @@ export function App() {
                       <span>USDG-ready</span>
                       <p>
                         Register an ERC-20, allowlist its counterparties, cap it per wallet per day in the token&apos;s
-                        own base units — 6 decimals, not wei.
+                        own base units: 6 decimals, not wei.
                       </p>
                     </article>
                     <article className="asset-card">
                       <strong>Approval guard</strong>
                       <span>Calldata-aware</span>
-                      <p>An unlimited approval is refused, and an unrecognised call on a registered token is rejected.</p>
+                      <p>Standing approvals are refused, and an unrecognised call on a registered token is rejected.</p>
                     </article>
                     <article className="asset-card">
                       <strong>Policy attestation</strong>
@@ -2384,16 +2095,16 @@ export function App() {
                 <section className="surface span-2">
                   <h3>Guard proof · every case, with its revert reason</h3>
                   <p className="muted section-lead">
-                    Row 1 is the same payment as row 2, executed <em>before</em> the guard was installed — and it
+                    Row 1 is the same payment as row 2, executed <em>before</em> the guard was installed. It
                     settles. A screenshot of a blocked transaction proves nothing on its own; the before/after pair is
                     what shows the guard is the thing making the difference.
                   </p>
                   <ul className="clean">
                     {guardProof.cases.map((item) => (
                       <li key={item.id}>
-                        <strong>{item.outcome === "blocked" ? "Refused" : "Settled"}</strong>{" — "}
+                        <strong>{item.outcome === "blocked" ? "Refused" : "Settled"}</strong>{": "}
                         {item.description}{" "}
-                        {item.reason !== "—" ? (
+                        {item.reason !== "Not set" ? (
                           <span className="muted">
                             · <code>{item.reason}</code>
                           </span>
@@ -2407,7 +2118,7 @@ export function App() {
                   <h3>Policy attestation · replayable from logs</h3>
                   <p className="muted section-lead">
                     Policy is versioned and hash-chained. Each amendment emits its parameters and folds into a running
-                    digest, so the history can be recomputed from logs alone — no trust in the contract&apos;s storage —
+                    digest, so the history can be recomputed from logs alone. No trust in the contract&apos;s storage.
                     and editing an early amendment changes every later digest.
                   </p>
                   <ul className="clean">
@@ -2427,7 +2138,7 @@ export function App() {
                     </li>
                     <li>
                       {guardProof.policyAttestation.distinctPolicyVersionsInDecisions} distinct policy versions across
-                      those decisions — the stamp tracks amendments rather than reporting a constant
+                      those decisions. The stamp tracks amendments rather than reporting a constant
                     </li>
                     <li>
                       Head policy version {guardProof.policyAttestation.headVersion} · digest{" "}
@@ -2511,7 +2222,7 @@ export function App() {
                   <h3>Product</h3>
                   <ul className="clean">
                     <li>
-                      <a href="https://arb-guardian.vercel.app" target="_blank" rel="noreferrer">
+                      <a href="https://arb-guardian.sithunyein.com" target="_blank" rel="noreferrer">
                         Live app
                       </a>
                     </li>
@@ -2529,24 +2240,31 @@ export function App() {
         </>
       )}
 
-      <footer className="footer">
-        <div>Arb Guardian — contract-enforced spend policy for delegated funds</div>
-        <div>
-          <a href="https://github.com/thesithunyein/arb-guardian" target="_blank" rel="noreferrer">
-            Repo
-          </a>
-          {" · "}
-          <button
-            type="button"
-            className="linkish inline"
-            onClick={() => {
-              if (!entered) enterWorld();
-              goVault();
-            }}
-          >
-            Live networks
-          </button>
-          {runtime === "api" ? " · Live" : null}
+      <footer className={`footer ${entered ? "workspace-footer" : "landing-footer"}`}>
+        <div className="footer-brand">
+          <strong>
+            <span className="accent">Arb</span> Guardian
+          </strong>
+          <span>Shared funds, safer decisions.</span>
+        </div>
+        {!entered ? (
+          <div className="footer-links" aria-label="Footer navigation">
+            <a href="#landing-how-it-works">How it works</a>
+            <a href="#landing-faq">FAQ</a>
+            <a href="#docs">Docs</a>
+            <a href="https://github.com/thesithunyein/arb-guardian" target="_blank" rel="noreferrer">
+              GitHub
+            </a>
+          </div>
+        ) : (
+          <div>
+            <span>Arb Guardian workspace</span>
+            {runtime === "api" ? " · Connected" : null}
+          </div>
+        )}
+        <div className="footer-meta">
+          <span>Arbitrum treasury controls</span>
+          <span>© 2026 Arb Guardian</span>
         </div>
       </footer>
       </div>

@@ -3,15 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0b1220" />
+    <meta name="theme-color" content="#f8faf8" />
     <script>
       (function () {
         try {
           var t = localStorage.getItem("arb-guardian-theme-v6");
-          if (t !== "light" && t !== "dark") t = "dark";
+          if (t !== "light" && t !== "dark") t = "light";
           document.documentElement.setAttribute("data-theme", t);
         } catch (e) {
-          document.documentElement.setAttribute("data-theme", "dark");
+          document.documentElement.setAttribute("data-theme", "light");
         }
       })();
     </script>
@@ -24,7 +24,7 @@
     <meta property="og:title" content="Arb Guardian · Enforceable spend policy for delegated funds" />
     <meta
       property="og:description"
-      content="Bound what an agent, bot or operator can move: per-asset daily caps, allowlisted counterparties, no unlimited approvals — enforced by a real Gnosis Safe guard and reproducible from source."
+      content="Bound what an agent, bot or operator can move: per-asset daily caps, allowlisted counterparties, no standing approvals — enforced by a real Gnosis Safe guard and reproducible from source."
     />
     <meta property="og:image" content="https://arb-guardian.vercel.app/logo.png" />
     <meta property="og:url" content="https://arb-guardian.vercel.app" />
@@ -37,7 +37,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Mulish:wght@500;600;700;800&family=Pixelify+Sans:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..1000&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
     <title>Arb Guardian · Enforceable spend policy for delegated funds</title>

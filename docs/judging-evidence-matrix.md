@@ -8,14 +8,14 @@
   - Pausable safety controls; zero-address and invalid-amount guards; custom errors for explicit revert reasons
   - **Deny-by-default limits** in both lanes: an unconfigured wallet or Safe cannot spend; `UNLIMITED_LIMIT` must be granted explicitly
   - **Token lane**: register an ERC-20 (USDG first), allowlist counterparties, cap per wallet per day in the token's base units. A test pins the 18-vs-6 decimal trap a wei-denominated policy would have shipped
-  - **Calldata-aware routing**: a registered token's `transfer`/`transferFrom`/`approve`/`increaseAllowance` is decoded and capped; an **unlimited approval is refused**; an unrecognised call on a registered token is rejected rather than falling through
+  - **Calldata-aware routing**: a registered token's `transfer`/`transferFrom` is decoded and capped; `transferFrom` must name the Safe as its source; **all standing approvals are refused** because a spender could exercise them outside daily-cap accounting; an unrecognised call on a registered token is rejected rather than falling through
   - **Real Gnosis Safe v1.4.1 integration** (`test/RealSafeGuard.test.ts`) — guard installed via a genuine `execTransaction` self-call (Safe 1.4.1 `setGuard` is `SelfAuthorized`), then shown blocking a spend that succeeds without it
   - Spend recorded pre-execution (no re-entrancy bypass) and **refunded** on failed execution
   - Bounds-checked assembly decoding isolated in one library
   - **Versioned policy attestation**: every policy mutation advances a hash-chained `policyVersion` / `policyDigest`, the amendment is emitted with its parameters so the chain replays from logs alone, and every decision record carries the version and digest that judged it (`test/PolicyAttestation.test.ts`)
 - **Validation command:** `npm run test -w packages/contracts` (65 tests)
 - **Integration path:** `npm run example:operator -w packages/contracts` — a runnable operator bot that dry-runs policy, decodes the refusal, and records the policy version/digest of each allowed decision. Exercised in CI.
-- **Reproducible proof:** `npm run evidence -w packages/contracts` → 15/15 cases, before/after pair, exact revert reason per case, plus an 11-amendment digest-chain replay with 6/6 decisions stamped
+- **Reproducible proof:** `npm run evidence -w packages/contracts` → 15/15 cases, before/after pair, exact revert reason per case, plus an 11-amendment digest-chain replay with 5/5 allowed decisions stamped
 - **One policy client:** the ABI, role hashes, limit semantics and revert decoding live once, in `packages/shared/src/policy.ts`, and are consumed by the web app and the API. Previously four hand-written copies, one of which had already drifted past the token lane and the attestation
 - **Logic tests:** `npm run test -w packages/shared` (20) — `0` blocks, `UNLIMITED_LIMIT` uncaps, the role matrix (`pause` is not `POLICY_ADMIN_ROLE`), 6-decimal parsing, and refusal messages
 - **Live client tests:** `npm run test -w apps/api` (21, including 4 live) — the shared client is driven against the deployed PolicyManager by read-only `eth_call` from a throwaway address, proving the ABI names functions that exist and that a real `AccessControlUnauthorizedAccount` is decoded into an actionable refusal. No key, no gas, no state change
@@ -58,7 +58,7 @@
 ## Deployment qualification
 
 - **Required proof:** Arbitrum chain deployment addresses + transaction links
-- **Live product:** https://arb-guardian.vercel.app
+- **Live product:** https://arb-guardian.sithunyein.com (Vercel alias: https://arb-guardian.vercel.app)
 - **Public repo:** https://github.com/thesithunyein/arb-guardian
 - **Deploy guide:** `docs/deploy-sepolia.md`
 - **Deployment command:** `npm run deploy:p0`

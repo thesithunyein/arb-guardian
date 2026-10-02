@@ -20,7 +20,7 @@ import {
   type PolicyRoles,
   type WalletPolicy
 } from "@arb-guardian/shared";
-import { EXECUTION_GUARD, POLICY_MANAGER, RPC_URL } from "./config";
+import { DEPLOYMENT_READY, EXECUTION_GUARD, POLICY_MANAGER, RPC_URL } from "./config";
 
 export type OnchainPolicy = {
   allowlisted: boolean;
@@ -40,7 +40,7 @@ export function getReadProvider() {
 }
 
 function configured() {
-  return isAddress(POLICY_MANAGER) && isAddress(EXECUTION_GUARD);
+  return DEPLOYMENT_READY && isAddress(POLICY_MANAGER) && isAddress(EXECUTION_GUARD);
 }
 
 /** Everything the Review tab needs about one wallet's exposure, read from the live chain. */

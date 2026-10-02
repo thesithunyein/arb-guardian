@@ -7,12 +7,12 @@ const STORAGE_KEY = "arb-guardian-theme-v6";
 function getPreferredTheme(): ThemeMode {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved === "light" || saved === "dark") return saved;
-  return "dark";
+  return "light";
 }
 
 export function useTheme() {
   const [theme, setTheme] = useState<ThemeMode>(() => {
-    if (typeof window === "undefined") return "dark";
+    if (typeof window === "undefined") return "light";
     return getPreferredTheme();
   });
 

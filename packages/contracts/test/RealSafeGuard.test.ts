@@ -386,27 +386,32 @@ describe("SafeTreasuryGuard + real Gnosis Safe v1.4.1", function () {
       ).to.be.revertedWithCustomError(ctx.guard, "TokenDailyLimitExceeded");
     });
 
-    it("BLOCKS an unlimited USDG approval from the treasury", async function () {
-      const ctx = await setup();
-      await installGuard(ctx);
-
-      const data = erc20Interface.encodeFunctionData("approve", [ctx.usdgSpender.address, ethers.MaxUint256]);
-
-      await expect(
-        execSafeTx(ctx.safe, ctx.owner, ctx.usdgAddress, 0n, data)
-      ).to.be.revertedWithCustomError(ctx.guard, "UnlimitedApprovalNotAllowed");
-    });
-
-    it("allows a bounded USDG approval to an allowlisted spender", async function () {
+    it("BLOCKS even a finite USDG approval from the treasury", async function () {
       const ctx = await setup();
       await installGuard(ctx);
 
       const data = erc20Interface.encodeFunctionData("approve", [ctx.usdgSpender.address, usdgUnits(250)]);
-      await (await execSafeTx(ctx.safe, ctx.owner, ctx.usdgAddress, 0n, data)).wait();
 
-      expect(await ctx.usdg.allowance(ctx.safeAddress, ctx.usdgSpender.address)).to.equal(usdgUnits(250));
-      // An approval grants authority, so it does not consume the daily cap.
-      expect(await ctx.guard.safeTokenSpentToday(ctx.usdgAddress, ctx.safeAddress)).to.equal(0n);
+      await expect(
+        execSafeTx(ctx.safe, ctx.owner, ctx.usdgAddress, 0n, data)
+      ).to.be.revertedWithCustomError(ctx.guard, "ApprovalNotAllowed");
+    });
+
+    it("BLOCKS transferFrom when the source is not the Safe", async function () {
+      const ctx = await setup();
+
+      await ctx.usdg.mint(ctx.usdgOutsider.address, usdgUnits(250));
+      await ctx.usdg.connect(ctx.usdgOutsider).approve(ctx.safeAddress, usdgUnits(250));
+      await installGuard(ctx);
+
+      const data = erc20Interface.encodeFunctionData("transferFrom", [
+        ctx.usdgOutsider.address,
+        ctx.usdgRecipient.address,
+        usdgUnits(250)
+      ]);
+      await expect(
+        execSafeTx(ctx.safe, ctx.owner, ctx.usdgAddress, 0n, data)
+      ).to.be.revertedWithCustomError(ctx.guard, "TransferFromSourceNotSafe");
     });
 
     it("BLOCKS an unrecognised call on a registered token instead of falling through", async function () {
@@ -426,14 +431,14 @@ describe("SafeTreasuryGuard + real Gnosis Safe v1.4.1", function () {
       await installGuard(ctx);
 
       // The guard's own policy checks pass (allowlisted recipient, inside the cap), but the
-      // token call then fails: the Safe holds no allowance over the outsider's USDG.
+      // token call then fails: the Safe has no allowance for its own transferFrom call.
       //
       // gasPrice is non-zero so the Safe settles with success = false instead of reverting
       // the whole transaction (Safe reverts with GS013 when the inner call fails and both
       // safeTxGas and gasPrice are zero). That settled-but-failed case is precisely what
       // checkAfterExecution has to clean up after.
       const data = erc20Interface.encodeFunctionData("transferFrom", [
-        ctx.usdgOutsider.address,
+        ctx.safeAddress,
         ctx.usdgRecipient.address,
         usdgUnits(900)
       ]);

@@ -87,7 +87,7 @@ contract ExecutionGuard is AccessControl, Pausable {
     error TokenCounterpartyNotAllowlisted(address token, address counterparty);
     error TokenDailyLimitNotConfigured(address token, address wallet);
     error TokenDailyLimitExceeded(address token, address wallet, uint256 attemptedAmount, uint256 limit);
-    error UnlimitedApprovalNotAllowed(address token, address spender);
+    error ApprovalNotAllowed(address token, address spender, uint256 amount);
 
     constructor(address admin, address policyManagerAddress) {
         if (admin == address(0) || policyManagerAddress == address(0)) revert ZeroAddressNotAllowed();
@@ -195,9 +195,9 @@ contract ExecutionGuard is AccessControl, Pausable {
 
     /**
      * @notice Validate an approval-class call (approve / increaseAllowance).
-     * @dev An approval grants standing authority rather than moving value, so it does not
-     *      consume the daily cap. It is still constrained: the spender must be explicitly
-     *      allowlisted for that token, and an unlimited approval is rejected outright.
+     * @dev Approvals grant standing authority that can be exercised without this oracle being
+     *      called again, so allowing them would bypass daily-cap accounting. All approvals are
+     *      rejected; callers should submit bounded transfers instead.
      */
     function validateTokenApproval(
         address wallet,
@@ -221,13 +221,8 @@ contract ExecutionGuard is AccessControl, Pausable {
             revert TokenCounterpartyNotAllowlisted(token, spender);
         }
 
-        if (amount == type(uint256).max) {
-            emit TokenApprovalValidated(token, wallet, spender, amount, methodSelector, true, "unlimited_approval", msg.sender, policyVersion, policyDigest);
-            revert UnlimitedApprovalNotAllowed(token, spender);
-        }
-
-        emit TokenApprovalValidated(token, wallet, spender, amount, methodSelector, false, "allowed", msg.sender, policyVersion, policyDigest);
-        return (true, "allowed");
+        emit TokenApprovalValidated(token, wallet, spender, amount, methodSelector, true, "approval_not_allowed", msg.sender, policyVersion, policyDigest);
+        revert ApprovalNotAllowed(token, spender, amount);
     }
 
     // ------------------------------------------------------------------ internal

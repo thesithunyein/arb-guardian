@@ -2,7 +2,7 @@
 
 Arb Guardian is a dual-chain delegated-spend control stack: onchain policy + guards, a deterministic risk engine, a policy playbook engine (no model in the loop), and an operator console. Deployments and proof live in the repo; see `docs/judging-evidence-matrix.md` for where each claim is checked.
 
-Live product: [arb-guardian.vercel.app](https://arb-guardian.vercel.app)
+Live product: [arb-guardian.sithunyein.com](https://arb-guardian.sithunyein.com)
 
 ---
 

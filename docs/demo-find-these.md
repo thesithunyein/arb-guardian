@@ -4,7 +4,7 @@ Two surfaces, and they prove different things. Say which one you are on when you
 
 | Surface | What it proves |
 | --- | --- |
-| **https://arb-guardian.vercel.app** | The operator workflow: check a spend, see the decision, freeze |
+| **https://arb-guardian.sithunyein.com** | The operator workflow: check a spend, see the decision, freeze |
 | **`npm run evidence -w packages/contracts`** (repo) | The enforcement: a real Safe refuses the spend, with the revert reason and the policy version |
 
 Hard refresh once: `Ctrl+Shift+R`.
@@ -16,8 +16,8 @@ Hard refresh once: `Ctrl+Shift+R`.
 1. Click **Open** on the landing screen.
 2. Click the tab **Review**.
 3. Pick the spend **“Agent asks for standing approval”**, then **Check a spend**.
-4. You get **Block — unlimited approval**. That intent is an approval-class call, which is the
-   drain primitive this exists to stop.
+4. You get **Block — standing approval**. Even a finite allowance can be exercised later through
+   `transferFrom` without a new Safe transaction, so the contract requires direct transfers.
 5. Switch to **“Normal vendor payout”** and run it: **Allow — within policy**.
 
 Point out the two numbers in the receipt: **Day limit** and **Spent today**. They are the whole

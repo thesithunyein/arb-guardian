@@ -16,11 +16,12 @@ const SAFE_GUARD = (
   process.env.SUBMISSION_SAFE_TREASURY_GUARD_ADDRESS ||
   "0xcba30F60BE3FB0fB0e9db0C816c4ab9Fa2f7b211"
 ).trim();
+const DEPLOYMENT_STATUS = process.env.SUBMISSION_DEPLOYMENT_STATUS === "current" ? "current" : "superseded";
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
-  const ready = Boolean(POLICY_MANAGER && EXECUTION_GUARD);
+  const ready = DEPLOYMENT_STATUS === "current" && Boolean(POLICY_MANAGER && EXECUTION_GUARD);
   const s = store();
   return res.status(200).json({
     service: "arb-guardian-api",
@@ -35,7 +36,8 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       policyManager: POLICY_MANAGER || null,
       executionGuard: EXECUTION_GUARD || null,
       safeTreasuryGuard: SAFE_GUARD || null,
-      source: ready ? "env" : "none"
+      source: ready ? "env" : "recorded-superseded",
+      status: DEPLOYMENT_STATUS
     },
     kpis: {
       totalAssessments: s.assessments,

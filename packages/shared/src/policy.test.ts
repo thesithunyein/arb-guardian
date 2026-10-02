@@ -145,8 +145,8 @@ describe("turning a revert into something an operator can act on", () => {
   it("explains the guard's refusals in plain terms", () => {
     expect(decodePolicyError({ revert: { name: "DailyLimitNotConfigured", args: ["0xabc"] } }).operatorMessage)
       .toContain("deny-by-default");
-    expect(decodePolicyError({ revert: { name: "UnlimitedApprovalNotAllowed", args: [] } }).operatorMessage)
-      .toContain("drain");
+    expect(decodePolicyError({ revert: { name: "ApprovalNotAllowed", args: [] } }).operatorMessage)
+      .toContain("standing token approval");
     expect(decodePolicyError({ revert: { name: "EnforcedPause", args: [] } }).operatorMessage)
       .toContain("paused");
   });

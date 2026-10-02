@@ -183,13 +183,8 @@ async function main() {
       run: (op) => op.proposeTokenTransfer(tokenAddress, payroll.address, usdg(6000))
     },
     {
-      label: "unlimited USDG approval to a market maker",
+      label: "250 USDG approval to the same market maker (standing authority)",
       expect: "denied",
-      run: (op) => op.proposeTokenApproval(tokenAddress, marketMaker.address, ethers.MaxUint256)
-    },
-    {
-      label: "250 USDG approval to the same market maker (bounded)",
-      expect: "allowed",
       run: (op) => op.proposeTokenApproval(tokenAddress, marketMaker.address, usdg(250))
     },
     {

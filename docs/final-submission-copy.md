@@ -42,9 +42,10 @@ Three contracts plus an operator console.
   counterparties, and cap it per wallet per day in the token's own base units. USDG uses 6
   decimals, so a $5,000 cap is `5_000 * 10**6` — a wei-denominated policy would have allowed a
   million times the intended amount, and there is a test for exactly that mistake.
-- **Approvals are constrained, not merely flagged.** `approve`, `increaseAllowance`, `permit` and
-  `setApprovalForAll` block by default, matched by name *and* selector, and an **unlimited
-  approval is refused outright** — a standing unbounded grant is never acceptable from a treasury.
+- **Standing approvals are refused at the enforcement boundary.** A finite approval is not safe
+  merely because it is below today's cap: the spender can later call `transferFrom` without the
+  Safe guard seeing a new Safe transaction. The contracts therefore reject approvals and require
+  direct, cap-accounted transfers; `transferFrom` must also name the guarded Safe as its source.
 - **Real Safe enforcement.** `SafeTreasuryGuard` is a Gnosis Safe v1.4.1 `ITransactionGuard`,
   installed the only way Safe permits (`GuardManager.setGuard` is `SelfAuthorized`, so it must
   arrive as an owner-approved `execTransaction` self-call). Once installed, a policy-violating
@@ -75,7 +76,8 @@ is refused after, which is what shows the guard is making the difference.
 The generator exits non-zero if any case drifts, so the table cannot silently go stale.
 Artifacts: `packages/contracts/evidence/guard-proof.md` and `guard-proof.json`.
 
-Test totals: **65 contract tests**, 17 API tests, 14 policy-conformance fixtures.
+Test totals should be regenerated with `npm run quality:gate` before submission; this branch adds
+coverage for finite-approval and `transferFrom` bypass attempts.
 
 ## Why Arbitrum / Robinhood Chain
 
@@ -96,7 +98,7 @@ natively issued Global Dollar and the lending asset in Robinhood Earn — settle
 - **Product-Market Fit:** the control every team delegating funds needs, in the asset treasuries
   actually hold (stablecoins), on the chains where those teams are being pointed.
 - **Innovation and creativity:** trustless, calldata-aware spend policy — including refusal of
-  unlimited approvals and rejection of unrecognised calls on registered tokens — enforced inside a
+  standing approvals and rejection of unrecognised calls on registered tokens — enforced inside a
   real Safe rather than by vendor goodwill or application code.
 - **Real problem solving:** addresses a specific, quantified, current failure of delegated trust,
   and ships a reproducible artifact proving the enforcement works.
@@ -104,16 +106,19 @@ natively issued Global Dollar and the lending asset in Robinhood Earn — settle
 
 ## Links
 
-- Web app: https://arb-guardian.vercel.app
+- Web app: https://arb-guardian.sithunyein.com (Vercel alias: https://arb-guardian.vercel.app)
+- Production check: both URLs returned HTTP 200; same-origin API health is
+  https://arb-guardian.sithunyein.com/api/health
 - Repo: https://github.com/thesithunyein/arb-guardian
 - Guard proof: `packages/contracts/evidence/guard-proof.md`
-- Demo video: `<fill_demo_url>`
+- Demo video: **not recorded**
 
 ## Contract addresses
 
 ### Live now (deployed 2026-07-30) — **superseded, see note**
 
-**Arbitrum Sepolia** (chain 421614)
+**Arbitrum Sepolia** (chain 421614) — recorded deployment is superseded; corrected redeploy is not
+yet verified
 - PolicyManager: `0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76`
 - ExecutionGuard: `0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124`
 - SafeTreasuryGuard: `0xcba30F60BE3FB0fB0e9db0C816c4ab9Fa2f7b211`
@@ -136,15 +141,15 @@ natively issued Global Dollar and the lending asset in Robinhood Earn — settle
 
 ## Deployment transactions
 
-- PolicyManager tx: `<fill_policy_tx>`
-- ExecutionGuard tx: `<fill_guard_tx>`
-- SafeTreasuryGuard tx: `<fill_safe_guard_tx>`
-- USDG token-lane registration tx: `<fill_usdg_registration_tx>`
+- Corrected-build deployment transactions: **not available; deployment is blocked pending a funded
+  deployer, Arbitrum Sepolia ETH, an explorer API key, and operator approval. Do not fabricate
+  hashes.**
 
 ## What we validated
 
-- 65 contract tests pass, including real Gnosis Safe v1.4.1 integration and the USDG token lane
-  (`npm run test -w packages/contracts`)
+- Contract test suite covers real Gnosis Safe v1.4.1 integration, token caps, approval refusal,
+  and Safe-source `transferFrom`; rerun `npm run test -w packages/contracts` after installing
+  dependencies in a networked environment.
 - 17 API unit/integration tests pass (`npm run test -w apps/api`)
 - 14 policy-conformance fixtures pass (`npm run eval:policy -w apps/api`) — a regression suite
   over fixed cases, **not** model validation

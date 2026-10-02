@@ -2,6 +2,17 @@
 
 Public on-chain qualification proof for Arb Guardian.
 
+## Verification snapshot (2026-10-02)
+
+- Production app: [arb-guardian.sithunyein.com](https://arb-guardian.sithunyein.com) returned HTTP
+  200 and resolves to Vercel-managed DNS.
+- Vercel alias: [arb-guardian.vercel.app](https://arb-guardian.vercel.app) returned HTTP 200.
+- Same-origin API health returned `{"status":"ok",...}`; `/api/status` reached Arbitrum Sepolia
+  for the recorded deployment.
+- The API deliberately labels the recorded deployment **superseded**, not current. The corrected
+  build cannot be claimed live until a funded deployer, Arbitrum Sepolia ETH, and an Arbiscan API
+  key are supplied.
+
 > ## ⚠️ These deployments implement the earlier semantics — redeploy before submitting
 >
 > The addresses below were deployed **2026-07-30**. They predate two correctness changes now in
@@ -13,7 +24,7 @@ Public on-chain qualification proof for Arb Guardian.
 >    explicit `UNLIMITED_LIMIT`.
 > 2. **The approval rule could not block.** It scored `+20` against a `60` threshold, so
 >    `approve` to an allowlisted destination always passed. Approval-class calls now block by
->    default, matched by name *and* selector, and unlimited approvals are refused outright.
+>    default, matched by name *and* selector, and standing approvals are refused outright.
 >
 > The token lane (USDG) does not exist in the deployed bytecode at all, and neither does the
 > versioned policy attestation (`policyVersion` / `policyDigest`, `PolicyAmendment` history).
@@ -80,7 +91,7 @@ check and the live lanes cover the *address*.
 | ExecutionGuard | [`0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124`](https://sepolia.arbiscan.io/address/0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124) |
 | SafeTreasuryGuard | [`0xcba30F60BE3FB0fB0e9db0C816c4ab9Fa2f7b211`](https://sepolia.arbiscan.io/address/0xcba30F60BE3FB0fB0e9db0C816c4ab9Fa2f7b211) |
 | Treasury (enrolled) | [`0x009D53F97a07d9E141eA5ff90354d7bE748fa542`](https://sepolia.arbiscan.io/address/0x009D53F97a07d9E141eA5ff90354d7bE748fa542) |
-| Live product | https://arb-guardian.vercel.app |
+| Live product | https://arb-guardian.sithunyein.com (Vercel alias: https://arb-guardian.vercel.app) |
 
 ## Robinhood Chain Testnet — superseded
 

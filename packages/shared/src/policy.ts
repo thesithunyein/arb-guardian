@@ -112,7 +112,8 @@ export const EXECUTION_GUARD_ABI = [
   "error TokenCounterpartyNotAllowlisted(address token, address counterparty)",
   "error TokenDailyLimitNotConfigured(address token, address wallet)",
   "error TokenDailyLimitExceeded(address token, address wallet, uint256 attemptedAmount, uint256 limit)",
-  "error UnlimitedApprovalNotAllowed(address token, address spender)",
+  "error ApprovalNotAllowed(address token, address spender, uint256 amount)",
+  "error TransferFromSourceNotSafe(address token, address source, address safe)",
   "error UnsupportedTokenCall(address token, bytes4 selector)",
   "error DelegateCallNotAllowed()",
   "error InvalidAmount()"
@@ -249,8 +250,10 @@ const REFUSALS: Record<string, string> = {
     "The guard refused: no daily cap is configured for that wallet in that token.",
   TokenDailyLimitExceeded:
     "The guard refused: the transfer would take the wallet past its token cap.",
-  UnlimitedApprovalNotAllowed:
-    "The guard refused: an unlimited approval would hand over standing authority to drain the token.",
+  ApprovalNotAllowed:
+    "The guard refused: any standing token approval can be exercised outside the daily-cap path. Submit a bounded transfer instead.",
+  TransferFromSourceNotSafe:
+    "The guard refused: transferFrom must move tokens owned by the guarded Safe, not draw from another account's allowance.",
   UnsupportedTokenCall:
     "The guard refused: that call on a registered token is not one it can enforce.",
   DelegateCallNotAllowed: "The guard refused: a guard must never permit delegatecall.",
