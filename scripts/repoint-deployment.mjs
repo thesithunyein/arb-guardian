@@ -67,7 +67,10 @@ const FIELD_MAP = [
   ["TREASURY_SAFE_TX", (d) => d.realSafe?.createTxHash ?? d.treasurySafeShell?.deployTxHash, "VITE_TREASURY_SAFE_TX"],
   ["SAFE_ENROLLMENT_TX", (d) => d.realSafe?.enrollTxHash ?? d.treasurySafeShell?.enrollmentTxHash, "VITE_SAFE_ENROLLMENT_TX"],
   ["SAFE_SET_GUARD_TX", (d) => d.realSafe?.setGuardThroughExecTransactionTxHash ?? d.treasurySafeShell?.setGuardTxHash, "VITE_SAFE_SET_GUARD_TX"],
-  ["SAFE_ALLOWED_EXEC_TX", (d) => d.realSafe?.allowedExecTxHash ?? d.treasurySafeShell?.allowedExecTxHash, "VITE_SAFE_ALLOWED_EXEC_TX"]
+  ["SAFE_ALLOWED_EXEC_TX", (d) => d.realSafe?.allowedExecTxHash ?? d.treasurySafeShell?.allowedExecTxHash, "VITE_SAFE_ALLOWED_EXEC_TX"],
+  // The refusal is evidence too: a mined transaction that reverted inside the guard. A lane that
+  // never recorded one reports `absent`, which is honest rather than an error.
+  ["SAFE_BLOCKED_EXEC_TX", (d) => d.realSafe?.blockedExecTxHash ?? null, "VITE_SAFE_BLOCKED_EXEC_TX"]
 ];
 
 /**

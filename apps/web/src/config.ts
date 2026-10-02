@@ -34,13 +34,23 @@ export const TREASURY_SAFE_TX =
   "0x53267ccaa5b33b4bceb07d251439f479cd3612714c2f524ee191bb09b61913b9";
 export const SAFE_ENROLLMENT_TX =
   import.meta.env.VITE_SAFE_ENROLLMENT_TX?.trim() ||
-  "0x6111dab636eae4dfb29dbeca0b79ab6ea11e13823a68f738dc01b8bbc79d151f";
+  "0x640eeb856ec43cf2fd135e99111bfb112abb6f54f3e8710f50836a9dcc7ab4d8";
 export const SAFE_SET_GUARD_TX =
   import.meta.env.VITE_SAFE_SET_GUARD_TX?.trim() ||
   "0x98dc84c456e81c554ba22a137ac85b6b79da160288fdb796cb9ab8c1d295c907";
 export const SAFE_ALLOWED_EXEC_TX =
   import.meta.env.VITE_SAFE_ALLOWED_EXEC_TX?.trim() ||
-  "0x21e996c617c0d3913b8f9543c7f4ec232a20be8e641983c0c706a5950860c9d7";
+  "0x1313db311ce1e99b3623c4b42e6d6f1e531f40bc3e7032f88c68a790343ba216";
+/**
+ * The refusal, as a transaction.
+ *
+ * Gas estimation would reject this send before it reached the network, so the enrollment sends it
+ * with a supplied gas limit: it is mined, reverts inside the guard, and keeps a hash. A block a
+ * judge can open beats a block that only ever existed in a log.
+ */
+export const SAFE_BLOCKED_EXEC_TX =
+  import.meta.env.VITE_SAFE_BLOCKED_EXEC_TX?.trim() ||
+  "0xff26308871c5b7c36b477940dc1b7307f8fdbbd979190ef89760b86902a99524";
 
 /** Robinhood Chain Testnet (Overall reserved-lane proof). */
 export const RH_EXPLORER = "https://explorer.testnet.chain.robinhood.com";
@@ -69,6 +79,15 @@ export const RH_SAFE_TREASURY_GUARD_TX =
 export const RH_TREASURY_SAFE_TX =
   import.meta.env.VITE_RH_TREASURY_SAFE_TX?.trim() ||
   "0xb10a404f19aa129155ec4518f3db29980fb6318bf487cf827c0dc2ee75896f8f";
+export const RH_SAFE_SET_GUARD_TX =
+  import.meta.env.VITE_RH_SAFE_SET_GUARD_TX?.trim() ||
+  "0x64240c9782c7bead68997536063c0cc029bc1df9e46d5551c69af2449f2c73a3";
+export const RH_SAFE_ALLOWED_EXEC_TX =
+  import.meta.env.VITE_RH_SAFE_ALLOWED_EXEC_TX?.trim() ||
+  "0xb7f97778c85b99e3188bdb75258fd351ff873a055896ea4781e1363a7ae643c8";
+export const RH_SAFE_BLOCKED_EXEC_TX =
+  import.meta.env.VITE_RH_SAFE_BLOCKED_EXEC_TX?.trim() ||
+  "0x44e08cf915f90b7394eb0be18cd10ac44399e2e685f47821ebbd639d1412f515";
 export const RH_READY = /^0x[a-fA-F0-9]{40}$/.test(RH_POLICY_MANAGER) && /^0x[a-fA-F0-9]{40}$/.test(RH_EXECUTION_GUARD);
 
 /**

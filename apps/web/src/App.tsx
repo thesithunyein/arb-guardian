@@ -10,11 +10,18 @@ import {
   RH_POLICY_MANAGER,
   RH_READY,
   RH_SAFE_TREASURY_GUARD,
+  RH_SAFE_ALLOWED_EXEC_TX,
+  RH_SAFE_BLOCKED_EXEC_TX,
+  RH_SAFE_SET_GUARD_TX,
   RH_TREASURY_SAFE,
+  SAFE_ALLOWED_EXEC_TX,
+  SAFE_BLOCKED_EXEC_TX,
+  SAFE_SET_GUARD_TX,
   SAFE_TREASURY_GUARD,
   TREASURY_SAFE,
   addressUrl,
   rhAddressUrl,
+  rhTxUrl,
   txUrl
 } from "./config";
 import { LandingBackdrop } from "./LandingBackdrop";
@@ -2107,6 +2114,27 @@ export function App() {
                         </a>
                       </li>
                     )}
+                    {SAFE_SET_GUARD_TX && (
+                      <li>
+                        <a href={txUrl(SAFE_SET_GUARD_TX)} target="_blank" rel="noreferrer">
+                          Guard installed through the Safe&apos;s execTransaction
+                        </a>
+                      </li>
+                    )}
+                    {SAFE_ALLOWED_EXEC_TX && (
+                      <li>
+                        <a href={txUrl(SAFE_ALLOWED_EXEC_TX)} target="_blank" rel="noreferrer">
+                          Allowed spend (settled)
+                        </a>
+                      </li>
+                    )}
+                    {SAFE_BLOCKED_EXEC_TX && (
+                      <li>
+                        <a href={txUrl(SAFE_BLOCKED_EXEC_TX)} target="_blank" rel="noreferrer">
+                          Refused spend · reverted by the guard
+                        </a>
+                      </li>
+                    )}
                   </ul>
                 </section>
                 <section className="surface">
@@ -2129,12 +2157,32 @@ export function App() {
                             SafeTreasuryGuard
                           </a>
                         </li>
-                      )}
-                      {RH_TREASURY_SAFE && (
+                      )}                      {RH_TREASURY_SAFE && (
                         <li>
-                        <a href={rhAddressUrl(RH_TREASURY_SAFE)} target="_blank" rel="noreferrer">
-                          Enrolled treasury Safe
-                        </a>
+                          <a href={rhAddressUrl(RH_TREASURY_SAFE)} target="_blank" rel="noreferrer">
+                            Enrolled treasury Safe
+                          </a>
+                        </li>
+                      )}
+                      {RH_SAFE_SET_GUARD_TX && (
+                        <li>
+                          <a href={rhTxUrl(RH_SAFE_SET_GUARD_TX)} target="_blank" rel="noreferrer">
+                            Guard installed through the Safe&apos;s execTransaction
+                          </a>
+                        </li>
+                      )}
+                      {RH_SAFE_ALLOWED_EXEC_TX && (
+                        <li>
+                          <a href={rhTxUrl(RH_SAFE_ALLOWED_EXEC_TX)} target="_blank" rel="noreferrer">
+                            Allowed spend (settled)
+                          </a>
+                        </li>
+                      )}
+                      {RH_SAFE_BLOCKED_EXEC_TX && (
+                        <li>
+                          <a href={rhTxUrl(RH_SAFE_BLOCKED_EXEC_TX)} target="_blank" rel="noreferrer">
+                            Refused spend · reverted by the guard
+                          </a>
                         </li>
                       )}
                       <li>

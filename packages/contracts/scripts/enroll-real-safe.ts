@@ -37,8 +37,12 @@ const UNLISTED = "0x5555555555555555555555555555555555555555";
 const NATIVE_DAILY_LIMIT = ethers.parseEther("5");
 /** Two demo spends; the blocked one pays gas without moving value. */
 const DEMO_SPEND = ethers.parseEther("0.001");
-const FUNDING_TARGET = ethers.parseEther("0.01");
 const GAS_RESERVE = ethers.parseEther("0.0005");
+/**
+ * Gas supplied for the refused transaction instead of letting the node estimate it. Estimation
+ * would reject the send; a fixed generous limit lets it be mined and revert onchain.
+ */
+const FORCED_GAS_LIMIT = 1_500_000n;
 
 const SAFE_ABI = [
   "function setup(address[] _owners, uint256 _threshold, address to, bytes data, address fallbackHandler, address paymentToken, uint256 payment, address paymentReceiver)",
@@ -245,8 +249,13 @@ async function main() {
   // A run that loses its Safe to an unreadable receipt must be resumable rather than repeat the
   // creation (and the gas). REAL_SAFE_ADDRESS continues from an existing Safe.
   const reuseAddress = process.env.REAL_SAFE_ADDRESS?.trim();
+  // A resumed run must not erase what the first run proved: the Safe's creation hash comes back
+  // from the existing record unless this run created one.
+  const recordedSafe = (deployment as { realSafe?: { createTxHash?: string } }).realSafe;
+
   let safeAddress: string | null = null;
-  let createTxHash: string | null = process.env.REAL_SAFE_CREATE_TX?.trim() || null;
+  let createTxHash: string | null =
+    process.env.REAL_SAFE_CREATE_TX?.trim() || recordedSafe?.createTxHash || null;
 
   if (reuseAddress) {
     safeAddress = ethers.getAddress(reuseAddress);
@@ -279,8 +288,15 @@ async function main() {
   console.log(`  version ${version} · threshold ${threshold} · owners ${owners.join(", ")}`);
   console.log(`  creation tx: ${createTxHash ?? "not provided (reused Safe)"}`);
 
-  /** Execute through the Safe itself, the only way Safe 1.4.1 permits a self-call. */
-  async function execSafeTx(to: string, value: bigint, data: string) {
+  /**
+   * Execute through the Safe itself, the only way Safe 1.4.1 permits a self-call.
+   *
+   * `forceGas` skips `eth_call` estimation. Estimation is exactly where a guard refusal surfaces
+   * first: the node simulates, the guard reverts, and the send never happens — so the refusal a
+   * judge is shown existed only inside this process. With a supplied gas limit the transaction is
+   * broadcast, mined, reverted, and keeps a hash on the explorer like any other transaction.
+   */
+  async function execSafeTx(to: string, value: bigint, data: string, opts?: { forceGas?: bigint }) {
     const nonce = await safeContract.nonce();
     const txHash: string = await safeContract.getTransactionHash(
       to,
@@ -297,6 +313,21 @@ async function main() {
     // Pre-approved hash signature: owner (32 bytes) || offset (32 zero bytes) || v = 1.
     await (await safeContract.approveHash(txHash)).wait();
     const signature = ethers.concat([ethers.zeroPadValue(deployer.address, 32), ethers.ZeroHash, "0x01"]);
+    if (opts?.forceGas) {
+      const request = await safeContract.execTransaction.populateTransaction(
+        to,
+        value,
+        data,
+        0,
+        0n,
+        0n,
+        0n,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        signature
+      );
+      return deployer.sendTransaction({ ...request, gasLimit: opts.forceGas });
+    }
     return safeContract.execTransaction(
       to,
       value,
@@ -347,9 +378,22 @@ async function main() {
   // ------------------------------------------------------------------ install the guard
 
   const installData = safeInterface.encodeFunctionData("setGuard", [guardAddress]);
-  const installTx = await execSafeTx(safeAddress, 0n, installData);
-  const installReceipt = await installTx.wait();
-  if (installReceipt?.status !== 1) throw new Error("Installing the guard through the Safe self-call failed.");
+  // A resumed run already has the guard in the slot; installing it again costs an owner signature
+  // and buys nothing.
+  const alreadyInstalled = await guardFromStorage(safeAddress);
+  let installReceiptHash: string | null = null;
+  if (alreadyInstalled.toLowerCase() === guardAddress.toLowerCase()) {
+    installReceiptHash =
+      (deployment as { realSafe?: { setGuardThroughExecTransactionTxHash?: string } }).realSafe
+        ?.setGuardThroughExecTransactionTxHash ?? null;
+    console.log(`Guard already in the Safe's slot (${alreadyInstalled}) — skipping the install self-call.`);
+  } else {
+    const installTx = await execSafeTx(safeAddress, 0n, installData);
+    const installReceipt = await installTx.wait();
+    if (installReceipt?.status !== 1) throw new Error("Installing the guard through the Safe self-call failed.");
+    installReceiptHash = installReceipt.hash;
+    console.log(`Guard installed through the Safe's own execTransaction: ${installReceipt.hash}`);
+  }
 
   const installedGuard = await guardFromStorage(safeAddress);
   if (installedGuard.toLowerCase() !== guardAddress.toLowerCase()) {
@@ -358,26 +402,34 @@ async function main() {
         "Safe 1.4.1 has no public getGuard(), so the storage slot is the authority here."
     );
   }
-  console.log(`Guard installed through the Safe's own execTransaction: ${installReceipt.hash}`);
   console.log(`  guard slot = ${installedGuard}`);
 
   // ------------------------------------------------------------------ prove both directions
 
-  // A thin deployer must not strand the run at the last step: fund the Safe with what is left
-  // after a gas reserve, capped at the amount the demo needs. The Safe is already created and
-  // enrolled by this point, so a failure here is resumable with REAL_SAFE_ADDRESS.
-  const deployerBalance = await ethers.provider.getBalance(deployer.address);
-  const spare = deployerBalance > GAS_RESERVE ? deployerBalance - GAS_RESERVE : 0n;
-  const funding = spare >= FUNDING_TARGET ? FUNDING_TARGET : spare;
-  if (funding < DEMO_SPEND * 2n) {
-    throw new Error(
-      `The deployer holds ${ethers.formatEther(deployerBalance)} ETH on ${network.name}, which cannot fund the ` +
-        `demo spends (${ethers.formatEther(DEMO_SPEND * 2n)} ETH) and still pay gas. Top the deployer up and re-run ` +
-        `with REAL_SAFE_ADDRESS=${safeAddress} to continue without creating another Safe.`
+  // The Safe must hold enough to attempt both spends. Top it up only by what is missing, and only
+  // with what the deployer can spare after a gas reserve: a resumed run on a drained deployer
+  // should not fail at the last step when the Safe already has the funds.
+  const needed = DEMO_SPEND * 2n;
+  const safeBalance = await ethers.provider.getBalance(safeAddress);
+  const shortfall = safeBalance > needed ? 0n : needed - safeBalance;
+  if (shortfall === 0n) {
+    console.log(
+      `The Safe already holds ${ethers.formatEther(safeBalance)} ETH — enough for both demo spends.`
     );
+  } else {
+    const deployerBalance = await ethers.provider.getBalance(deployer.address);
+    const spare = deployerBalance > GAS_RESERVE ? deployerBalance - GAS_RESERVE : 0n;
+    const funding = spare >= shortfall ? shortfall : spare;
+    if (funding < shortfall) {
+      throw new Error(
+        `The deployer holds ${ethers.formatEther(deployerBalance)} ETH on ${network.name} and the Safe needs ` +
+          `${ethers.formatEther(shortfall)} ETH for the demo spends. Top the deployer up and re-run ` +
+          `with REAL_SAFE_ADDRESS=${safeAddress} to continue without creating another Safe.`
+      );
+    }
+    console.log(`Funding the Safe with ${ethers.formatEther(funding)} ETH for the demo spends`);
+    await (await deployer.sendTransaction({ to: safeAddress, value: funding })).wait();
   }
-  console.log(`Funding the Safe with ${ethers.formatEther(funding)} ETH for the demo spends`);
-  await (await deployer.sendTransaction({ to: safeAddress, value: funding })).wait();
 
   const allowedTx = await execSafeTx(PAYROLL, DEMO_SPEND, "0x");
   const allowedReceipt = await allowedTx.wait();
@@ -385,22 +437,29 @@ async function main() {
 
   let blocked = false;
   let blockedReason = "";
-  // A refusal is still a transaction: it is sent, reverts, and pays gas, so it has a hash a judge
-  // can open. Capture it from whichever path the provider takes (receipt or thrown error).
+  // Estimating gas would refuse this send before it reached the network, which is why the refusal
+  // is forced onchain with a supplied gas limit: a transaction that reverted inside the Safe keeps
+  // its hash, so the block is evidence a judge can open rather than a line in a log.
   let blockedTxHash: string | null = null;
   try {
-    const blockedTx = await execSafeTx(UNLISTED, DEMO_SPEND, "0x");
+    const blockedTx = await execSafeTx(UNLISTED, DEMO_SPEND, "0x", { forceGas: FORCED_GAS_LIMIT });
     blockedTxHash = blockedTx.hash;
     const blockedReceipt = await blockedTx.wait();
     if (blockedReceipt?.status === 0) {
       blocked = true;
-      blockedReason = "transaction reverted";
+      blockedReason = "transaction reverted inside the Safe";
+    } else {
+      blockedReason = "the refused transaction actually succeeded";
     }
   } catch (error) {
     blocked = true;
     blockedReason = error instanceof Error ? error.message.slice(0, 160) : String(error);
-    const withHash = error as { transactionHash?: string; receipt?: { hash?: string } };
+    const withHash = error as { transactionHash?: string; receipt?: { hash?: string; status?: number } };
     blockedTxHash = withHash.transactionHash ?? withHash.receipt?.hash ?? blockedTxHash;
+    if (withHash.receipt?.status === 1) {
+      blocked = false;
+      blockedReason = "the refused transaction actually succeeded";
+    }
   }
 
   if (!blocked) {
@@ -427,7 +486,7 @@ async function main() {
       fallbackHandler: safe.fallbackHandler,
       createTxHash,
       enrollTxHash: enrollTx.hash,
-      setGuardThroughExecTransactionTxHash: installReceipt.hash,
+      setGuardThroughExecTransactionTxHash: installReceiptHash,
       allowedExecTxHash: allowedReceipt?.hash ?? null,
       blockedExecTxHash: blockedTxHash,
       blockedExecRefused: blocked
@@ -442,8 +501,9 @@ async function main() {
   console.log("\nExplorer links (paste these into the submission, not a screenshot):");
   console.log(`  Safe:                 ${explorer}/address/${safeAddress}`);
   if (createTxHash) console.log(`  Safe creation:        ${explorer}/tx/${createTxHash}`);
-  console.log(`  Guard install:        ${explorer}/tx/${installReceipt.hash}`);
+  if (installReceiptHash) console.log(`  Guard install:        ${explorer}/tx/${installReceiptHash}`);
   console.log(`  Allowed spend:        ${explorer}/tx/${allowedReceipt?.hash ?? ""}`);
+  if (blockedTxHash) console.log(`  Refused spend:        ${explorer}/tx/${blockedTxHash}  (reverted by the guard)`);
   console.log("\nThen repoint the manifest so the app and the API agree with the chain:");
   console.log("  npm run repoint");
 }
