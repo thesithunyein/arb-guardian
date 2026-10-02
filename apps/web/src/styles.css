@@ -146,33 +146,51 @@ code, .mono { font-family: var(--font-mono); font-size: .84em; }
 .pixel-world { display: none; }
 
 [data-theme="dark"] {
-  --bg: #101714;
-  --bg-elevated: #17211c;
-  --bg-panel: #1d2a23;
-  --ink: #edf3ed;
-  --muted: #a8b6ad;
-  --line: #2b3931;
-  --line-strong: #405248;
-  --accent: #9cc9ad;
-  --accent-bright: #c0e4cc;
-  --accent-soft: #24372c;
-  --lime: #d4e95f;
-  --lime-ink: #172018;
+  --bg: #0c0f14;
+  --bg-elevated: #151922;
+  --bg-panel: #1c222d;
+  --ink: #f2f4f8;
+  --muted: #aeb7c5;
+  --line: #2b3442;
+  --line-strong: #465264;
+  --accent: #a9b9ff;
+  --accent-bright: #c9d2ff;
+  --accent-soft: #252c3d;
+  --lime: #d9f46b;
+  --lime-ink: #171b0c;
   --shadow-soft: 0 12px 30px rgba(0, 0, 0, .2);
   --shadow: 0 18px 45px rgba(0, 0, 0, .28);
 }
-[data-theme="dark"] .landing-backdrop { background: radial-gradient(circle at 82% 18%, rgba(56, 99, 74, .35), transparent 34%), linear-gradient(180deg, #16241d 0%, rgba(16,23,20,0) 88%); }
-[data-theme="dark"] .landing-backdrop::before { background-image: linear-gradient(rgba(156,201,173,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(156,201,173,.08) 1px, transparent 1px); }
-[data-theme="dark"] .signal { border-color: var(--accent); background: #16241d; }
-[data-theme="dark"] .hero-panel, [data-theme="dark"] .landing-card, [data-theme="dark"] .steps-grid article { background: rgba(23,33,28,.84); }
-[data-theme="dark"] .policy-snapshot { background: linear-gradient(120deg, #17211c 0%, #203429 100%); }
+[data-theme="dark"] .landing { color: var(--ink); }
+[data-theme="dark"] .landing-backdrop { background: radial-gradient(circle at 82% 18%, rgba(91, 105, 190, .25), transparent 34%), linear-gradient(180deg, #121722 0%, rgba(12,15,20,0) 88%); }
+[data-theme="dark"] .landing-backdrop::before { background-image: linear-gradient(rgba(169,185,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(169,185,255,.08) 1px, transparent 1px); }
+[data-theme="dark"] .signal { border-color: var(--accent); background: #151922; }
+[data-theme="dark"] .signal-line { background: linear-gradient(90deg, rgba(169,185,255,.3), transparent); }
+[data-theme="dark"] .hero-kicker, [data-theme="dark"] .snapshot-label { color: #9aa8c5; }
+[data-theme="dark"] .title-hero h2 { color: #f4f6fb; }
+[data-theme="dark"] .hero-lead { color: #b7c0cf; }
+[data-theme="dark"] .hero-panel, [data-theme="dark"] .landing-card, [data-theme="dark"] .steps-grid article, [data-theme="dark"] .evidence-grid article { background: rgba(21,25,34,.88); }
+[data-theme="dark"] .landing-card p, [data-theme="dark"] .steps-grid p, [data-theme="dark"] .section-intro > .muted, [data-theme="dark"] .audience-copy { color: #b7c0cf; }
+[data-theme="dark"] .landing-nav a, [data-theme="dark"] .footer-links a { color: #b7c0cf; }
+[data-theme="dark"] .landing-nav a:hover, [data-theme="dark"] .footer-links a:hover { color: #fff; }
+[data-theme="dark"] .landing-nav-cta { color: #10131a; background: var(--accent); border-color: var(--accent); }
+[data-theme="dark"] .landing-nav-cta:hover { background: var(--accent-bright); }
+[data-theme="dark"] .orbit-core { border-color: rgba(255,255,255,.16); background: linear-gradient(145deg,#f4f6fb,#cbd3ed); box-shadow: 0 24px 50px rgba(77,91,164,.24); }
+[data-theme="dark"] .orbit-ring { border-color: rgba(169,185,255,.28); }
+[data-theme="dark"] .orbit-ring-two { border-color: rgba(192,174,255,.3); }
+[data-theme="dark"] .orbit-node { border-color: #151922; }
+[data-theme="dark"] .policy-snapshot { background: linear-gradient(120deg, #151922 0%, #20283a 100%); }
 [data-theme="dark"] .decision-card.is-block { background: #291d1f; }
-[data-theme="dark"] .decision-card.is-allow { background: #1a2b22; }
-[data-theme="dark"] .freeze-success, [data-theme="dark"] .next-step { background: #1d3126; }
-[data-theme="dark"] .review-badge.ok, [data-theme="dark"] .status-pill.allowed { background: #203c2c; }
+[data-theme="dark"] .decision-card.is-allow { background: #18252a; }
+[data-theme="dark"] .freeze-success, [data-theme="dark"] .next-step { background: #18272d; }
+[data-theme="dark"] .review-badge.ok, [data-theme="dark"] .status-pill.allowed { background: #1e3540; }
 [data-theme="dark"] .review-badge.risk, [data-theme="dark"] .status-pill.blocked, [data-theme="dark"] .sev-critical, [data-theme="dark"] .sev-high { background: #422529; }
 [data-theme="dark"] .enroll-form input, [data-theme="dark"] .inline-edit { background: var(--bg); }
-[data-theme="dark"] .hero-panel::after { background: #81d19f; }
+[data-theme="dark"] .operator-ai { background: rgba(169,185,255,.1); }
+[data-theme="dark"] .scenario { background: #11151d; }
+[data-theme="dark"] .scenario:hover, [data-theme="dark"] .scenario.active { background: var(--accent-soft); }
+[data-theme="dark"] .asset-card { background: var(--bg-panel); }
+[data-theme="dark"] .hero-panel::after { background: #a9b9ff; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
