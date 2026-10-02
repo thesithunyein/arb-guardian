@@ -115,29 +115,32 @@ natively issued Global Dollar and the lending asset in Robinhood Earn — settle
 
 ## Contract addresses
 
-### Live now (deployed 2026-07-30) — **superseded, see note**
+### Live now (deployed 2026-10-02) — declared `current`, 6/6 drift claims holding
 
-**Arbitrum Sepolia** (chain 421614) — recorded deployment is superseded; corrected redeploy is not
-yet verified
-- PolicyManager: `0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76`
-- ExecutionGuard: `0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124`
-- SafeTreasuryGuard: `0xcba30F60BE3FB0fB0e9db0C816c4ab9Fa2f7b211`
-- Enrolled treasury: `0x009D53F97a07d9E141eA5ff90354d7bE748fa542`
+**Arbitrum Sepolia** (chain 421614)
+- PolicyManager: `0x3e394b1d9781a71D71905d028C530B29Aa0021a6`
+- ExecutionGuard: `0x5e60F2D4E3F50eA16Ed0413e718535d720c3D5cC`
+- SafeTreasuryGuard: `0x01b03b1e0E20F84a9Fa832AbeB58283e30cA2F1b`
+- Gnosis Safe v1.4.1 (guard installed through its own `execTransaction`): `0x5769B6973cF7E85acfa7590763549bfCf80Cbb82`
+- Allowed spend: `0x1313db311ce1e99b3623c4b42e6d6f1e531f40bc3e7032f88c68a790343ba216`
+- Refused spend (status 0, reverted by the guard): `0xff26308871c5b7c36b477940dc1b7307f8fdbbd979190ef89760b86902a99524`
 
 **Robinhood Chain Testnet** (chain 46630)
-- PolicyManager: `0x57077DA6DEFCAAB83aEAbE080641D5D1Ed66758F`
-- ExecutionGuard: `0x4019C445bbc593eA5eb13D319Ca427aA8aDc7613`
-- SafeTreasuryGuard: `0xa168227dB7a3340e988Dbf9Cd01894840617E729`
-- Enrolled treasury: `0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124`
+- PolicyManager: `0x3E4a51B35a984f33D4F71CEf96Eb8f08fcC8Ef2b`
+- ExecutionGuard: `0xD1bbF5e71295696B2011408eAa13dEb69adcD21D`
+- SafeTreasuryGuard: `0xe10afE3da5546fc0F34c6F38DB3920BD5f5C6999`
+- Gnosis Safe v1.4.1: `0x8D9540796444ded4dA17fC0FA38CcBb9a701991a`
+- Allowed spend: `0xb7f97778c85b99e3188bdb75258fd351ff873a055896ea4781e1363a7ae643c8`
+- Refused spend (status 0, reverted by the guard): `0x44e08cf915f90b7394eb0be18cd10ac44399e2e685f47821ebbd639d1412f515`
 
-> **Important.** Those addresses implement the earlier semantics: the daily limit **failed open**
-> (a limit of `0` meant *unlimited*) and the approval rule could not block. The contracts in this
-> repository now fail closed and enforce the token lane. **Redeploy and re-verify before
-> submitting, and update this section with the new addresses and transaction hashes.** Do not
-> present the addresses above as the fixed build.
+> **Verification status.** The Robinhood lane reads `Pass - Verified` on its explorer for all three
+> contracts. The Arbitrum Sepolia bytecode is matched to this build by `npm run check:deployed`,
+> but Arbiscan's source panel still needs an `ARBISCAN_API_KEY`; until then say "bytecode matched
+> to our build", not "verified on Arbiscan".
 >
-> Note also that the Robinhood enrolled-treasury address resembles the Arbitrum ExecutionGuard
-> address. They are unrelated — separate chains, independent address spaces, different code.
+> The 2026-07-30 addresses are superseded: that build failed open on a limit of `0` and its
+> approval rule could never block, and it had no token lane or attestation. They are kept for
+> history in `docs/live-deployment.md` under `superseded`, and must not be presented as current.
 
 ## Deployment transactions
 

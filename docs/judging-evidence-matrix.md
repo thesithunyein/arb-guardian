@@ -18,10 +18,10 @@
 - **Reproducible proof:** `npm run evidence -w packages/contracts` → 15/15 cases, before/after pair, exact revert reason per case, plus an 11-amendment digest-chain replay with 5/5 allowed decisions stamped
 - **One policy client:** the ABI, role hashes, limit semantics and revert decoding live once, in `packages/shared/src/policy.ts`, and are consumed by the web app and the API. Previously four hand-written copies, one of which had already drifted past the token lane and the attestation
 - **Logic tests:** `npm run test -w packages/shared` (20) — `0` blocks, `UNLIMITED_LIMIT` uncaps, the role matrix (`pause` is not `POLICY_ADMIN_ROLE`), 6-decimal parsing, and refusal messages
-- **Live client tests:** `npm run test -w apps/api` (21, including 4 live) — the shared client is driven against the deployed PolicyManager by read-only `eth_call` from a throwaway address, proving the ABI names functions that exist and that a real `AccessControlUnauthorizedAccount` is decoded into an actionable refusal. No key, no gas, no state change
+- **Live client tests:** `npm run test -w apps/api` (25, including 4 live) — the shared client is driven against the deployed PolicyManager by read-only `eth_call` from a throwaway address, proving the ABI names functions that exist and that a real `AccessControlUnauthorizedAccount` is decoded into an actionable refusal. No key, no gas, no state change. They run by default: a local deployment artifact only wins when it agrees with the committed manifest, otherwise the manifest answers
 - **Route integrity:** `npm run check:routes` proves every `/api/...` path the app fetches has a handler on disk. It was added after a rename shipped `/api/treasurys` against a handler named `treasuries.ts` — a 404 that returned a happy 200 from the dev server's SPA fallback
 - **Typecheck:** `npm run typecheck` is clean across all four workspaces, including the Vercel handlers in `api/` that no workspace tsconfig covered
-- **Live-vs-repo check:** `npm run check:deployed` reads the bytecode at every recorded address over public RPC (no keys) and compares the Solidity metadata fingerprint and runtime size with this build → 6 contracts read, 6 declared `superseded` and confirmed to differ (PolicyManager is 2,098 bytes on-chain against 4,631 here). Each network declares whether it must match this source, and the script fails when the declaration and the chain disagree
+- **Live-vs-repo check:** `npm run check:deployed` reads the bytecode at every recorded address over public RPC (no keys) and compares the Solidity metadata fingerprint and runtime size with this build → 6 contracts read across two chains, 6 declared `current` and confirmed to match (PolicyManager is 4,631 bytes on-chain and 4,631 here). Each network declares whether it must match this source, and the script fails when the declaration and the chain disagree — the same script reported 6/6 `superseded` before the 2026-10-02 redeploy, so the number moves when the chain does
 
 ## Product-market fit
 
@@ -32,7 +32,7 @@
   - On the chains where those teams are being pointed: Arbitrum for mature DeFi and Safe tooling, Robinhood Chain for agents and USDG
   - Core workflows: policy setup, risk assessment, incident response
 - **Validation command:** `npm run build -w apps/web`
-- **Honesty gate:** the Vault tab renders the generated drift report, so the superseded status a judge sees on screen comes from `evidence/deployed-drift.json` rather than from marketing copy
+- **Honesty gate:** the Vault tab renders the generated drift report, so the deployment status a judge sees on screen comes from `evidence/deployed-drift.json` rather than from marketing copy — as does every allowed and refused transaction hash, which link to the explorer
 
 ## Innovation and creativity
 

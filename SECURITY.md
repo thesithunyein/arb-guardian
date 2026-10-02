@@ -2,9 +2,11 @@
 
 ## Supported status
 
-Arb Guardian is an early-stage testnet project. The public web app is live, but the recorded
-contract deployments are marked **superseded** and should not be used as current treasury
-enforcement. There is no claim of mainnet safety or independent audit.
+Arb Guardian is an early-stage testnet project. The public web app is live and both lanes carry a
+deployment declared `current` — byte-matched to this repository by `npm run check:deployed`, with a
+guard installed on a real Gnosis Safe and allowed/refused transactions recorded onchain. It is
+still a testnet: there is no claim of mainnet safety, no independent audit, and no pilot usage. Do
+not point real treasury keys at it.
 
 ## Reporting a vulnerability
 

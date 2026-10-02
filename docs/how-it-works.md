@@ -39,5 +39,9 @@ It helps a team give limited spending access to an agent, bot, or operator.
 
 ## Current deployment status
 
-The public app is live. The recorded testnet contracts are marked superseded.
-The corrected contracts need a new funded deployment and explorer verification.
+The public app is live, and `/api/status` reports `productReady: true` against a deployment
+declared `current`. Both lanes carry the corrected build (2026-10-02): a real Gnosis Safe on each
+holds the guard, installed through the Safe's own `execTransaction`, with an allowed spend and a
+refused spend both onchain. The Robinhood lane is source-verified on its explorer; the Arbitrum
+Sepolia lane is byte-matched to this source but still needs an Arbiscan key to publish its source
+panel.

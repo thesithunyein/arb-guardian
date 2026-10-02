@@ -67,15 +67,18 @@ because **there is no model in this repo**.
 
 Open these five Arbiscan links in tabs before you start, then talk over them:
 
-1. PolicyManager — https://sepolia.arbiscan.io/address/0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76
-2. ExecutionGuard — https://sepolia.arbiscan.io/address/0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124
-3. SafeTreasuryGuard — https://sepolia.arbiscan.io/address/0xcba30F60BE3FB0fB0e9db0C816c4ab9Fa2f7b211
-4. Treasury Safe — https://sepolia.arbiscan.io/address/0x009D53F97a07d9E141eA5ff90354d7bE748fa542
-5. Allowed Safe execution — https://sepolia.arbiscan.io/tx/0xd4ec25f77a9ea06d053997ea2d7e68e87a91518f8fa4d7b60618d2ca80a6978a
+1. PolicyManager — https://sepolia.arbiscan.io/address/0x3e394b1d9781a71D71905d028C530B29Aa0021a6
+2. ExecutionGuard — https://sepolia.arbiscan.io/address/0x5e60F2D4E3F50eA16Ed0413e718535d720c3D5cC
+3. SafeTreasuryGuard — https://sepolia.arbiscan.io/address/0x01b03b1e0E20F84a9Fa832AbeB58283e30cA2F1b
+4. Treasury Safe — https://sepolia.arbiscan.io/address/0x5769B6973cF7E85acfa7590763549bfCf80Cbb82
+5. Allowed Safe execution — https://sepolia.arbiscan.io/tx/0x1313db311ce1e99b3623c4b42e6d6f1e531f40bc3e7032f88c68a790343ba216
+6. Refused Safe execution (status 0, reverted by the guard) — https://sepolia.arbiscan.io/tx/0xff26308871c5b7c36b477940dc1b7307f8fdbbd979190ef89760b86902a99524
 
-Those are **verified source, earlier semantics** — the daily limit there failed open and the token
-lane does not exist in that bytecode. `docs/live-deployment.md` lists exactly what changed. If you
-show them, say that, or show the Vault tab proof instead.
+These are the **current** addresses, deployed 2026-10-02 and byte-matched to this repository by
+`npm run check:deployed`. The source panel on Arbiscan still needs an API key, so say "bytecode
+verified against our build" rather than "verified on Arbiscan" until that key exists. The Robinhood
+lane has no such caveat: https://explorer.testnet.chain.robinhood.com/address/0x3E4a51B35a984f33D4F71CEf96Eb8f08fcC8Ef2b
+reads `Pass - Verified`.
 
 ---
 

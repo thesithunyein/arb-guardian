@@ -4,11 +4,11 @@
 
 - Live app URL: https://arb-guardian.sithunyein.com (Vercel alias also verified)
 - API URL and health endpoint response: https://arb-guardian.sithunyein.com/api/health returned HTTP 200
-- Deployed Arbitrum Sepolia contract addresses: **source-only until the corrected build is
-  redeployed**. Existing recorded addresses are explicitly marked superseded in
-  `docs/live-deployment.md`.
-- Deployment transaction evidence: **not available for the corrected build; do not fabricate
-  hashes**. Generate `docs/deployment-evidence.md` only after a funded deployment.
+- Deployed contract addresses on both lanes: `docs/live-deployment.md` — declared `current`, 6/6
+  drift claims holding against the chain, source-verified on the Robinhood explorer.
+- Deployment transaction evidence: deploy, Safe creation, guard install, allowed spend and refused
+  spend hashes are listed per lane in `docs/live-deployment.md`. All read from chain; none
+  fabricated.
 - Public repository URL
 - 3-minute demo video link: **not yet recorded**
 - Judge brief (`docs/judge-brief.md`)

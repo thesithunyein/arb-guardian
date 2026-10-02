@@ -26,17 +26,22 @@
 - [x] Public production URL: https://arb-guardian.sithunyein.com (HTTP 200; DNS resolves to Vercel)
 - [x] Vercel alias remains reachable: https://arb-guardian.vercel.app (HTTP 200)
 - [x] Public repository: https://github.com/thesithunyein/arb-guardian
-- [ ] Corrected Arbitrum Sepolia deployment — blocked: no deployer key, funded wallet, or explorer API key is available in this environment
-- [x] Public product on Vercel with the recorded superseded onchain addresses clearly labelled
+- [x] Corrected deployment on both lanes (2026-10-02), byte-matched to this source by `npm run check:deployed`
+- [ ] Source published on Arbiscan — the one open verification item; needs `ARBISCAN_API_KEY`, then `npm run verify -w packages/contracts -- --network arbitrumSepolia`
+- [x] Source verified on the Robinhood explorer (`Pass - Verified`, 3/3 contracts)
+- [x] Guard installed on a real Gnosis Safe through that Safe's own `execTransaction`, on both lanes
+- [x] Allowed and refused Safe transactions recorded onchain (both lanes)
+- [x] Durable production storage: incidents, KPI and audit history survive a new serverless instance (`/api/health` reports `vercel-kv`, reachable)
+- [x] Public product on Vercel with the current onchain addresses and transaction links on screen
 - [ ] Public API on Render (optional; console works with onchain reads)
 - [ ] Demo video with onchain tx evidence on Arbiscan
 
 ## Bounty criteria map
 | Criterion | Status |
 | --- | --- |
-| Deployed on Arbitrum chain | Existing Sepolia addresses are superseded; current qualification and corrected redeploy remain unconfirmed — see `docs/live-deployment.md` |
+| Deployed on Arbitrum chain | Both lanes deployed 2026-10-02 and declared `current`, 6/6 drift claims holding; source panel on Arbiscan still needs a key — see `docs/live-deployment.md` |
 | Smart contract quality | Ready (tests + RBAC + pause) |
 | Product-market fit | Evidence-ready workflow; pilot metrics still required |
 | Innovation / creativity | Evidence-ready Safe enforcement + policy attestation; comparative proof still required |
-| Real problem solving | Reproducible local proof; live Safe transaction evidence still required |
+| Real problem solving | Allowed and refused Safe transactions recorded onchain on both lanes; incident drill still to be run and documented |
 | Best agentic track | Deterministic, bounded actions; no autonomous fund movement |

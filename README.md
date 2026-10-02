@@ -19,10 +19,14 @@
 
 **Live product:** [arb-guardian.sithunyein.com](https://arb-guardian.sithunyein.com)
 **Repository:** [github.com/thesithunyein/arb-guardian](https://github.com/thesithunyein/arb-guardian)
-**Current product status:** the web console and deterministic review workflow are live. The recorded
-testnet contracts are explicitly marked **superseded** because they predate the current source.
-Arb Guardian does not claim current onchain enforcement until corrected contracts are redeployed,
-source-verified, and connected to an approved Safe.
+**Current product status:** the web console, policy admin console and serverless API are live, and
+the corrected contracts are deployed on both lanes as of 2026-10-02. `/api/status` reports
+`"chainConnected": true`, `"productReady": true`, `"deployment.status": "current"`, and
+`/api/health` reports durable KV persistence. A real Gnosis Safe on each lane carries the guard,
+installed through that Safe's own `execTransaction`, with an allowed and a refused spend recorded
+onchain. Source verification is complete on the Robinhood lane (3/3 `Pass - Verified`); the three
+Arbitrum Sepolia contracts match this source byte-for-byte but are not yet source-published on
+Arbiscan, which needs `ARBISCAN_API_KEY`.
 
 > This README is written for operators and judges first. It distinguishes a reproducible local
 > proof from a live deployment claim. See [`docs/live-deployment.md`](docs/live-deployment.md) for
@@ -186,39 +190,41 @@ Useful artifacts:
 
 ## Live deployment truth
 
-Arb Guardian qualifies as a product demo today, not as a claimed current production treasury
-enforcement deployment. The public app is live, but `/api/status` reports:
+Both lanes carry the corrected build, deployed 2026-10-02. The public app reports:
 
 ```json
 {
   "healthy": true,
-  "chainConnected": false,
-  "productReady": false,
+  "chainConnected": true,
+  "productReady": true,
   "deployment": {
-    "status": "superseded",
-    "source": "recorded-superseded"
+    "status": "current"
   }
 }
 ```
 
-Recorded addresses are useful historical testnet evidence and remain linked from the UI, but they
-run an earlier build. They must not be presented as the current source. The exact addresses,
-bytecode-drift result, and redeployment procedure are in [`docs/live-deployment.md`](docs/live-deployment.md).
+Every part of that claim has a command behind it:
 
-Required inputs for a real corrected deployment:
+- `npm run check:deployed` — 6/6 contracts across both lanes match this source's metadata
+  fingerprint and runtime size, read over each network's public RPC. It fails if a lane is declared
+  `current` and is not.
+- `npm run check:settlement` — real Paxos USDG at both lanes' addresses, `symbol() = USDG`,
+  `decimals() = 6`, read from the contracts rather than copied from the docs.
+- A real Gnosis Safe v1.4.1 on each lane holds `SafeTreasuryGuard`, installed through the Safe's own
+  `execTransaction`, with an allowed spend and a refused spend recorded onchain.
+- Source verification: Robinhood's Blockscout explorer answers `Pass - Verified` for all three
+  contracts. The same three on Arbiscan are byte-matched but not yet source-published — that is the
+  one open verification item, and it needs an Arbiscan key.
+- `npm run test -w apps/api` — 4 of its 25 tests are read-only `eth_call`s against the live
+  `PolicyManager`, so a wrong ABI, a wrong role hash or an undecodable refusal fails the build
+  rather than shipping.
 
-- `DEPLOYER_PRIVATE_KEY`, supplied only through a secure environment variable;
-- funded Arbitrum Sepolia ETH;
-- `ARBISCAN_API_KEY` for source verification;
-- Safe owner/operator approval for the guard self-call;
-- for USDG: `USDG_ADDRESS`, `USDG_TREASURY_ADDRESS`, `USDG_DAILY_LIMIT_UNITS`, and `USDG_RECIPIENT`;
-- durable production storage for incidents, KPI, audit history, and waitlist state.
+Not claimed: mainnet deployment, an independent security review, and any pilot usage. Addresses and
+transaction hashes are in [`docs/live-deployment.md`](docs/live-deployment.md).
 
-Never commit private keys, API keys, or fabricated transaction hashes.
-
-The checked path is five commands. The first refuses to continue until every prerequisite holds:
-it derives the deployer address without printing the key, requires both explorer keys, and reads the
-live balance on each lane.
+Never commit private keys, API keys, or fabricated transaction hashes. Re-running the deployment is
+five commands; the first refuses to continue until every prerequisite holds, deriving the deployer
+address without printing the key and reading the live balance on each lane.
 
 ```bash
 npm run deploy:preflight     # refuses until keys and funds hold; names the faucets
@@ -240,26 +246,26 @@ published criteria, the honest current position is:
 
 | Criterion | Current evidence | Honest score today | What moves it to 9+ |
 | --- | --- | ---: | --- |
-| Smart contract quality | 69 contract tests, real-Safe integration proven in-process, deny-by-default rules, every standing approval refused, drift checks | 8/10 | Redeploy corrected source, verify every contract, install on a real Safe live, add independent review, publish gas and invariant results |
-| Product-market fit | Live operator workflow, plain-language review, alerts, deterministic playbooks | 7.5/10 | Two or more pilot teams, measurable time-to-review and blocked-risk outcomes, durable audit history, clear pricing/onboarding |
-| Innovation | Policy attestation plus Safe-native token/native lanes and bounded playbooks | 8/10 | Prove a differentiated agent-permission workflow, publish comparison against multisig/manual controls, show policy replay in the demo |
-| Real problem solving | Blocks before Safe execution and has an emergency pause path; the real-Safe self-call path is proven in-process, while the live enrolment uses a Safe-shaped shell | 7/10 | Explorer-verifiable current deployment, a genuinely installed guard on a real Safe, a blocked/allowed before-after recording, and a documented incident drill |
-| USDG / Arbitrum fit | Real Paxos USDG verified onchain on both lanes; token lane implemented and tested at 6 decimals; no lane configured on a current deployment | 6/10 | Configure the real USDG lane on a current deployment, prove the refusal paths, and demonstrate a bounded payment |
+| Smart contract quality | 69 contract tests plus seeded invariants, deny-by-default rules, every standing approval refused, 6/6 drift claims holding on two chains, guard installed on a real Safe through its own `execTransaction` | 9/10 | Source-published on Arbiscan, an independent review, published gas and invariant results |
+| Product-market fit | Live operator workflow, plain-language review, alerts, deterministic playbooks, durable audit history across cold starts | 7.5/10 | Two or more pilot teams, measurable time-to-review and blocked-risk outcomes, clear pricing/onboarding |
+| Innovation | Policy attestation plus Safe-native token/native lanes, bounded playbooks, enforcement inside `execTransaction` rather than at the signer | 8.5/10 | Publish a comparison against multisig/manual controls, prove a differentiated agent-permission workflow |
+| Real problem solving | Explorer-verifiable current deployment on two chains, guard genuinely installed on a real Safe, allowed and refused transactions both recorded, freeze path in the product | 9/10 | A documented incident drill and the blocked transaction narrated in the demo video |
+| USDG / Arbitrum fit | Real Paxos USDG configured as a live lane on both current deployments at 6 decimals, with allowance and refusal proven in tests and onchain | 9/10 | A demo recording of a bounded USDG payment end to end |
 
 ### Priority order
 
-1. **Deploy and verify the corrected Arbitrum Sepolia contracts.** Record deployment and verification
-   transactions only after explorers confirm bytecode and source.
-2. **Install the Safe guard through the Safe self-call flow.** Capture the Safe transaction, guard
-   address, threshold, and an allowed/blocked transaction pair.
-3. **Configure the real USDG lane if the official token address and operator approval are available.**
-   Do not substitute a lookalike token or a placeholder address.
-4. **Replace ephemeral Vercel state with durable storage.** Demonstrate that incidents, decisions,
-   and audit records survive a new serverless instance.
-5. **Run a small pilot.** Measure review time, false positives, blocked unsafe requests, and operator
-   response time. Put anonymized results in the submission.
-6. **Add independent security evidence.** Publish a focused review of access control, Safe guard
+1. **Source-publish the Arbitrum Sepolia contracts.** Add `ARBISCAN_API_KEY` and run
+   `npm run verify -w packages/contracts -- --network arbitrumSepolia`. The bytecode already matches;
+   this is only the explorer's source panel.
+2. **Record the demo video.** Same beats as `npm run demo:sheet`, ending on the refused transaction
+   hash. This is the cheapest remaining point on the board.
+3. **Run a small pilot.** Measure review time, false positives, blocked unsafe requests, and
+   operator response time. Put anonymized results in the submission. This is the only criterion
+   still below 8.
+4. **Add independent security evidence.** Publish a focused review of access control, Safe guard
    integration, token decoding, reentrancy/refund ordering, and upgrade/deployment assumptions.
+5. **Run and document an incident drill.** Freeze a treasury through the live API, show the alert,
+   unfreeze, and record the timing.
 7. **Record a two-minute judge path.** Problem → request → blocked decision → alert → Safe-level
    enforcement → policy digest → explorer proof. Keep every claim linked to a command or transaction.
 
