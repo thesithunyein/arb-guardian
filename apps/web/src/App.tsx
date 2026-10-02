@@ -411,7 +411,7 @@ export function App() {
   const [xp, setXp] = useState(() => loadXp());
   const [badges, setBadges] = useState<BadgeState>(() => loadBadges());
   const [sfxMuted, setSfxMutedState] = useState(() => loadSfxMuted());
-  const [entered, setEntered] = useState(false);
+  const [entered, setEntered] = useState(true);
   const [treasuryName, setTreasuryName] = useState(() => loadTreasuryName());
   const [editingTreasury, setEditingTreasury] = useState(false);
   const [spendPickerOpen, setSpendPickerOpen] = useState(false);
@@ -1046,14 +1046,13 @@ export function App() {
   }
 
   const openIncidents = incidents.filter((i) => i.status === "open").length;
-  const statusLabel = policyPaused ? "Frozen" : DEPLOYMENT_READY ? "Online" : "Ready";
+  const statusLabel = policyPaused ? "Frozen" : DEPLOYMENT_READY ? "Protected" : "Setup needed";
 
   const coreTabs: Array<[TabId, string, ReactElement]> = [
-    ["home", "Home", <IconHome key="h" size={16} />],
+    ["home", "Overview", <IconHome key="h" size={16} />],
     ["review", "Review", <IconReview key="r" size={16} />],
     ["alerts", openIncidents ? `Alerts (${openIncidents})` : "Alerts", <IconAlerts key="a" size={16} />],
-    ["automation", "Playbooks", <IconAutomation key="u" size={16} />],
-    ["security", "Vault", <IconSecurity key="s" size={16} />]
+    ["automation", "Automations", <IconAutomation key="u" size={16} />]
   ];
   const currentSpend = INTENTS[intent];
 
@@ -2064,21 +2063,8 @@ export function App() {
       <footer className="footer">
         <div>Arb Guardian — contract-enforced spend policy for delegated funds</div>
         <div>
-          <a href="https://github.com/thesithunyein/arb-guardian" target="_blank" rel="noreferrer">
-            Repo
-          </a>
-          {" · "}
-          <button
-            type="button"
-            className="linkish inline"
-            onClick={() => {
-              if (!entered) enterWorld();
-              goVault();
-            }}
-          >
-            Live networks
-          </button>
-          {runtime === "api" ? " · Live" : null}
+          <span>Arb Guardian workspace</span>
+          {runtime === "api" ? " · Connected" : null}
         </div>
       </footer>
       </div>
