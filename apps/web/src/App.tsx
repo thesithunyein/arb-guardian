@@ -32,6 +32,7 @@ import {
 } from "./icons";
 import { guardProof, shortDigest } from "./guardProof";
 import { driftReport } from "./deployedDrift";
+import { settlementGeneratedAt, settlementTokenReport, settlementTokenVerified } from "./settlementToken";
 import { assessIntent, predictGuardOutcome, type RiskAssessment } from "./riskEngine";
 import { useTheme } from "./useTheme";
 import { connectWallet, shortAddress, signEnrollMessage } from "./wallet";
@@ -1936,6 +1937,40 @@ export function App() {
                       </ul>
                     </div>
                   ))}
+                </section>
+                <section className="surface span-2">
+                  <h3>
+                    <IconSecurity size={18} /> Settlement token · read from the issuer&apos;s contract
+                  </h3>
+                  <p className="muted section-lead">
+                    Every cap in the token lane is a claim about somebody else&apos;s contract, so the symbol,
+                    decimals and code behind it are read from the chain rather than repeated here.{" "}
+                    {settlementTokenVerified
+                      ? "Both lanes agreed with their declaration."
+                      : "At least one lane disagreed with its declaration — treat the caps as unverified."}{" "}
+                    Generated {settlementGeneratedAt} by <code>npm run check:settlement</code>, which runs in CI.
+                  </p>
+                  <div className="asset-grid">
+                    {settlementTokenReport.networks.map((network) => (
+                      <article className="asset-card" key={network.network}>
+                        <h4>{network.label}</h4>
+                        <p>
+                          <strong>{network.symbol ?? network.declaredSymbol ?? "unreadable"}</strong>{" "}
+                          {typeof network.decimals === "number" ? `· ${network.decimals} decimals` : null}
+                        </p>
+                        <p>
+                          <a href={`${network.explorer}/address/${network.address}`} target="_blank" rel="noreferrer">
+                            {network.address.slice(0, 10)}…{network.address.slice(-6)}
+                          </a>
+                        </p>
+                        <p className="muted">
+                          {network.problems.length === 0
+                            ? "Verified against the contract."
+                            : `Problems: ${network.problems.join("; ")}`}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
                 </section>
                 <section className="surface span-2">
                   <h3>
