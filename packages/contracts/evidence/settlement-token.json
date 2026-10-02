@@ -1,6 +1,6 @@
 {
   "kind": "arb-guardian-settlement-token",
-  "generatedAt": "2026-10-01T13:07:30.400Z",
+  "generatedAt": "2026-10-02T17:42:50.806Z",
   "networks": [
     {
       "network": "arbitrumSepolia",
@@ -16,6 +16,19 @@
       "symbol": "USDG",
       "decimals": 6,
       "supplyReadable": true,
+      "lane": {
+        "policyManager": "0x3e394b1d9781a71D71905d028C530B29Aa0021a6",
+        "token": "0xFFC95faa3d63Cde504a05B567C600B78C0b41892",
+        "treasury": "0x5769B6973cF7E85acfa7590763549bfCf80Cbb82",
+        "recipient": "0x4444444444444444444444444444444444444444",
+        "registered": true,
+        "dailyLimitUnits": "5000000000",
+        "recipientAllowlisted": true,
+        "recipientAllowlistedToken": true,
+        "recipientAllowlistedNative": true,
+        "nativeWalletDailyLimitWei": "5000000000000000000",
+        "paused": false
+      },
       "problems": []
     },
     {
@@ -32,6 +45,19 @@
       "symbol": "USDG",
       "decimals": 6,
       "supplyReadable": true,
+      "lane": {
+        "policyManager": "0x3E4a51B35a984f33D4F71CEf96Eb8f08fcC8Ef2b",
+        "token": "0x7E955252E15c84f5768B83c41a71F9eba181802F",
+        "treasury": "0x8D9540796444ded4dA17fC0FA38CcBb9a701991a",
+        "recipient": "0x4444444444444444444444444444444444444444",
+        "registered": true,
+        "dailyLimitUnits": "5000000000",
+        "recipientAllowlisted": true,
+        "recipientAllowlistedToken": true,
+        "recipientAllowlistedNative": true,
+        "nativeWalletDailyLimitWei": "5000000000000000000",
+        "paused": false
+      },
       "problems": []
     }
   ]

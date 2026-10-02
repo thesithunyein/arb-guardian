@@ -40,6 +40,16 @@
 - [ ] Narrated demo video with the blocked transaction spoken over it
 - [ ] Bounded USDG payment on a live lane — blocked by the issuer's geo-restricted testnet faucet
 
+## Evidence artifacts added after the deployment
+- [x] Freeze drill executed against the live lane, with hashes, gas and timings (`docs/incident-drill.md`)
+- [x] Source publication recorded keylessly (6/6 Sourcify exact match, verified explorer panels on both lanes)
+- [ ] Arbiscan's own source panel (waiting on `ARBISCAN_API_KEY`; `npm run verify:arbiscan`)
+- [x] USDG lane configuration read back from each `PolicyManager` by `npm run check:settlement`
+- [x] Capability comparison against alert-only, manual multisig, and signer-side policy (README + site)
+- [x] Internal enforcement review, labelled internal, with findings and residual risk (`docs/internal-review.md`)
+- [x] Silent screen capture of the live product (`docs/demo/walkthrough-2026-10-02.webm`)
+- [ ] Narrated demo video — script and storyboard are written (`docs/demo/narration-script.md`), the voice is not recorded
+
 ## Bounty criteria map
 | Criterion | Status |
 | --- | --- |

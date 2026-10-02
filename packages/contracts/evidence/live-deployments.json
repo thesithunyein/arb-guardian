@@ -17,6 +17,17 @@
         "source": "https://docs.paxos.com/guides/stablecoin/usdg/testnet",
         "comment": "Published by Paxos for Arbitrum Sepolia. `npm run check:settlement` reads symbol()/decimals() at this address, because a token lane configured with the wrong decimals misreads every limit by a power of ten."
       },
+      "tokenLane": {
+        "label": "USDG lane",
+        "treasury": "0x5769B6973cF7E85acfa7590763549bfCf80Cbb82",
+        "recipient": "0x4444444444444444444444444444444444444444",
+        "registered": true,
+        "dailyLimitUnits": "5000000000",
+        "recipientAllowlisted": true,
+        "nativeWalletDailyLimitWei": "5000000000000000000",
+        "paused": false,
+        "comment": "The lane is configured on this deployment: the token is registered, the enrolled Safe has a 5,000 USDG/day cap, and the recipient is allowlisted for both the token and the native lane. `npm run check:settlement` reads every one of these back from PolicyManager and fails on a mismatch. Configured is not the same as exercised: the treasury holds 0 USDG and the issuer's testnet faucet is geo-restricted, so no USDG payment has been made — see docs/live-deployment.md."
+      },
       "contracts": [
         {
           "contract": "PolicyManager",
@@ -64,6 +75,17 @@
         "decimals": 6,
         "source": "https://docs.paxos.com/guides/stablecoin/usdg/testnet",
         "comment": "Published by Paxos for Robinhood Testnet. The same stablecoin is live on both lanes this project deploys to, so the settlement claim is checkable on both."
+      },
+      "tokenLane": {
+        "label": "USDG lane",
+        "treasury": "0x8D9540796444ded4dA17fC0FA38CcBb9a701991a",
+        "recipient": "0x4444444444444444444444444444444444444444",
+        "registered": true,
+        "dailyLimitUnits": "5000000000",
+        "recipientAllowlisted": true,
+        "nativeWalletDailyLimitWei": "5000000000000000000",
+        "paused": false,
+        "comment": "Same configuration as the Arbitrum lane, read back from this chain by `npm run check:settlement`. Nothing has moved in it: the treasury holds 0 USDG here too."
       },
       "contracts": [
         {

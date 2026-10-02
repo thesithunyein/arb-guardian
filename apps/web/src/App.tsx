@@ -39,7 +39,14 @@ import {
 } from "./icons";
 import { guardProof, shortDigest } from "./guardProof";
 import { driftReport } from "./deployedDrift";
-import { settlementGeneratedAt, settlementTokenReport, settlementTokenVerified } from "./settlementToken";
+import {
+  laneCapUnits,
+  laneConfigured,
+  settlementGeneratedAt,
+  settlementTokenReport,
+  settlementTokenVerified
+} from "./settlementToken";
+import { drillRanAt, drillSeconds, drillStep, incidentDrill } from "./incidentDrill";
 import {
   arbiscanCheckedAt,
   arbiscanPublishedAll,
@@ -1909,6 +1916,149 @@ export function App() {
                 </section>
                 <section className="surface span-2">
                   <h3>
+                    <IconSecurity size={18} /> Start here · the judge path
+                  </h3>
+                  <p className="muted section-lead">
+                    Every claim below has one click to the thing that proves it — a transaction, a contract, a
+                    command, or a committed record. Nothing here asks to be taken on trust.
+                  </p>
+                  <ol className="clean">
+                    <li>
+                      <strong>An allowed spend settles, and a forbidden one is refused.</strong>{" "}
+                      {SAFE_ALLOWED_EXEC_TX ? (
+                        <>
+                          <a href={`${EXPLORER}/tx/${SAFE_ALLOWED_EXEC_TX}`} target="_blank" rel="noreferrer">
+                            settled on Arbitrum Sepolia
+                          </a>{" "}
+                        </>
+                      ) : null}
+                      {SAFE_BLOCKED_EXEC_TX ? (
+                        <>
+                          ·{" "}
+                          <a href={`${EXPLORER}/tx/${SAFE_BLOCKED_EXEC_TX}`} target="_blank" rel="noreferrer">
+                            refused (status 0, reverted inside the Safe)
+                          </a>{" "}
+                        </>
+                      ) : null}
+                      {RH_SAFE_ALLOWED_EXEC_TX && RH_SAFE_BLOCKED_EXEC_TX ? (
+                        <>
+                          · the same pair on the Robinhood lane:{" "}
+                          <a href={`${RH_EXPLORER}/tx/${RH_SAFE_ALLOWED_EXEC_TX}`} target="_blank" rel="noreferrer">
+                            settled
+                          </a>{" "}
+                          ·{" "}
+                          <a href={`${RH_EXPLORER}/tx/${RH_SAFE_BLOCKED_EXEC_TX}`} target="_blank" rel="noreferrer">
+                            refused
+                          </a>
+                        </>
+                      ) : null}
+                    </li>
+                    <li>
+                      <strong>The freeze, executed rather than described.</strong> {drillRanAt}: a risky request
+                      was refused in {drillSeconds(drillStep("assessment")?.detectionMs)}s, the policy was paused
+                      onchain in {drillSeconds(drillStep("freeze")?.timeToFreezeMs)}s, the spend that normally
+                      settles was refused while frozen (status {drillStep("refused-while-frozen")?.status},{" "}
+                      {drillStep("refused-while-frozen")?.gasUsed ?? "?"} gas), the policy was unpaused and the
+                      spend settled again.{" "}
+                      {drillStep("freeze")?.txHash ? (
+                        <>
+                          <a href={`${EXPLORER}/tx/${drillStep("freeze")?.txHash}`} target="_blank" rel="noreferrer">
+                            pause
+                          </a>{" "}
+                          ·{" "}
+                        </>
+                      ) : null}
+                      {drillStep("refused-while-frozen")?.txHash ? (
+                        <>
+                          <a
+                            href={`${EXPLORER}/tx/${drillStep("refused-while-frozen")?.txHash}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            refusal
+                          </a>{" "}
+                          ·{" "}
+                        </>
+                      ) : null}
+                      {drillStep("unfreeze")?.txHash ? (
+                        <>
+                          <a href={`${EXPLORER}/tx/${drillStep("unfreeze")?.txHash}`} target="_blank" rel="noreferrer">
+                            unpause
+                          </a>{" "}
+                          ·{" "}
+                        </>
+                      ) : null}
+                      {drillStep("settled-after-unfreeze")?.txHash ? (
+                        <a
+                          href={`${EXPLORER}/tx/${drillStep("settled-after-unfreeze")?.txHash}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          resumed
+                        </a>
+                      ) : null}{" "}
+                      Lane left unpaused: {incidentDrill.outcome.laneLeftPaused ? "no" : "yes"}, read back from
+                      the chain after the run.
+                    </li>
+                    <li>
+                      <strong>The guard, case by case.</strong> {guardProof.summary.passed}/
+                      {guardProof.summary.total} cases behaved as specified against a real Gnosis Safe v1.4.1,
+                      with the revert reason printed for every refusal — including{" "}
+                      <code>PolicyManagerPaused()</code>, the rule the freeze above exercised.
+                    </li>
+                    <li>
+                      <strong>The sources are published.</strong> All six contracts recompiled to an exact match
+                      on Sourcify with a verified explorer panel on each lane; the Arbiscan panel is the one item
+                      waiting on an API key.{" "}
+                      {sourceVerificationComplete && sourceExplorerPanels ? "Six of six, on both counts." : null}
+                    </li>
+                    <li>
+                      <strong>The suites.</strong> 128 tests across four suites, plus 15 guard cases and 14 policy
+                      fixtures, all reproducible from source:{" "}
+                      <a
+                        href="https://github.com/thesithunyein/arb-guardian/blob/master/README.md#development"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        README
+                      </a>
+                      .
+                    </li>
+                    <li>
+                      <strong>The demo.</strong>{" "}
+                      <a
+                        href="https://github.com/thesithunyein/arb-guardian/blob/master/docs/demo/walkthrough-2026-10-02.webm"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        A screen capture of this live product
+                      </a>{" "}
+                      along the judge path, with its beats written out in{" "}
+                      <a
+                        href="https://github.com/thesithunyein/arb-guardian/blob/master/docs/demo/walkthrough-2026-10-02.md"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        the walkthrough notes
+                      </a>
+                      . It is silent and labelled as silent; the narrated cut is still to be recorded.
+                    </li>
+                    <li>
+                      <strong>What is not claimed.</strong> No mainnet deployment, no third-party audit, no pilot
+                      users, and no live USDG movement.{" "}
+                      <a
+                        href="https://github.com/thesithunyein/arb-guardian/blob/master/SECURITY.md"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        SECURITY.md
+                      </a>{" "}
+                      says the same thing in more detail.
+                    </li>
+                  </ol>
+                </section>
+                <section className="surface span-2">
+                  <h3>
                     <IconSecurity size={18} /> Deployed bytecode vs this build · checked, not asserted
                   </h3>
                   <p className="muted section-lead">
@@ -2075,9 +2225,24 @@ export function App() {
                             ? "Verified against the contract."
                             : `Problems: ${network.problems.join("; ")}`}
                         </p>
+                        {network.lane ? (
+                          <p className="muted">
+                            {laneConfigured(network.lane)
+                              ? `Lane configured · ${laneCapUnits(network.lane, network.decimals)} ${network.symbol ?? "token"}/day cap · recipient allowlisted · ${network.lane.paused ? "paused" : "unpaused"}`
+                              : "Lane not fully configured — read the problems above."}
+                            {" "}
+                            Read from <code>PolicyManager</code> by the same command.
+                          </p>
+                        ) : null}
                       </article>
                     ))}
                   </div>
+                  <p className="muted section-lead">
+                    Configured is not the same as exercised: the treasury holds 0 USDG on both lanes and the
+                    issuer&apos;s testnet faucet is geo-restricted from the machine that built this, so no USDG
+                    payment has been executed. The lane&apos;s logic is proven by{" "}
+                    <code>npm run evidence -w packages/contracts</code> against a USDG-shaped token.
+                  </p>
                 </section>
                 <section className="surface span-2">
                   <h3>
@@ -2127,6 +2292,63 @@ export function App() {
                       <p>Installed inside a real Safe&apos;s execTransaction, so a blocked spend never executes.</p>
                     </article>
                   </div>
+                </section>
+                <section className="surface span-2">
+                  <h3>
+                    <IconSecurity size={18} /> Why not just an alert, or a multisig
+                  </h3>
+                  <p className="muted section-lead">
+                    These controls stop different things at different moments, and only one of them bounds a
+                    delegated spender. Capability classes, not vendors — and a design comparison, not an audit of
+                    anyone&apos;s product.
+                  </p>
+                  <div className="asset-grid">
+                    <article className="asset-card">
+                      <h4>Alerts and monitoring</h4>
+                      <p>
+                        <strong>Stops nothing at execution time.</strong> It detects and notifies.
+                      </p>
+                      <p className="muted">
+                        A compromised operator key can still do everything it was authorised to do; the alert
+                        arrives afterwards.
+                      </p>
+                    </article>
+                    <article className="asset-card">
+                      <h4>Manual multisig review</h4>
+                      <p>
+                        <strong>Stops what the signers refuse.</strong> Strong against one compromised signer.
+                      </p>
+                      <p className="muted">
+                        Cannot express a daily cap or an allowlist deterministically, and does not keep up with
+                        machine-speed payments.
+                      </p>
+                    </article>
+                    <article className="asset-card">
+                      <h4>Signer-side policy</h4>
+                      <p>
+                        <strong>Stops what that service chooses to send.</strong>
+                      </p>
+                      <p className="muted">
+                        A wrapper around the key rather than a property of the account: anything else holding the
+                        key goes around it.
+                      </p>
+                    </article>
+                    <article className="asset-card">
+                      <h4>Guard inside Safe execution · this project</h4>
+                      <p>
+                        <strong>Stops it in the Safe&apos;s own execTransaction</strong> before the inner call runs,
+                        deny-by-default.
+                      </p>
+                      <p className="muted">
+                        Bounded by the policy owner&apos;s key and by the allowlist being correct — a wrong
+                        allowlist is still a wrong policy.
+                      </p>
+                    </article>
+                  </div>
+                  <p className="muted section-lead">
+                    The distinction that matters for agent spending is the third card against the fourth: a policy
+                    that lives in the process holding the key disappears the moment something else holds the key.
+                  </p>
                 </section>
                 <section className="surface span-2">
                   <h3>Guard proof · every case, with its revert reason</h3>

@@ -13,7 +13,7 @@
   <a href="https://arb-guardian.sithunyein.com"><img src="https://img.shields.io/badge/Live_app-Visit-285B47?style=for-the-badge&labelColor=F5F7F5" alt="Live app" /></a>
   <a href="https://github.com/thesithunyein/arb-guardian/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/thesithunyein/arb-guardian/ci.yml?branch=master&label=CI&style=for-the-badge" alt="CI status" /></a>
   <img src="https://img.shields.io/badge/Chain-Arbitrum%20Sepolia-28A0F0?style=for-the-badge&labelColor=F5F7F5" alt="Arbitrum Sepolia" />
-  <img src="https://img.shields.io/badge/Tests-110%20passing-22C55E?style=for-the-badge&labelColor=F5F7F5" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-128%20passing-22C55E?style=for-the-badge&labelColor=F5F7F5" alt="Tests" />
   <img src="https://img.shields.io/badge/Contract%20tests-69%20passing-22C55E?style=for-the-badge&labelColor=F5F7F5" alt="Contract tests" />
 </p>
 
@@ -154,8 +154,40 @@ the chain rather than asserted:
 | Robinhood Chain testnet | `0x7E955252E15c84f5768B83c41a71F9eba181802F` | symbol, decimals (6), code, live supply |
 
 `npm run check:settlement` reads both and fails if either claim stops being true. **A verified token
-is not a configured lane.** No treasury, daily cap, or allowlisted recipient has been written on a
-current deployment yet, so do not read this as a claim that a bounded USDG payment is live today.
+is not a configured lane**, and the difference between the two is read rather than described: the
+same command now reads the lane back from each `PolicyManager` and fails on a mismatch. On both
+current deployments it finds the token registered, the enrolled Safe capped at a
+`5,000,000,000`-base-unit daily limit (5,000 USDG at 6 decimals), the recipient allowlisted for the
+token lane and the native lane, a 5 ETH/day native limit, and the policy unpaused.
+
+What that does **not** mean is that USDG has moved. The treasury holds 0 USDG on both lanes and the
+issuer's testnet faucet is geo-restricted from the machine that built this, so no USDG payment has
+been executed. The lane's logic is exercised against a USDG-shaped token by
+`npm run evidence -w packages/contracts`; its address, decimals and configuration by
+`npm run check:settlement`. A bounded payment on a live lane is still pending.
+
+## Why not just an alert, or a multisig
+
+Alerting, multisig review, and guard enforcement are often described as if they were the same control.
+They are not: they stop different things at different moments, and only one of them bounds a delegated
+spender. The comparison below is about capability classes, not vendors, and it is a design comparison
+rather than a security audit of anyone's product.
+
+| Approach | What actually stops an unsafe spend | What a compromised operator key can still do | What it cannot do |
+| --- | --- | --- | --- |
+| Alerts and monitoring | Nothing at execution time. It detects and notifies. | Everything the key is authorised to do — the alert arrives afterwards. | Bound an automated spender, or fail an unsafe transfer before it lands. |
+| Manual multisig review | The signers, per transaction. Strong against one compromised signer. | Spend only up to what other signers accept; social-engineering a signer is the attack. | Express a daily cap or an allowlist deterministically, or keep up with machine-speed payments. |
+| Signer-side policy (a bot or service checks before it signs) | The requests that service chooses to send. | Bypass the service entirely: the policy is a wrapper around the key, not a property of the account. | Constrain anyone who can reach the treasury by another path. |
+| Guard-enforced policy inside Safe execution (this project) | The Safe's own `execTransaction`, deny-by-default, before the inner call runs. | Only what policy already permits: allowlisted destinations, inside caps, no standing approvals, no delegatecall. | Replace the policy — roles are separate, and a wrong allowlist is still a wrong policy. |
+
+The distinction that matters for agent spending is the third row versus the fourth. A policy that
+lives in the process that holds the key disappears the moment something else holds the key; a policy
+that lives in the account's execution path does not.
+
+What this project does not claim: the guard cannot make a badly chosen allowlist safe, the pause is
+only as fast as the operator who calls it, the policy owner's key is a single point of trust today,
+and none of this has been reviewed by a third party. Those are stated in
+[`SECURITY.md`](SECURITY.md) rather than left to be discovered.
 
 ## Proof you can reproduce
 
@@ -309,7 +341,21 @@ The public site starts in light mode and explains the workflow before wallet con
 1. [Open the landing page](https://arb-guardian.sithunyein.com)
 2. Choose **Review a payment** to see a deterministic assessment.
 3. Choose **Open workspace** to inspect Overview, Review, Alerts, and Automations.
-4. Use **Docs** for the in-app explanation; use [technical docs](docs/) for implementation detail.
+4. Open the **Evidence** tab: its first section is a judge path, and every claim in it links to the
+   transaction, contract, or command behind it. The settlement-token cards on that screen are read
+   from each chain, including whether the USDG lane is actually configured.
+5. Use **Docs** for the in-app explanation; use [technical docs](docs/) for implementation detail.
+
+Recorded demo material:
+
+- [`docs/demo/walkthrough-2026-10-02.webm`](docs/demo/walkthrough-2026-10-02.webm) — silent screen
+  capture of the live product, with its beats written out in
+  [`docs/demo/walkthrough-2026-10-02.md`](docs/demo/walkthrough-2026-10-02.md).
+- [`docs/demo/narration-script.md`](docs/demo/narration-script.md) — the 2:45 narration script and
+  storyboard, including which beats still have to be shot.
+- [`docs/incident-drill.md`](docs/incident-drill.md) — the freeze drill, with hashes and timings.
+- [`docs/internal-review.md`](docs/internal-review.md) — an **internal** review of the enforcement
+  path, labelled as internal, listing what the guard does not cover.
 
 ## Repository map
 
@@ -341,6 +387,20 @@ The contract commands use local Hardhat fixtures unless a network and credential
 configured. See [`docs/deploy-sepolia.md`](docs/deploy-sepolia.md) and
 [`docs/production-readiness-checklist.md`](docs/production-readiness-checklist.md) before any
 deployment.
+
+`npm test` runs four suites, and the badge above is their sum rather than a typed number:
+
+| Suite | Tests | What it covers |
+| --- | ---: | --- |
+| `npm run test -w packages/contracts` | 69 | Policy, limits, approvals, token lane, and a real Gnosis Safe v1.4.1 guard install |
+| `npm run test -w apps/api` | 25 | API integration, risk engine, incident store, deployment status, live policy reads |
+| `npm run test -w packages/shared` | 20 | Shared policy and risk types |
+| `npm run test:api` | 14 | The durable KV layer, including the double-encoded blob it once misread |
+
+Two further suites are evidence rather than tests, and they exit non-zero on drift:
+`npm run evidence -w packages/contracts` replays 15 guard cases against a real Safe,
+`npm run eval:policy -w apps/api` runs 14 fixed policy-conformance fixtures, and
+`npm run check:settlement` reads the token lane back from each chain.
 
 ## Security reporting
 

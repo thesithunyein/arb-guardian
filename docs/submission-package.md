@@ -15,6 +15,12 @@
   its beat-by-beat notes in `docs/demo/walkthrough-2026-10-02.md`
 - Narrated 3-minute demo video: **not yet recorded** — the capture above is the raw material
 - Freeze drill record: `docs/incident-drill.md` (hashes, timings, and what it does not prove)
+- Capability comparison against alert-only tooling, manual multisig review, and signer-side policy:
+  in `README.md` under "Why not just an alert, or a multisig", and as cards on the site's Evidence tab
+- Internal enforcement review, labelled internal rather than independent (`docs/internal-review.md`),
+  with findings F1-F8, mitigations, and what it does not cover
+- Freeze drill record (`docs/incident-drill.md`) and the lane configuration read
+  (`npm run check:settlement`, rendered on the Evidence screen)
 - Judge brief (`docs/judge-brief.md`)
 - Grant milestones (`docs/grant-milestones.md`)
 - Judging evidence matrix (`docs/judging-evidence-matrix.md`)

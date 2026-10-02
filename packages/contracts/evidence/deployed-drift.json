@@ -1,6 +1,6 @@
 {
   "kind": "arb-guardian-deployed-drift",
-  "generatedAt": "2026-10-02T15:10:25.312Z",
+  "generatedAt": "2026-10-02T17:54:39.173Z",
   "method": "Solidity metadata fingerprint (IPFS hash from the trailing CBOR blob) and runtime bytecode size, read over each network's public RPC.",
   "note": "Compares this repository's build against the bytecode live at the recorded addresses. It does not re-audit the deployed contract.",
   "compiled": true,

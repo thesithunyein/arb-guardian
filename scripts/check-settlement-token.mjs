@@ -31,6 +31,38 @@ const SELECTORS = {
   totalSupply: "0x18160ddd"
 };
 
+/**
+ * PolicyManager getters used to read the token lane's actual configuration.
+ *
+ * Selectors are keccak of the signatures below (computed once with ethers, which this script
+ * deliberately does not depend on):
+ *   tokenRegistered(address)                 0xa2e1ce62
+ *   tokenDailyLimit(address,address)         0x06b4e9db
+ *   tokenCounterpartyAllowed(address,address) 0x962887d2
+ *   allowlistedCounterparty(address)         0xdf5e3229
+ *   walletDailyLimitWei(address)             0xf668577e
+ *   paused()                                 0x5c975abb
+ *
+ * A wrong selector does not silently pass: the contract call either reverts or returns nothing,
+ * and a lane read that cannot be decoded is reported as a problem rather than as agreement.
+ */
+const LANE_SELECTORS = {
+  tokenRegistered: "0xa2e1ce62",
+  tokenDailyLimit: "0x06b4e9db",
+  tokenCounterpartyAllowed: "0x962887d2",
+  allowlistedCounterparty: "0xdf5e3229",
+  walletDailyLimitWei: "0xf668577e",
+  paused: "0x5c975abb"
+};
+
+/** ABI-encode address arguments: each one is a 32-byte left-padded word. */
+const encodeAddress = (address) => address.toLowerCase().replace(/^0x/, "").padStart(64, "0");
+
+function decodeBool(hex) {
+  if (!hex || hex === "0x") return null;
+  return BigInt(hex) !== 0n;
+}
+
 async function rpc(url, method, params) {
   const response = await fetch(url, {
     method: "POST",
@@ -119,6 +151,74 @@ async function readToken(network) {
   };
 }
 
+/**
+ * Read the lane's configuration from its own PolicyManager.
+ *
+ * "The lane is configured" is the difference between a token address this project can read and a
+ * treasury that could actually pay in it, so it is read rather than described. The values come from
+ * the manifest, which declares what this deployment is supposed to be; every one of them is then
+ * read back here, and a disagreement is a failure like any other.
+ */
+async function readLane(network) {
+  const lane = network.tokenLane;
+  const policyManager = network.contracts?.find((c) => c.contract === "PolicyManager")?.address;
+  if (!policyManager) throw new Error("the manifest lists no PolicyManager for this network");
+
+  const token = network.settlementToken.address;
+  const treasury = lane.treasury;
+  const recipient = lane.recipient;
+
+  const [registeredHex, tokenLimitHex, recipientTokenHex, recipientNativeHex, nativeLimitHex, pausedHex] =
+    await Promise.all([
+      call(network.rpc, policyManager, `${LANE_SELECTORS.tokenRegistered}${encodeAddress(token)}`),
+      call(network.rpc, policyManager, `${LANE_SELECTORS.tokenDailyLimit}${encodeAddress(token)}${encodeAddress(treasury)}`),
+      call(
+        network.rpc,
+        policyManager,
+        `${LANE_SELECTORS.tokenCounterpartyAllowed}${encodeAddress(token)}${encodeAddress(recipient)}`
+      ),
+      call(network.rpc, policyManager, `${LANE_SELECTORS.allowlistedCounterparty}${encodeAddress(recipient)}`),
+      call(network.rpc, policyManager, `${LANE_SELECTORS.walletDailyLimitWei}${encodeAddress(treasury)}`),
+      call(network.rpc, policyManager, LANE_SELECTORS.paused)
+    ]);
+
+  return {
+    policyManager,
+    token,
+    treasury,
+    recipient,
+    registered: decodeBool(registeredHex),
+    dailyLimitUnits: decodeUint(tokenLimitHex)?.toString() ?? null,
+    recipientAllowlisted: decodeBool(recipientTokenHex) && decodeBool(recipientNativeHex) ? true : decodeBool(recipientTokenHex),
+    recipientAllowlistedToken: decodeBool(recipientTokenHex),
+    recipientAllowlistedNative: decodeBool(recipientNativeHex),
+    nativeWalletDailyLimitWei: decodeUint(nativeLimitHex)?.toString() ?? null,
+    paused: decodeBool(pausedHex)
+  };
+}
+
+function judgeLane(network, read) {
+  const problems = [];
+  const declared = network.tokenLane;
+  const compare = (label, actual, expected) => {
+    if (actual === null || actual === undefined) {
+      problems.push(`${label} could not be read from PolicyManager`);
+      return;
+    }
+    if (String(actual) !== String(expected)) {
+      problems.push(`${label} is ${actual} on chain but the manifest declares ${expected}`);
+    }
+  };
+
+  compare("tokenRegistered", read.registered, declared.registered);
+  compare("tokenDailyLimit", read.dailyLimitUnits, declared.dailyLimitUnits);
+  compare("tokenCounterpartyAllowed", read.recipientAllowlistedToken, declared.recipientAllowlisted);
+  compare("allowlistedCounterparty", read.recipientAllowlistedNative, declared.recipientAllowlisted);
+  compare("walletDailyLimitWei", read.nativeWalletDailyLimitWei, declared.nativeWalletDailyLimitWei);
+  compare("paused", read.paused, declared.paused);
+  return problems;
+}
+
 function judge(network, read) {
   const problems = [];
   const token = network.settlementToken;
@@ -167,6 +267,24 @@ async function main() {
     try {
       const read = await readToken(network);
       const problems = judge(network, read);
+
+      // The lane's configuration is checked in the same pass, because "the token is real" and "the
+      // lane is configured" are different claims and only one of them used to be verified.
+      let lane = null;
+      if (network.tokenLane?.treasury) {
+        try {
+          lane = await readLane(network);
+          const laneProblems = judgeLane(network, lane);
+          problems.push(...laneProblems);
+          console.log(
+            `    lane: registered=${lane.registered} cap=${lane.dailyLimitUnits ?? "?"} units recipientAllowlisted=${lane.recipientAllowlistedToken}/${lane.recipientAllowlistedNative} paused=${lane.paused}`
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          problems.push(`the token lane could not be read: ${message}`);
+        }
+      }
+
       if (problems.length > 0) violated += 1;
 
       report.networks.push({
@@ -175,6 +293,7 @@ async function main() {
         chainId: network.chainId,
         explorer: network.explorer,
         ...read,
+        lane,
         observedSupply: undefined,
         problems
       });

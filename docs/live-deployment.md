@@ -224,6 +224,20 @@ orders of magnitude — `packages/contracts/test/TokenPolicy.test.ts` pins that 
 If you register USDG but set no cap, the lane is **deny-by-default** for every wallet: the token
 is known to the guard, but nobody may move it until a limit is configured.
 
+### What the current lanes actually have configured
+
+That question is answered by reading each lane's `PolicyManager`, not by quoting this file:
+`npm run check:settlement` now verifies the declared lane as well as the token, and fails on a
+mismatch. On both current deployments it finds the token registered, a `5,000,000,000`-base-unit
+daily cap for the enrolled Safe (5,000 USDG at 6 decimals), the recipient allowlisted for the token
+lane and for the native lane, a 5 ETH/day native limit, and the policy unpaused. The declaration
+lives in `packages/contracts/evidence/live-deployments.json` under each network's `tokenLane`.
+
+**Configured is not exercised.** The treasury holds 0 USDG on both lanes and the issuer's testnet
+faucet is geo-restricted from the machine that built this, so no USDG payment has been made. The
+lane's logic is covered against a USDG-shaped token by `npm run evidence -w packages/contracts`; its
+address, decimals and configuration by the check above. Do not describe either as payment usage.
+
 ## Integration notes
 
 - `ExecutionGuard` — operator/API pre-execution validation and spend recording. It holds no funds
