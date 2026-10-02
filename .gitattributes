@@ -1,0 +1,9 @@
+# Solidity sources are checked out with CRLF line endings, everywhere.
+#
+# The metadata hash solc appends to the bytecode covers the source bytes, including their line
+# endings. The contracts on both lanes were compiled from this working tree, where the files are
+# CRLF, while git stores them as LF — so a Linux clone compiled identical code with a different
+# metadata hash, and `npm run check:deployed` failed on CI while passing locally. Pinning the
+# endings makes the bytes that produced the on-chain bytecode the bytes every clone gets, which is
+# the whole point of a check that claims the build reproduces the deployment.
+*.sol text eol=crlf
