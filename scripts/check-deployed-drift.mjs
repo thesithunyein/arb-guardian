@@ -57,7 +57,7 @@ function fingerprint(code) {
   return { bytes, metadata, solc };
 }
 
-/** Index compiled artifacts by contract name. */
+/** Index compiled artifacts by contract name, remembering which build produced each. */
 function loadArtifacts() {
   const found = new Map();
   if (!existsSync(ARTIFACTS)) return found;
@@ -72,6 +72,11 @@ function loadArtifacts() {
       try {
         const artifact = JSON.parse(readFileSync(full, "utf8"));
         if (artifact.deployedBytecode && artifact.contractName) {
+          // Hardhat writes the same path with a .dbg.json suffix, pointing at the build-info that
+          // produced this artifact. That pointer is what lets the staleness check below ask what
+          // bytes were compiled instead of assuming they are the bytes on disk.
+          const debug = full.replace(/\.json$/, ".dbg.json");
+          if (existsSync(debug)) artifact.__debug = debug;
           found.set(artifact.contractName, artifact);
         }
       } catch {
@@ -81,6 +86,57 @@ function loadArtifacts() {
   };
   walk(ARTIFACTS);
   return found;
+}
+
+/**
+ * Line endings decide part of the source hash, so a difference that is only line endings is worth
+ * naming: it is invisible in every diff a person reads and fatal to the comparison below.
+ */
+function describeSourceDiff(compiled, onDisk) {
+  const normalize = (text) => text.replace(/\r\n/g, "\n");
+  if (normalize(compiled) !== normalize(onDisk)) return "content differs";
+  return compiled.includes("\r\n")
+    ? "compiled from CRLF, the working tree has LF"
+    : "compiled from LF, the working tree has CRLF";
+}
+
+/**
+ * Artifacts answer for the bytes they were compiled from, not for the tree in front of them.
+ *
+ * A stale build made this check report 6/6 `match` locally while CI — which compiles fresh —
+ * reported 6/6 drift on the same commit. The table was the same size either way, so nothing
+ * looked wrong until the two were compared. Read the build-info each artifact points at, and
+ * compare the sources it embedded with what is on disk now, before comparing anything to a chain.
+ */
+function compiledSourceProblems(artifacts) {
+  const problems = [];
+  const buildInfos = new Map();
+  for (const [name, artifact] of artifacts) {
+    const debug = artifact.__debug;
+    const source = artifact.sourceName;
+    if (!debug || typeof source !== "string") continue;
+    // Only this repository's sources are ours to check; imported packages come from node_modules.
+    if (!source.startsWith("contracts/")) continue;
+    let path = null;
+    try {
+      path = resolve(dirname(debug), JSON.parse(readFileSync(debug, "utf8")).buildInfo);
+    } catch {
+      continue;
+    }
+    if (!buildInfos.has(path)) {
+      buildInfos.set(path, existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : null);
+    }
+    const content = buildInfos.get(path)?.input?.sources?.[source]?.content;
+    if (typeof content !== "string") continue;
+    const onDiskPath = join(CONTRACTS, source);
+    if (!existsSync(onDiskPath)) {
+      problems.push(`${name}: compiled from ${source}, which is no longer in the working tree`);
+      continue;
+    }
+    const onDisk = readFileSync(onDiskPath, "utf8");
+    if (onDisk !== content) problems.push(`${name}: ${source} — ${describeSourceDiff(content, onDisk)}`);
+  }
+  return problems;
 }
 
 async function getCode(rpc, address) {
@@ -114,6 +170,19 @@ const compiled = artifacts.size > 0;
 
 if (!compiled) {
   console.log("No compiled artifacts found. Run `npm run build -w packages/contracts` first.");
+}
+
+const stale = compiled ? compiledSourceProblems(artifacts) : [];
+if (stale.length > 0) {
+  console.error("\nThe compiled artifacts do not describe this working tree:");
+  for (const line of stale.slice(0, 10)) console.error(`  ${line}`);
+  if (stale.length > 10) console.error(`  … and ${stale.length - 10} more`);
+  console.error(
+    "\nComparing them against the chain would answer for a build that is not in the tree — which is" +
+      " exactly how a drift check passes locally and fails on a clean checkout. Recompile first:\n" +
+      "  npm run build -w packages/contracts\n"
+  );
+  process.exit(1);
 }
 
 const report = {

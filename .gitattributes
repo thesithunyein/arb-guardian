@@ -1,9 +1,19 @@
-# Solidity sources are checked out with CRLF line endings, everywhere.
+# Solidity checkout line endings are pinned per file, because solc's metadata hash — the
+# fingerprint appended to bytecode and compared by `npm run check:deployed` — covers the source
+# bytes including their line endings.
 #
-# The metadata hash solc appends to the bytecode covers the source bytes, including their line
-# endings. The contracts on both lanes were compiled from this working tree, where the files are
-# CRLF, while git stores them as LF — so a Linux clone compiled identical code with a different
-# metadata hash, and `npm run check:deployed` failed on CI while passing locally. Pinning the
-# endings makes the bytes that produced the on-chain bytecode the bytes every clone gets, which is
-# the whole point of a check that claims the build reproduces the deployment.
-*.sol text eol=crlf
+# The contracts deployed on 2026-10-02 were compiled from a working tree where most of these files
+# were CRLF and two were LF. Without pinning, a Linux clone (no core.autocrlf) checked the LF ones
+# out as LF and the CRLF ones as LF too, and a Windows clone did the opposite, so the same commit
+# compiled to three different metadata hashes: CI reported drift while the deploying machine
+# reported a match. `text` keeps the repository copy LF; these lines decide the bytes on checkout.
+#
+# A future redeploy should compile from a tree that is uniformly LF and then simplify this file.
+*.sol text eol=lf
+
+packages/contracts/contracts/ExecutionGuard.sol text eol=crlf
+packages/contracts/contracts/PolicyManager.sol text eol=crlf
+packages/contracts/contracts/SafeTreasuryGuard.sol text eol=crlf
+packages/contracts/contracts/TreasurySafeShell.sol text eol=crlf
+packages/contracts/contracts/interfaces/Enum.sol text eol=crlf
+packages/contracts/contracts/interfaces/ITransactionGuard.sol text eol=crlf
