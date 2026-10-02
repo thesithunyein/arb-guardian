@@ -41,6 +41,9 @@ import { guardProof, shortDigest } from "./guardProof";
 import { driftReport } from "./deployedDrift";
 import { settlementGeneratedAt, settlementTokenReport, settlementTokenVerified } from "./settlementToken";
 import {
+  arbiscanCheckedAt,
+  arbiscanPublishedAll,
+  arbiscanReport,
   sourceExplorerPanels,
   sourceVerificationComplete,
   sourceVerificationReport,
@@ -1971,11 +1974,44 @@ export function App() {
                       ? `, and all ${sourceVerificationReport.summary.total} read as verified on their explorer panel`
                       : ""}
                     . {sourceVerificationComplete ? "That is the whole set." : "Some are still missing."}{" "}
-                    The Arbiscan panel is not published — that needs `ARBISCAN_API_KEY` — so the explorers
-                    below are the panels a reader can open today. Verified {sourceVerifiedAt} by{" "}
-                    <code>npm run verify:sourcify</code>, which reads the verifier&apos;s answer rather than
-                    writing one.
+                    Verified {sourceVerifiedAt} by <code>npm run verify:sourcify</code>, which reads the
+                    verifier&apos;s answer rather than writing one.
                   </p>
+                  <p className="muted section-lead">
+                    <strong>Arbiscan</strong> · chain {arbiscanReport.chainId} · {arbiscanReport.summary.published} of{" "}
+                    {arbiscanReport.summary.total} published.{" "}
+                    {arbiscanPublishedAll ? (
+                      <>All three panels are live on the explorer a judge is most likely to open.</>
+                    ) : arbiscanReport.blockedOn ? (
+                      <>
+                        Still unpublished: the submission needs <code>{arbiscanReport.blockedOn}</code>. The
+                        recorder is already in place — <code>npm run verify:arbiscan</code> submits the same
+                        standard JSON input, waits for the queue, reads the result back from Arbiscan, and
+                        rewrites this record, so adding the key finishes the job. Last checked{" "}
+                        {arbiscanCheckedAt}.
+                      </>
+                    ) : (
+                      <>
+                        The recorder ran and Arbiscan still reports unpublished contracts — treat the Arbiscan
+                        panel as unverified. Last checked {arbiscanCheckedAt}.
+                      </>
+                    )}
+                  </p>
+                  <ul className="clean">
+                    {arbiscanReport.contracts.map((c) => (
+                      <li key={`arbiscan-${c.contract}`}>
+                        <strong>{c.published ? "Published" : c.status === "pending_key" ? "Pending key" : "Not published"}</strong>
+                        {": "}
+                        <a href={c.explorer} target="_blank" rel="noreferrer noopener">
+                          {c.contract}
+                        </a>
+                        {c.published && c.publishedAt ? (
+                          <span className="muted"> · verified {c.publishedAt.slice(0, 10)}</span>
+                        ) : null}
+                        {c.error ? <span className="muted"> · {c.error}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
                   {sourceVerificationReport.lanes.map((lane) => (
                     <div key={lane.lane}>
                       <p className="muted section-lead">

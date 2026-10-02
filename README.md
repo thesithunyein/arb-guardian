@@ -218,8 +218,9 @@ Every part of that claim has a command behind it:
 - Source publication: `npm run verify:sourcify` submits the compiler's own standard JSON input for
   all six contracts and reads the verifier back — Sourcify answers `exact_match` for both creation
   and runtime bytecode, and every contract reads as verified on its own explorer panel (Arbitrum
-  Sepolia Blockscout, Robinhood Chain). Arbiscan's own panel is the one open item, and it needs an
-  Arbiscan key.
+  Sepolia Blockscout, Robinhood Chain). Arbiscan's own panel is the one open item: it needs an
+  Arbiscan key, and `npm run verify:arbiscan` is the recorder that finishes, verifies and records it
+  the moment one exists.
 - `npm run test -w apps/api` — 4 of its 25 tests are read-only `eth_call`s against the live
   `PolicyManager`, so a wrong ABI, a wrong role hash or an undecodable refusal fails the build
   rather than shipping.
@@ -263,9 +264,13 @@ published criteria, the honest current position is:
 ### Priority order
 
 1. **Source-publish the Arbiscan panel specifically.** Add `ARBISCAN_API_KEY` and run
-   `npm run verify -w packages/contracts -- --network arbitrumSepolia`. Everything else is already
-   published: Sourcify answers `exact_match` for all six contracts and their explorer panels read as
-   verified, so this is one explorer's panel rather than an open verification gap.
+   `npm run verify:arbiscan` — it submits all three contracts from the build-info's own compiler
+   input, waits for the queue, reads the result back from Arbiscan, writes
+   `evidence/arbiscan.json`, and the site then shows it beside the Sourcify record. It already runs
+   inside `npm run preflight`, so the step happens on the normal path rather than being remembered;
+   without a key it records `pending_key` and exits 0. Everything else is already published: Sourcify
+   answers `exact_match` for all six contracts and their explorer panels read as verified, so this is
+   one explorer's panel rather than an open verification gap.
 2. **Narrate the demo.** A silent capture of the live product already exists
    (`docs/demo/walkthrough-2026-10-02.md`); what is missing is a voice track over it.
 3. **Run a small pilot.** Measure review time, false positives, blocked unsafe requests, and

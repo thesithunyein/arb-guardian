@@ -138,8 +138,11 @@ natively issued Global Dollar and the lending asset in Robinhood Earn — settle
 > contract on both lanes, and each one reads as verified on its panel on Arbitrum Sepolia Blockscout
 > and Robinhood Chain Testnet (`npm run verify:sourcify`, recorded in
 > `packages/contracts/evidence/sourcify.json`). Arbiscan's own panel is the one item still open: it
-> needs an `ARBISCAN_API_KEY`. Until that key exists, say "published on Sourcify with a verified
-> Blockscout panel", not "verified on Arbiscan".
+> needs an `ARBISCAN_API_KEY`; the recorder for it is already in place and wired into
+> `npm run preflight`, so adding the key is the whole remaining step (`npm run verify:arbiscan`
+> submits, waits, reads the result back from Arbiscan, and rewrites `evidence/arbiscan.json`, which
+> the site renders). Until that key exists, say "published on Sourcify with a verified Blockscout
+> panel", not "verified on Arbiscan".
 >
 > The 2026-07-30 addresses are superseded: that build failed open on a limit of `0` and its
 > approval rule could never block, and it had no token lane or attestation. They are kept for

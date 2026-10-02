@@ -12,6 +12,7 @@
  * page says so rather than implying the panel is published.
  */
 import raw from "../../../packages/contracts/evidence/sourcify.json";
+import arbiscanRaw from "../../../packages/contracts/evidence/arbiscan.json";
 
 export type VerifiedContract = {
   contract: string;
@@ -61,3 +62,43 @@ export const sourceVerificationComplete =
 
 export const sourceExplorerPanels =
   sourceVerificationReport.summary.explorerPanels === sourceVerificationReport.summary.total;
+
+/**
+ * Arbiscan, which is the panel a judge is most likely to open and the only one that needs an API key.
+ *
+ * The record is written by `npm run verify:arbiscan`, which submits the same standard JSON input,
+ * waits for the queue, and reads the result back from Arbiscan rather than assuming it. When no key
+ * is present the script records `pending_key` instead of staying silent, so this page can say what is
+ * missing and what would finish it — and a key that goes missing cannot erase an earlier confirmed
+ * publication.
+ */
+export type ArbiscanContract = {
+  contract: string;
+  address: string;
+  explorer: string;
+  published: boolean | null;
+  publishedAt: string | null;
+  status: string;
+  guid: string | null;
+  error: string | null;
+};
+
+export type ArbiscanReport = {
+  checkedAt: string;
+  network: string;
+  chainId: number;
+  explorer: string;
+  method: string;
+  blockedOn: string | null;
+  summary: { published: number; total: number; pendingKey: number; unread: number };
+  contracts: ArbiscanContract[];
+};
+
+export const arbiscanReport = arbiscanRaw as unknown as ArbiscanReport;
+
+export const arbiscanPublishedAll =
+  arbiscanReport.summary.published === arbiscanReport.summary.total;
+
+export const arbiscanCheckedAt = arbiscanReport.checkedAt
+  .replace("T", " ")
+  .replace(/\.\d+Z$/, " UTC");

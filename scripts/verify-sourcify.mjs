@@ -22,6 +22,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { standardJsonInput } from "./lib/build-info.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CONTRACTS = join(ROOT, "packages", "contracts");
@@ -57,31 +58,6 @@ const arg = (name, fallback) => {
 };
 const verbose = process.argv.includes("--verbose");
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
-
-/**
- * Resolve the standard JSON input that produced an artifact.
- *
- * Hardhat writes a sibling `.dbg.json` pointing at the build-info for the compilation job, and
- * that file holds the full compiler input. Reading it is what makes this a record of what was
- * deployed rather than of what is currently checked out.
- */
-function standardJsonInput(artifactPath) {
-  const absolute = join(CONTRACTS, "artifacts", artifactPath);
-  if (!existsSync(absolute)) {
-    throw new Error(`No artifact at ${absolute}. Run "npm run build -w packages/contracts" first.`);
-  }
-  const debugPath = absolute.replace(/\.json$/, ".dbg.json");
-  if (!existsSync(debugPath)) throw new Error(`No build-info pointer next to ${absolute}`);
-  const { buildInfo } = JSON.parse(readFileSync(debugPath, "utf8"));
-  const buildInfoPath = resolve(dirname(debugPath), buildInfo);
-  const info = JSON.parse(readFileSync(buildInfoPath, "utf8"));
-  const input = info.input;
-  if (!input?.sources) throw new Error(`Build-info at ${buildInfoPath} has no compiler input`);
-  return {
-    stdJsonInput: { language: input.language, sources: input.sources, settings: input.settings },
-    compilerVersion: info.solcLongVersion
-  };
-}
 
 async function post(path, body) {
   const response = await fetch(`${API}${path}`, {
@@ -216,7 +192,7 @@ async function verifyLane(laneName, lane) {
       continue;
     }
     console.log(`  ${contractName} @ ${address}`);
-    const { stdJsonInput, compilerVersion } = standardJsonInput(entry.artifact);
+    const { stdJsonInput, compilerVersion } = standardJsonInput(CONTRACTS, entry.artifact);
     const outcome = await verifyOne(record.chainId, {
       address,
       txHash,

@@ -27,18 +27,19 @@
     "deploy:p0": "node scripts/deploy-p0.mjs",
     "deploy:robinhood:wait": "node scripts/deploy-robinhood-when-funded.mjs",
     "verify:sourcify": "node scripts/verify-sourcify.mjs",
+  "verify:arbiscan": "node scripts/verify-arbiscan.mjs",
   "drill:incident:sepolia": "npm run drill:incident -w packages/contracts -- --network arbitrumSepolia",
   "check:deployed": "node scripts/check-deployed-drift.mjs",
     "check:settlement": "node scripts/check-settlement-token.mjs",
     "demo:sheet": "node scripts/demo-sheet.mjs",
     "deploy:preflight": "node scripts/deploy-preflight.mjs",
-    "redeploy:sepolia": "npm run deploy:sepolia:full -w packages/contracts && npm run verify -w packages/contracts -- --network arbitrumSepolia",
+    "redeploy:sepolia": "npm run deploy:sepolia:full -w packages/contracts && npm run verify -w packages/contracts -- --network arbitrumSepolia && npm run verify:arbiscan",
     "redeploy:robinhood": "npm run deploy:robinhood:full -w packages/contracts && npm run verify -w packages/contracts -- --network robinhoodTestnet",
     "repoint": "node scripts/repoint-deployment.mjs",
     "enroll:real-safe:sepolia": "npm run enroll:real-safe -w packages/contracts -- --network arbitrumSepolia",
     "enroll:real-safe:robinhood": "npm run enroll:real-safe -w packages/contracts -- --network robinhoodTestnet",
     "push:audit": "node scripts/push-safe-audit.mjs",
-    "preflight": "npm run quality:gate && npm run check:deployed && npm run check:settlement && npm run submission:check && npm run push:audit"
+    "preflight": "npm run quality:gate && npm run check:deployed && npm run check:settlement && npm run verify:sourcify && npm run verify:arbiscan && npm run submission:check && npm run push:audit"
   },
   "engines": {
     "node": ">=20.0.0"
