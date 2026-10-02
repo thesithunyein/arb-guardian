@@ -32,6 +32,8 @@
     "redeploy:sepolia": "npm run deploy:sepolia:full -w packages/contracts && npm run verify -w packages/contracts -- --network arbitrumSepolia",
     "redeploy:robinhood": "npm run deploy:robinhood:full -w packages/contracts && npm run verify -w packages/contracts -- --network robinhoodTestnet",
     "repoint": "node scripts/repoint-deployment.mjs",
+    "enroll:real-safe:sepolia": "npm run enroll:real-safe -w packages/contracts -- --network arbitrumSepolia",
+    "enroll:real-safe:robinhood": "npm run enroll:real-safe -w packages/contracts -- --network robinhoodTestnet",
     "push:audit": "node scripts/push-safe-audit.mjs",
     "preflight": "npm run quality:gate && npm run check:deployed && npm run check:settlement && npm run submission:check && npm run push:audit"
   },

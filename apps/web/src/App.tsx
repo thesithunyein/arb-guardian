@@ -28,27 +28,14 @@ import {
   IconPayment,
   IconReview,
   IconSecurity,
-  IconSoundOff,
-  IconSoundOn,
   IconSun
 } from "./icons";
 import { guardProof, shortDigest } from "./guardProof";
 import { driftReport } from "./deployedDrift";
 import { assessIntent, predictGuardOutcome, type RiskAssessment } from "./riskEngine";
-import {
-  loadSfxMuted,
-  setSfxMuted,
-  sfxBlock,
-  sfxClick,
-  sfxFreeze,
-  sfxSuccess,
-  sfxXp
-} from "./sfx";
 import { useTheme } from "./useTheme";
 import { connectWallet, shortAddress, signEnrollMessage } from "./wallet";
 
-type BadgeKey = "firstCheck" | "firstBlock" | "firstFreeze" | "cleanPayout";
-type BadgeState = Record<BadgeKey, boolean>;
 
 type LocalEnroll = {
   address: string;
@@ -64,8 +51,6 @@ type TreasuryStats = {
   totalUsage: number;
 };
 
-const XP_STORAGE = "arb-guardian-xp-v1";
-const BADGE_STORAGE = "arb-guardian-badges-v1";
 const TREASURY_STORAGE = "arb-guardian-treasury-v1";
 const ENROLL_STORAGE = "arb-guardian-treasury-enroll-v1";
 const INCIDENTS_STORAGE = "arb-guardian-incidents-v1";
@@ -158,31 +143,6 @@ function clearLocalEnroll() {
     localStorage.removeItem(LEGACY_ENROLL_STORAGE);
   } catch {
     // ignore
-  }
-}
-
-function loadXp() {
-  try {
-    const n = Number(localStorage.getItem(XP_STORAGE) ?? "0");
-    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
-  } catch {
-    return 0;
-  }
-}
-
-function loadBadges(): BadgeState {
-  try {
-    const raw = localStorage.getItem(BADGE_STORAGE);
-    if (!raw) return { firstCheck: false, firstBlock: false, firstFreeze: false, cleanPayout: false };
-    const parsed = JSON.parse(raw) as Partial<BadgeState>;
-    return {
-      firstCheck: !!parsed.firstCheck,
-      firstBlock: !!parsed.firstBlock,
-      firstFreeze: !!parsed.firstFreeze,
-      cleanPayout: !!parsed.cleanPayout
-    };
-  } catch {
-    return { firstCheck: false, firstBlock: false, firstFreeze: false, cleanPayout: false };
   }
 }
 
@@ -387,6 +347,10 @@ export function App() {
   const [intent, setIntent] = useState<IntentId>("risky-approve");
   const [assessment, setAssessment] = useState<RiskAssessment | null>(null);
   const [policyState, setPolicyState] = useState<OnchainPolicy | null>(null);
+  // True only when the policy behind the verdict was read from the chain (or from the API that
+  // read it). The review queue is illustrative, so a verdict built from the sample's own numbers
+  // must never be presented as a live assessment.
+  const [policyLive, setPolicyLive] = useState(false);
   const [guardPrediction, setGuardPrediction] = useState<{ wouldRevert: boolean; reason: string } | null>(
     null
   );
@@ -408,9 +372,6 @@ export function App() {
   const [agentEval, setAgentEval] = useState<AgentEvalSummary | null>(null);
   const [policyPaused, setPolicyPaused] = useState<boolean | null>(null);
   const [whyOpen, setWhyOpen] = useState(false);
-  const [xp, setXp] = useState(() => loadXp());
-  const [badges, setBadges] = useState<BadgeState>(() => loadBadges());
-  const [sfxMuted, setSfxMutedState] = useState(() => loadSfxMuted());
   const [entered, setEntered] = useState(false);
   const [treasuryName, setTreasuryName] = useState(() => loadTreasuryName());
   const [editingTreasury, setEditingTreasury] = useState(false);
@@ -430,22 +391,6 @@ export function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(XP_STORAGE, String(xp));
-    } catch {
-      // ignore
-    }
-  }, [xp]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(BADGE_STORAGE, JSON.stringify(badges));
-    } catch {
-      // ignore
-    }
-  }, [badges]);
-
-  useEffect(() => {
-    try {
       localStorage.setItem(TREASURY_STORAGE, treasuryName);
     } catch {
       // ignore
@@ -456,13 +401,6 @@ export function App() {
     persistIncidents(incidents);
   }, [incidents]);
 
-  function toggleMute() {
-    const next = !sfxMuted;
-    setSfxMuted(next);
-    setSfxMutedState(next);
-    if (!next) void sfxClick();
-  }
-
   function enterWorld() {
     setEntered(true);
     setTab("home");
@@ -470,7 +408,6 @@ export function App() {
     setSpendPickerOpen(false);
     setAssessment(null);
     setWhyOpen(false);
-    void sfxClick();
   }
 
   async function skipToFirstQuest() {
@@ -480,12 +417,10 @@ export function App() {
     setSpendPickerOpen(false);
     setAssessment(null);
     setWhyOpen(false);
-    void sfxClick();
     await runAssessment();
   }
 
   function goCheck(next: IntentId = "risky-approve") {
-    void sfxClick();
     setIntent(next);
     setAssessment(null);
     setWhyOpen(false);
@@ -494,14 +429,10 @@ export function App() {
   }
 
   function goVault() {
-    void sfxClick();
     setTab("security");
   }
 
   function resetSession() {
-    void sfxClick();
-    setXp(0);
-    setBadges({ firstCheck: false, firstBlock: false, firstFreeze: false, cleanPayout: false });
     setAssessment(null);
     setIncidents([]);
     setAuditLog([]);
@@ -510,11 +441,6 @@ export function App() {
     setPolicyPaused(null);
     setSpendPickerOpen(false);
     try {
-      localStorage.setItem(XP_STORAGE, "0");
-      localStorage.setItem(
-        BADGE_STORAGE,
-        JSON.stringify({ firstCheck: false, firstBlock: false, firstFreeze: false, cleanPayout: false })
-      );
       sessionStorage.removeItem(INCIDENTS_STORAGE);
     } catch {
       // ignore
@@ -541,7 +467,6 @@ export function App() {
     try {
       const wallet = await connectWallet();
       setWalletAddress(wallet.address);
-      void sfxClick();
     } catch (err) {
       setEnrollMsg(err instanceof Error ? err.message : "Could not connect wallet");
     } finally {
@@ -550,7 +475,6 @@ export function App() {
   }
 
   function disconnectWallet() {
-    void sfxClick();
     clearLocalEnroll();
     setWalletAddress(null);
     setEnrolled(false);
@@ -589,7 +513,6 @@ export function App() {
       } catch {
         // ignore
       }
-      void sfxSuccess();
     } catch (err) {
       setInterestMsg(err instanceof Error ? err.message : "Could not save. Try again.");
     } finally {
@@ -632,7 +555,6 @@ export function App() {
       setEnrolled(true);
       applyTreasuryStats(data);
       setEnrollMsg(null);
-      void sfxSuccess();
     } catch (err) {
       setEnrollMsg(err instanceof Error ? err.message : "Could not load policy state");
     } finally {
@@ -654,18 +576,6 @@ export function App() {
       applyTreasuryStats(data);
     } catch {
       // Ignore. Usage proof is best effort.
-    }
-  }
-
-  function awardXp(amount: number, _label: string, badgeKey?: BadgeKey, tone: "xp" | "block" | "success" | "freeze" = "xp") {
-    setXp((v) => v + amount);
-    // No toast chrome in product mode. Keep subtle sound only.
-    if (tone === "block") void sfxBlock();
-    else if (tone === "success") void sfxSuccess();
-    else if (tone === "freeze") void sfxFreeze();
-    else void sfxXp();
-    if (badgeKey && !badges[badgeKey]) {
-      setBadges((b) => ({ ...b, [badgeKey]: true }));
     }
   }
 
@@ -698,11 +608,8 @@ export function App() {
       };
     });
     if (!result.blocked) {
-      if (intent === "safe-transfer") awardXp(25, "Clean payout", "cleanPayout", "success");
-      else awardXp(15, "Policy check", "firstCheck", "success");
       return;
     }
-    awardXp(40, "Blocked a scam path", "firstBlock", "block");
     const item: IncidentItem = {
       id: `inc-${txHash}`,
       title: `Blocked · ${INTENTS[intent].vendor} · ${INTENTS[intent].amountEth} ETH`,
@@ -859,13 +766,9 @@ export function App() {
           recommendedPlaybook: data.incident?.recommendedPlaybook ?? assessIntent(payload).recommendedPlaybook
         };
         setAssessment(result);
-        awardXp(
-          result.blocked ? 40 : intent === "safe-transfer" ? 25 : 15,
-          result.blocked ? "Blocked a drain attempt" : intent === "safe-transfer" ? "Clean payout" : "Policy check",
-          result.blocked ? "firstBlock" : intent === "safe-transfer" ? "cleanPayout" : "firstCheck",
-          result.blocked ? "block" : "success"
-        );
+        setPolicyLive(false);
         if (data.policyState) {
+          setPolicyLive(true);
           const limitWei = data.policyState.dailyLimitWei ?? payload.dailyLimitWei;
           const spentWei = data.policyState.spentTodayWei ?? payload.spentTodayWei;
           setPolicyState({
@@ -906,17 +809,20 @@ export function App() {
         return;
       }
 
+      setPolicyLive(false);
       let policy = payload;
       try {
         const onchain = await readOnchainPolicy(payload.wallet, payload.destination);
         if (onchain) {
           setPolicyState(onchain);
-          // Keep intent flags when onchain has no limit configured (0) so risky spends still alert.
+          setPolicyLive(true);
+          // The chain decides once it answers. The sample's stated flags are NOT allowed to
+          // override a live allowlist, and a live zero limit is reported as zero rather than
+          // being replaced by the sample's limit: an unconfigured policy blocks, it does not allow.
           policy = {
             ...payload,
-            allowlisted: onchain.allowlisted && payload.allowlisted,
-            dailyLimitWei:
-              onchain.dailyLimitWei !== "0" ? onchain.dailyLimitWei : payload.dailyLimitWei,
+            allowlisted: onchain.allowlisted,
+            dailyLimitWei: onchain.dailyLimitWei,
             spentTodayWei: onchain.spentTodayWei
           };
         } else {
@@ -953,7 +859,6 @@ export function App() {
     ]);
     if (action === "mitigate") {
       setPolicyPaused(true);
-      awardXp(60, "Froze the treasury", "firstFreeze", "freeze");
       void recordTreasuryUsage("freeze");
     }
 
@@ -1087,7 +992,6 @@ export function App() {
                     type="button"
                     className="linkish inline brand-treasury"
                     onClick={() => {
-                      void sfxClick();
                       setEditingTreasury(true);
                     }}
                   >
@@ -1139,18 +1043,8 @@ export function App() {
             ))}
           <button
             type="button"
-            className={`icon-btn ${sfxMuted ? "" : "active"}`}
-            onClick={toggleMute}
-            aria-label={sfxMuted ? "Unmute sounds" : "Mute sounds"}
-            title={sfxMuted ? "Sound off" : "Sound on"}
-          >
-            {sfxMuted ? <IconSoundOff size={16} /> : <IconSoundOn size={16} />}
-          </button>
-          <button
-            type="button"
             className="icon-btn"
             onClick={() => {
-              void sfxClick();
               toggleTheme();
             }}
             aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
@@ -1363,7 +1257,6 @@ export function App() {
                 type="button"
                 className={`tab ${tab === id ? "active" : ""}`}
                 onClick={() => {
-                  void sfxClick();
                   setTab(id);
                 }}
               >
@@ -1400,7 +1293,6 @@ export function App() {
                         type="button"
                         className="primary"
                         onClick={() => {
-                          void sfxClick();
                           setTab("alerts");
                         }}
                       >
@@ -1460,7 +1352,6 @@ export function App() {
                             try {
                               await navigator.clipboard.writeText(text);
                               setInterestMsg("Invite link copied.");
-                              void sfxSuccess();
                             } catch {
                               setInterestMsg("Copy failed. Share arb-guardian.sithunyein.com");
                             }
@@ -1529,7 +1420,6 @@ export function App() {
                         type="button"
                         className="operator-toggle linkish"
                         onClick={() => {
-                          void sfxClick();
                           setOperatorOpen((v) => !v);
                         }}
                       >
@@ -1588,6 +1478,11 @@ export function App() {
                     <div>
                       <div className="review-badges">
                         <span className="review-badge">Pending</span>
+                        {policyLive ? (
+                          <span className="review-badge ok">Policy read from chain</span>
+                        ) : (
+                          <span className="review-badge">Illustrative sample</span>
+                        )}
                         {(policyState?.allowlisted ?? payload.allowlisted) ? (
                           <span className="review-badge ok">Trusted payee</span>
                         ) : (
@@ -1601,16 +1496,15 @@ export function App() {
                       type="button"
                       className="ghost review-switch"
                       onClick={() => {
-                        void sfxClick();
                         setSpendPickerOpen((v) => !v);
                       }}
                     >
-                      {spendPickerOpen ? "Hide queue" : "Other spends"}
+                      {spendPickerOpen ? "Hide queue" : "Sample spends"}
                     </button>
                   </div>
 
                   {spendPickerOpen && (
-                    <div className="spend-switch" role="listbox" aria-label="Other spends">
+                    <div className="spend-switch" role="listbox" aria-label="Sample spends">
                       {(Object.keys(INTENTS) as IntentId[]).map((id) => (
                         <button
                           key={id}
@@ -1619,7 +1513,6 @@ export function App() {
                           aria-selected={intent === id}
                           className={`scenario ${intent === id ? "active" : ""}`}
                           onClick={() => {
-                            void sfxClick();
                             setIntent(id);
                             setAssessment(null);
                             setWhyOpen(false);
@@ -1679,7 +1572,6 @@ export function App() {
                         type="button"
                         className="primary full review-cta"
                         onClick={() => {
-                          void sfxClick();
                           void runAssessment();
                         }}
                         disabled={loading}
@@ -1716,6 +1608,13 @@ export function App() {
                           ? "Do not approve this. Review the alert before you freeze the treasury."
                           : "Looks clean. Within policy. You can approve this."}
                       </p>
+                      {!policyLive ? (
+                        <p className="muted">
+                          Worked example: this deployment&apos;s policy could not be read, so this verdict uses the
+                          sample&apos;s own stated rules. Checking a real request needs a treasury whose policy is
+                          readable onchain.
+                        </p>
+                      ) : null}
                       <div className="operator-ai">
                         <strong>Policy engine</strong>
                         <p>
@@ -1745,7 +1644,6 @@ export function App() {
                             type="button"
                             className="primary"
                             onClick={() => {
-                              void sfxClick();
                               setTab("alerts");
                             }}
                           >
@@ -1757,7 +1655,6 @@ export function App() {
                             type="button"
                             className="ghost"
                             onClick={() => {
-                              void sfxClick();
                               setAssessment(null);
                               setSpendPickerOpen(true);
                             }}
@@ -1792,7 +1689,6 @@ export function App() {
                           type="button"
                           className="ghost"
                           onClick={() => {
-                            void sfxClick();
                             void unpausePolicy();
                           }}
                         >
@@ -1840,7 +1736,6 @@ export function App() {
                                   type="button"
                                   className="primary"
                                   onClick={() => {
-                                    void sfxClick();
                                     void applyAction(incident.id, "mitigate");
                                   }}
                                 >
@@ -1851,7 +1746,6 @@ export function App() {
                                   type="button"
                                   className="ghost"
                                   onClick={() => {
-                                    void sfxClick();
                                     void applyAction(incident.id, "ignore");
                                   }}
                                 >
@@ -2259,7 +2153,7 @@ export function App() {
         ) : (
           <div>
             <span>Arb Guardian workspace</span>
-            {runtime === "api" ? " · Connected" : null}
+            {runtime === "api" ? " · API connected" : null}
           </div>
         )}
         <div className="footer-meta">

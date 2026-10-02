@@ -13,7 +13,8 @@
   <a href="https://arb-guardian.sithunyein.com"><img src="https://img.shields.io/badge/Live_app-Visit-285B47?style=for-the-badge&labelColor=F5F7F5" alt="Live app" /></a>
   <a href="https://github.com/thesithunyein/arb-guardian/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/thesithunyein/arb-guardian/ci.yml?branch=master&label=CI&style=for-the-badge" alt="CI status" /></a>
   <img src="https://img.shields.io/badge/Chain-Arbitrum%20Sepolia-28A0F0?style=for-the-badge&labelColor=F5F7F5" alt="Arbitrum Sepolia" />
-  <img src="https://img.shields.io/badge/Contract%20tests-63%20passing-22C55E?style=for-the-badge&labelColor=F5F7F5" alt="Contract tests" />
+  <img src="https://img.shields.io/badge/Tests-110%20passing-22C55E?style=for-the-badge&labelColor=F5F7F5" alt="Tests" />
+  <img src="https://img.shields.io/badge/Contract%20tests-69%20passing-22C55E?style=for-the-badge&labelColor=F5F7F5" alt="Contract tests" />
 </p>
 
 **Live product:** [arb-guardian.sithunyein.com](https://arb-guardian.sithunyein.com)
@@ -137,9 +138,17 @@ The Safe guard is deny-by-default:
 - policy mutations advance a hash-linked version and digest;
 - Safe guard installation must be an owner-approved Safe self-call.
 
-The token lane is token-agnostic and can support USDG once a real token address, treasury, recipient,
-and limit are supplied. **USDG is not currently configured in the live evidence.** Do not read the
-USDG badge as a claim that a USDG lane is active.
+The token lane is pointed at the real Paxos Global Dollar contract, and both addresses are read from
+the chain rather than asserted:
+
+| Lane | USDG | Verified by direct read |
+| --- | --- | --- |
+| Arbitrum Sepolia | `0xFFC95faa3d63Cde504a05B567C600B78C0b41892` | symbol, decimals (6), code, live supply |
+| Robinhood Chain testnet | `0x7E955252E15c84f5768B83c41a71F9eba181802F` | symbol, decimals (6), code, live supply |
+
+`npm run check:settlement` reads both and fails if either claim stops being true. **A verified token
+is not a configured lane.** No treasury, daily cap, or allowlisted recipient has been written on a
+current deployment yet, so do not read this as a claim that a bounded USDG payment is live today.
 
 ## Proof you can reproduce
 
@@ -149,7 +158,8 @@ handler. It is not a Safe-compatible mock.
 ```text
 15/15 guard cases reproduced
 14/14 policy playbook fixtures passed
-63 contract tests passed
+69 contract tests passed
+110 tests across contracts, shared, and api
 ```
 
 Run the proof locally:
@@ -206,22 +216,35 @@ Required inputs for a real corrected deployment:
 
 Never commit private keys, API keys, or fabricated transaction hashes.
 
+The checked path is five commands. The first refuses to continue until every prerequisite holds:
+it derives the deployer address without printing the key, requires both explorer keys, and reads the
+live balance on each lane.
+
+```bash
+npm run deploy:preflight     # refuses until keys and funds hold; names the faucets
+npm run redeploy:sepolia     # deploy + seed + enrol, then verify the source
+npm run redeploy:robinhood   # the same on the second lane
+npm run repoint              # manifest -> current, app constants rewritten, then proved on-chain
+npm run preflight            # quality gate + drift + settlement + submission + push audit
+```
+
 ## Submission scorecard and the path to 9+
 
 The buildathon page says projects must be deployed on an Arbitrum chain and judges score smart
 contract quality, product-market fit, innovation, and real problem solving. USDG receives extra
-consideration. The page retrieved for this README explicitly names Arbitrum One and custom Arbitrum
-chains; it does not independently confirm that Arbitrum Sepolia qualifies. Confirm that point with
-the organizers before relying on a Sepolia-only submission. Based on the published criteria, the
-honest current position is:
+consideration. The Prizes & Judging tab states the gate verbatim: "Your project must be deployed on
+an Arbitrum chain to qualify. For example: Arbitrum Sepolia, Arbitrum One, Robinhood Chain, or
+others." Both deployed lanes are named on that list. (The marketing copy further up mentions only
+Arbitrum One and custom chains, so the criteria tab is the sentence that matters.) Based on the
+published criteria, the honest current position is:
 
 | Criterion | Current evidence | Honest score today | What moves it to 9+ |
 | --- | --- | ---: | --- |
-| Smart contract quality | 63 tests, real Safe integration, deny-by-default rules, drift checks | 8/10 | Redeploy corrected source, verify every contract, add independent review or audit, publish gas and invariant results |
+| Smart contract quality | 69 contract tests, real-Safe integration proven in-process, deny-by-default rules, every standing approval refused, drift checks | 8/10 | Redeploy corrected source, verify every contract, install on a real Safe live, add independent review, publish gas and invariant results |
 | Product-market fit | Live operator workflow, plain-language review, alerts, deterministic playbooks | 7.5/10 | Two or more pilot teams, measurable time-to-review and blocked-risk outcomes, durable audit history, clear pricing/onboarding |
 | Innovation | Policy attestation plus Safe-native token/native lanes and bounded playbooks | 8/10 | Prove a differentiated agent-permission workflow, publish comparison against multisig/manual controls, show policy replay in the demo |
-| Real problem solving | Blocks before Safe execution and has an emergency pause path | 7/10 | Explorer-verifiable current deployment, a real Safe transaction, a blocked/allowed before-after recording, and a documented incident drill |
-| USDG / Arbitrum fit | Token lane implemented and tests cover 6-decimal limits; no live USDG configuration | 5/10 | Configure the real USDG lane, verify token and treasury addresses, demonstrate a bounded USDG payment on the target chain |
+| Real problem solving | Blocks before Safe execution and has an emergency pause path; the real-Safe self-call path is proven in-process, while the live enrolment uses a Safe-shaped shell | 7/10 | Explorer-verifiable current deployment, a genuinely installed guard on a real Safe, a blocked/allowed before-after recording, and a documented incident drill |
+| USDG / Arbitrum fit | Real Paxos USDG verified onchain on both lanes; token lane implemented and tested at 6 decimals; no lane configured on a current deployment | 6/10 | Configure the real USDG lane on a current deployment, prove the refusal paths, and demonstrate a bounded payment |
 
 ### Priority order
 

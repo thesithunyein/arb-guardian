@@ -1,6 +1,6 @@
 # Arb Guardian — Guard Proof
 
-Generated 2026-10-01T08:30:16.464Z by `npm run evidence -w packages/contracts` on the in-process `hardhat` chain.
+Generated 2026-10-02T11:22:50.051Z by `npm run evidence -w packages/contracts` on the in-process `hardhat` chain.
 
 This is a reproduction, not a recording. Every row below was produced by executing the transaction against a **real Gnosis Safe v1.4.1** (real singleton, real proxy factory, real fallback handler) with `SafeTreasuryGuard` installed as its guard.
 
@@ -25,7 +25,7 @@ The script exits non-zero if any case does not behave as expected, so the table 
 | 5 | The Safe pays an allowlisted recipient 1,200 USDG, inside the 5,000 USDG daily cap. | allowed | allowed | `—` |
 | 6 | The Safe attempts a 6,000 USDG payment, above the 5,000 USDG daily cap. | blocked | blocked | `TokenDailyLimitExceeded("0x0165878A594ca255338adfa4d48449f69242Eb8F", "0x294c20f3071BA768b9BC9dbfb508AD7130a598E1", 7200000000, 5000000000)` |
 | 7 | The Safe attempts to pay a recipient that is not allowlisted for USDG. | blocked | blocked | `TokenCounterpartyNotAllowlisted("0x0165878A594ca255338adfa4d48449f69242Eb8F", "0x90F79bf6EB2c4f870365E785982E1f101E93b906")` |
-| 8 | The Safe attempts a finite 250 USDG approval — a standing `transferFrom` bypass primitive. | blocked | blocked | `ApprovalNotAllowed("0x0165878A594ca255338adfa4d48449f69242Eb8F", "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc", 250000000)` |
+| 8 | The Safe attempts a bounded 250 USDG approval; standing approvals are refused because they bypass daily-cap accounting. | blocked | blocked | `ApprovalNotAllowed("0x0165878A594ca255338adfa4d48449f69242Eb8F", "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc", 250000000)` |
 | 9 | The Safe attempts an unlimited USDG approval; all standing approvals are refused. | blocked | blocked | `ApprovalNotAllowed("0x0165878A594ca255338adfa4d48449f69242Eb8F", "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc", 115792089237316195423570985008687907853269984665640564039457584007913129639935)` |
 | 10 | The Safe attempts a non-standard call on a registered token instead of falling through. | blocked | blocked | `UnsupportedTokenCall("0x0165878A594ca255338adfa4d48449f69242Eb8F", "0x40c10f19")` |
 | 11 | The Safe attempts a delegatecall, which a guard must never permit. | blocked | blocked | `DelegateCallNotAllowed()` |
@@ -54,12 +54,11 @@ A decision is only meaningful against the policy that was in force at the time. 
 | Head policy version | 10 |
 | Head policy digest | `0xcd06814a704c76943b5f0f691587c7a137ee2697f0b3883f8132370c55b2e290` |
 | Digest chain replay | 11/11 digests recomputed from logs |
-| Allowed decisions stamped | 5/5 match a version in the amendment log |
+| Allowed decisions stamped | 4/4 match a version in the amendment log |
 | Distinct policy versions across decisions | 2 (proves the stamp tracks amendments, not a constant) |
 
 | Decision | Policy version | Digest in force |
 | --- | ---: | --- |
-| `allowed` | 6 | `0x3442214ee3c7f11e…` |
 | `allowed` | 6 | `0x3442214ee3c7f11e…` |
 | `allowed` | 6 | `0x3442214ee3c7f11e…` |
 | `allowed` | 10 | `0xcd06814a704c7694…` |

@@ -55,7 +55,7 @@ if (hasDeployerKey) {
     SUBMISSION_SAFE_TREASURY_GUARD_TX: deployment.safeTreasuryGuard?.txHash ?? "",
     SUBMISSION_EXPLORER_BASE_URL: "https://sepolia.arbiscan.io/tx/",
     SUBMISSION_REPO_URL: "https://github.com/thesithunyein/arb-guardian",
-    SUBMISSION_WEB_URL: process.env.SUBMISSION_WEB_URL ?? "https://arb-guardian.vercel.app"
+    SUBMISSION_WEB_URL: process.env.SUBMISSION_WEB_URL ?? "https://arb-guardian.sithunyein.com"
   };
 
   const envPath = resolve(process.cwd(), ".env");

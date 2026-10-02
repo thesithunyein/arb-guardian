@@ -43,9 +43,13 @@ describe("deployment status precedence", () => {
   it("resolves the committed manifest when nothing else is configured", () => {
     // No env vars and no local record in CI: the manifest is the source of truth.
     const status = getDeploymentStatus();
-    expect(status.ready).toBe(true);
     expect(status.chainId).toBe(421614);
     expect(["live-manifest", "local-file", "env"]).toContain(status.source);
+
+    // `ready` follows what the manifest declares, and is deliberately not inferred from the
+    // presence of addresses: that inference is how a recorded, superseded deployment gets
+    // presented as current enforcement. This assertion holds on both sides of a real redeploy.
+    expect(status.ready).toBe(status.status === "current");
   });
 
   it("ignores a local record for a throwaway chain", () => {
@@ -77,8 +81,12 @@ describe("deployment status precedence", () => {
     const status = getDeploymentStatus();
 
     // A fresh Arbitrum Sepolia deploy must be picked up, which is the redeploy path.
-    expect(status.ready).toBe(true);
     expect(status.policyManager).toBe("0x2222222222222222222222222222222222222222");
     expect(status.source).toBe("local-file");
+
+    // Addresses resolve, but readiness does not: a local deploy record is a build artifact with
+    // no verification behind it. `npm run repoint` promotes it once the chain proves it matches.
+    expect(status.status).toBe("unknown");
+    expect(status.ready).toBe(false);
   });
 });

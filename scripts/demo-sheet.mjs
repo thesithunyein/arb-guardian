@@ -64,7 +64,7 @@ if (missing.length > 0) {
 
 say("## Links to have open");
 say();
-say("- Live product: https://arb-guardian.vercel.app");
+say("- Live product: https://arb-guardian.sithunyein.com");
 say("- Repo: https://github.com/thesithunyein/arb-guardian");
 say("- Security posture: https://github.com/thesithunyein/arb-guardian/blob/master/SECURITY.md");
 say();

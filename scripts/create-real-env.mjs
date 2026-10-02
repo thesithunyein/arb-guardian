@@ -64,7 +64,7 @@ const rootUpdates = {
   PORT: "8787",
   API_KEY: apiKey,
   SUBMISSION_CHAIN_ID: "421614",
-  SUBMISSION_WEB_URL: "https://arb-guardian.vercel.app",
+  SUBMISSION_WEB_URL: "https://arb-guardian.sithunyein.com",
   SUBMISSION_API_URL: "",
   SUBMISSION_DEMO_URL: "",
   SUBMISSION_REPO_URL: "https://github.com/thesithunyein/arb-guardian",

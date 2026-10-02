@@ -165,7 +165,7 @@ describe("policy invariants", function () {
     await expect(guard.validateAndRecord(wallet.address, payee.address, 1n, "0x12345678")).to.not.be.reverted;
   });
 
-  it("refuses an unlimited approval under every policy setting, and pins what a bounded one grants", async function () {
+  it("refuses every standing approval, bounded or not, and books nothing against the cap", async function () {
     const { wallet, payee, policy, guard, token } = await deployStack();
     const tokenAddress = await token.getAddress();
     const max = (1n << 256n) - 1n;
@@ -177,24 +177,26 @@ describe("policy invariants", function () {
     // The classic drain primitive: never, at any cap.
     await expect(
       guard.validateTokenApproval(wallet.address, tokenAddress, payee.address, max, "0x095ea7b3")
-    ).to.be.revertedWithCustomError(guard, "UnlimitedApprovalNotAllowed");
+    ).to.be.revertedWithCustomError(guard, "ApprovalNotAllowed");
 
     // A spender cleared on one token is not cleared on another.
     await expect(
       guard.validateTokenApproval(wallet.address, tokenAddress, wallet.address, 250n, "0x095ea7b3")
     ).to.be.revertedWithCustomError(guard, "TokenCounterpartyNotAllowlisted");
 
-    await guard.validateTokenApproval(wallet.address, tokenAddress, payee.address, 250n, "0x095ea7b3");
-
-    // Pinned, because it is a limit of the design rather than an accident: an approval is standing
-    // authority, not a movement, so it is not counted against the transfer cap, and the only amount
-    // refused outright is `type(uint256).max`. Everything below that is granted in full. A spender
-    // is only reachable here by an admin allowlisting it per token, but the bound is the allowlist
-    // and not a number. Recorded in SECURITY.md; if this ever changes, this assertion is the tripwire.
-    expect(await guard.walletTokenSpentToday(tokenAddress, wallet.address)).to.equal(0n);
+    // Every approval is refused, not just the unlimited one. An approval that is granted can be
+    // exercised later by the spender without this guard being called again, so even a bounded grant
+    // would sit entirely outside the daily-cap accounting. Refusing all approvals is what keeps the
+    // cap meaningful; a caller that wants to move value submits a bounded transfer instead. This
+    // assertion is the tripwire: if approval handling is ever loosened, it fails here first.
+    await expect(
+      guard.validateTokenApproval(wallet.address, tokenAddress, payee.address, 250n, "0x095ea7b3")
+    ).to.be.revertedWithCustomError(guard, "ApprovalNotAllowed");
     await expect(
       guard.validateTokenApproval(wallet.address, tokenAddress, payee.address, max - 1n, "0x095ea7b3")
-    ).to.not.be.reverted;
+    ).to.be.revertedWithCustomError(guard, "ApprovalNotAllowed");
+
+    // Nothing was ever granted, so nothing is booked against the cap.
     expect(await guard.walletTokenSpentToday(tokenAddress, wallet.address)).to.equal(0n);
   });
 
