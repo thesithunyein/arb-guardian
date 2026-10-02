@@ -18,7 +18,8 @@
     "seed:robinhood": "hardhat run scripts/seed.ts --network robinhoodTestnet",
     "enroll:safe:robinhood": "hardhat run scripts/enroll-safe.ts --network robinhoodTestnet",
     "deploy:robinhood:full": "hardhat run scripts/deploy.ts --network robinhoodTestnet && hardhat run scripts/seed.ts --network robinhoodTestnet && hardhat run scripts/enroll-safe.ts --network robinhoodTestnet",
-    "enroll:real-safe": "hardhat run scripts/enroll-real-safe.ts"
+    "enroll:real-safe": "hardhat run scripts/enroll-real-safe.ts",
+    "drill:incident": "hardhat run scripts/incident-drill.ts"
   },
   "dependencies": {
     "@arb-guardian/shared": "0.1.0"

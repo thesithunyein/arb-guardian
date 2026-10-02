@@ -37,8 +37,12 @@ npm run evidence -w packages/contracts   # 15/15 cases against a real Gnosis Saf
 
 ## 6) The two things worth saying out loud
 
-- **The deployed addresses are an earlier build.** Say it before a judge finds it. The redeploy is
-  pending, and `docs/live-deployment.md` explains exactly what the old bytecode does differently.
+- **The deployed addresses are the current build**, 6/6 byte-matched to this source and source-published
+  on Sourcify; the 2026-07-30 addresses are superseded and kept only as history in
+  `docs/live-deployment.md`. Say which set you are showing before a judge asks.
+- **Arbiscan's source panel is the one open verification item** because it needs an API key. The
+  keyless record exists — say "published on Sourcify with a verified Blockscout panel", not "verified
+  on Arbiscan".
 - **`SECURITY.md` is honest about what is not solved**: a UTC-day window rather than rolling 24 hours,
   approvals bounded by the allowlist rather than by a number, one admin key, and no third-party audit.
 
@@ -50,7 +54,17 @@ npm run evidence -w packages/contracts   # 15/15 cases against a real Gnosis Saf
 - `POST /incidents/:incidentId/action`
 - `GET /incidents/audit`
 
-## 8) If the demo is on the redeployed contracts
+## 8) Freeze drill, if asked whether the freeze path is real
+
+```bash
+npm run drill:incident:sepolia
+```
+
+Runs against the live lane, pauses it, proves the normally-settling spend is refused while frozen,
+then unpauses from a `finally` block. Hashes and timings: `docs/incident-drill.md`. It spends testnet
+gas, so do not run it for the first time on stage.
+
+## 9) If the demo is on the redeployed contracts
 
 ```bash
 npm run deploy:sepolia   -w packages/contracts

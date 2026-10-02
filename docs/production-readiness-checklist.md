@@ -11,7 +11,7 @@
 - [x] Incident action endpoint with explicit audit trail
 - [x] KPI endpoint for measurable PMF evidence
 - [x] Local runtime persistence for development and tests
-- [ ] Durable production persistence for incidents, KPI, audit history, and waitlist
+- [x] Durable production persistence for incidents, KPI, audit history, and waitlist (Vercel KV; `/api/health` reports `vercel-kv`, reachable)
 - [x] Rate limiting and API auth middleware
 
 ## Product quality
@@ -27,14 +27,18 @@
 - [x] Vercel alias remains reachable: https://arb-guardian.vercel.app (HTTP 200)
 - [x] Public repository: https://github.com/thesithunyein/arb-guardian
 - [x] Corrected deployment on both lanes (2026-10-02), byte-matched to this source by `npm run check:deployed`
-- [ ] Source published on Arbiscan — the one open verification item; needs `ARBISCAN_API_KEY`, then `npm run verify -w packages/contracts -- --network arbitrumSepolia`
-- [x] Source verified on the Robinhood explorer (`Pass - Verified`, 3/3 contracts)
+- [x] Source published, keylessly: Sourcify answers `exact_match` for all six contracts (creation and runtime bytecode), recorded in `packages/contracts/evidence/sourcify.json` by `npm run verify:sourcify`
+- [x] Every contract reads as verified on its explorer panel — Arbitrum Sepolia (Blockscout) and Robinhood Chain Testnet
+- [ ] Arbiscan's own source panel — the one open verification item; needs `ARBISCAN_API_KEY`, then `npm run verify -w packages/contracts -- --network arbitrumSepolia`
 - [x] Guard installed on a real Gnosis Safe through that Safe's own `execTransaction`, on both lanes
 - [x] Allowed and refused Safe transactions recorded onchain (both lanes)
 - [x] Durable production storage: incidents, KPI and audit history survive a new serverless instance (`/api/health` reports `vercel-kv`, reachable)
 - [x] Public product on Vercel with the current onchain addresses and transaction links on screen
 - [ ] Public API on Render (optional; console works with onchain reads)
-- [ ] Demo video with onchain tx evidence on Arbiscan
+- [x] Freeze drill run end to end against the live lane (refused decision → on-chain pause → refusal while frozen → unpause → resume), recorded in `docs/incident-drill.md`
+- [x] Screen capture of the live product along the judge path (`docs/demo/walkthrough-2026-10-02.md`)
+- [ ] Narrated demo video with the blocked transaction spoken over it
+- [ ] Bounded USDG payment on a live lane — blocked by the issuer's geo-restricted testnet faucet
 
 ## Bounty criteria map
 | Criterion | Status |
@@ -43,5 +47,5 @@
 | Smart contract quality | Ready (tests + RBAC + pause) |
 | Product-market fit | Evidence-ready workflow; pilot metrics still required |
 | Innovation / creativity | Evidence-ready Safe enforcement + policy attestation; comparative proof still required |
-| Real problem solving | Allowed and refused Safe transactions recorded onchain on both lanes; incident drill still to be run and documented |
+| Real problem solving | Allowed and refused Safe transactions recorded onchain on both lanes; freeze drill executed against the live lane with timings and hashes (`docs/incident-drill.md`) |
 | Best agentic track | Deterministic, bounded actions; no autonomous fund movement |

@@ -1,0 +1,119 @@
+{
+  "ranAt": "2026-10-02T16:17:47.587Z",
+  "network": "arbitrumSepolia",
+  "chainId": 421614,
+  "api": "https://arb-guardian.sithunyein.com",
+  "policyManager": "0x3e394b1d9781a71D71905d028C530B29Aa0021a6",
+  "safeTreasuryGuard": "0x01b03b1e0E20F84a9Fa832AbeB58283e30cA2F1b",
+  "safe": "0x5769B6973cF7E85acfa7590763549bfCf80Cbb82",
+  "operator": "0x61a79efe7Acc6fBD23E24B0d7deCFAcb169404Ce",
+  "outcome": {
+    "policyPausedOnchain": true,
+    "laneLeftPaused": false,
+    "totalMs": 33797
+  },
+  "kpi": {
+    "before": {
+      "totalAssessments": 1,
+      "blockedCount": 1,
+      "blockedRate": 1,
+      "avgScore": 80,
+      "incidentCount": 1,
+      "criticalIncidentCount": 1,
+      "retained": {
+        "assessments": 1,
+        "incidents": 1,
+        "audit": 1,
+        "caps": {
+          "incidents": 100,
+          "assessments": 200,
+          "audit": 200
+        }
+      },
+      "persistence": {
+        "durable": true,
+        "backend": "vercel-kv"
+      }
+    },
+    "after": {
+      "totalAssessments": 2,
+      "blockedCount": 2,
+      "blockedRate": 1,
+      "avgScore": 80,
+      "incidentCount": 2,
+      "criticalIncidentCount": 2,
+      "retained": {
+        "assessments": 2,
+        "incidents": 2,
+        "audit": 2,
+        "caps": {
+          "incidents": 100,
+          "assessments": 200,
+          "audit": 200
+        }
+      },
+      "persistence": {
+        "durable": true,
+        "backend": "vercel-kv"
+      }
+    }
+  },
+  "steps": [
+    {
+      "step": "assessment",
+      "at": "2026-10-02T16:17:17.068Z",
+      "request": {
+        "txHash": "0x2b956dc63ef0837319324a8dde0b6a8ac1f808c376a669f2029317b3931bca3f",
+        "wallet": "0x5769B6973cF7E85acfa7590763549bfCf80Cbb82",
+        "destination": "0x5555555555555555555555555555555555555555",
+        "method": "approve",
+        "allowlisted": false
+      },
+      "decision": {
+        "totalScore": 80,
+        "blocked": true,
+        "rules": [
+          "RULE_ALLOWLIST_DESTINATION",
+          "RULE_APPROVAL_SURFACE"
+        ],
+        "recommendedPlaybook": "freeze-wallet-and-revoke-approvals"
+      },
+      "incidentId": "inc-0x2b956dc63ef0837319324a8dde0b6a8ac1f808c376a669f2029317b3931bca3f",
+      "detectionMs": 1628
+    },
+    {
+      "step": "freeze",
+      "at": "2026-10-02T16:17:23.264Z",
+      "incidentId": "inc-0x2b956dc63ef0837319324a8dde0b6a8ac1f808c376a669f2029317b3931bca3f",
+      "playbook": "freeze-wallet-and-revoke-approvals",
+      "executed": true,
+      "txHash": "0xae409c709726042ad9ba526f276951528b89c095e42673ea2efb29599496e3e0",
+      "timeToFreezeMs": 5841,
+      "policyPausedOnchain": true
+    },
+    {
+      "step": "refused-while-frozen",
+      "at": "2026-10-02T16:17:31.558Z",
+      "txHash": "0x11bc033b452358254993cbacee3f146ef9e8823998d37d6177f080f7837e7925",
+      "status": 0,
+      "gasUsed": "69247",
+      "elapsedMs": 8294,
+      "expected": "status 0 — SafeTreasuryGuard reverts with PolicyManagerPaused"
+    },
+    {
+      "step": "unfreeze",
+      "at": "2026-10-02T16:17:36.757Z",
+      "txHash": "0x7d12365ec32fc81d0128b51174432151d11015a04dbc87f8d305cc34d0499ff8",
+      "httpStatus": 200,
+      "elapsedMs": 5199
+    },
+    {
+      "step": "settled-after-unfreeze",
+      "at": "2026-10-02T16:17:47.014Z",
+      "txHash": "0xdc4b455856bf141b4282c2e20518ba00f95396b7c52b015d0ce16ad06c91a8b9",
+      "status": 1,
+      "gasUsed": "118530",
+      "elapsedMs": 9443
+    }
+  ]
+}

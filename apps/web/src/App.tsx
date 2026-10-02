@@ -40,6 +40,12 @@ import {
 import { guardProof, shortDigest } from "./guardProof";
 import { driftReport } from "./deployedDrift";
 import { settlementGeneratedAt, settlementTokenReport, settlementTokenVerified } from "./settlementToken";
+import {
+  sourceExplorerPanels,
+  sourceVerificationComplete,
+  sourceVerificationReport,
+  sourceVerifiedAt
+} from "./sourceVerification";
 import { assessIntent, predictGuardOutcome, type RiskAssessment } from "./riskEngine";
 import { useTheme } from "./useTheme";
 import { connectWallet, shortAddress, signEnrollMessage } from "./wallet";
@@ -1944,6 +1950,57 @@ export function App() {
                                 {" "}
                                 · {c.onchainBytes.toLocaleString()} bytes on-chain vs {c.localBytes.toLocaleString()} in
                                 this repo
+                              </span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </section>
+                <section className="surface span-2">
+                  <h3>
+                    <IconSecurity size={18} /> Source published · recomputed by a third party
+                  </h3>
+                  <p className="muted section-lead">
+                    {sourceVerificationReport.summary.verified} of {" "}
+                    {sourceVerificationReport.summary.total} recorded contracts recompiled to an{" "}
+                    <strong>exact match</strong> on Sourcify from the same standard JSON input that produced
+                    them, creation bytecode included
+                    {sourceExplorerPanels
+                      ? `, and all ${sourceVerificationReport.summary.total} read as verified on their explorer panel`
+                      : ""}
+                    . {sourceVerificationComplete ? "That is the whole set." : "Some are still missing."}{" "}
+                    The Arbiscan panel is not published — that needs `ARBISCAN_API_KEY` — so the explorers
+                    below are the panels a reader can open today. Verified {sourceVerifiedAt} by{" "}
+                    <code>npm run verify:sourcify</code>, which reads the verifier&apos;s answer rather than
+                    writing one.
+                  </p>
+                  {sourceVerificationReport.lanes.map((lane) => (
+                    <div key={lane.lane}>
+                      <p className="muted section-lead">
+                        <strong>{lane.network}</strong> · chain {lane.chainId}
+                      </p>
+                      <ul className="clean">
+                        {lane.contracts.map((c) => (
+                          <li key={`${lane.lane}-${c.contract}`}>
+                            <strong>{c.match === "exact_match" ? "Exact match" : c.match ?? "Not verified"}</strong>
+                            {": "}
+                            {c.repository ? (
+                              <a href={c.repository} target="_blank" rel="noreferrer noopener">
+                                {c.contract}
+                              </a>
+                            ) : (
+                              c.contract
+                            )}
+                            {c.explorerPanel?.verified ? (
+                              <span className="muted">
+                                {" "}
+                                ·{" "}
+                                <a href={c.explorerPanel.explorer} target="_blank" rel="noreferrer noopener">
+                                  explorer panel
+                                </a>{" "}
+                                {c.explorerPanel.fullyVerified ? "· fully verified" : null}
                               </span>
                             ) : null}
                           </li>

@@ -5,12 +5,16 @@
 - Live app URL: https://arb-guardian.sithunyein.com (Vercel alias also verified)
 - API URL and health endpoint response: https://arb-guardian.sithunyein.com/api/health returned HTTP 200
 - Deployed contract addresses on both lanes: `docs/live-deployment.md` — declared `current`, 6/6
-  drift claims holding against the chain, source-verified on the Robinhood explorer.
+  drift claims holding against the chain, source-published on Sourcify with `exact_match` for all six
+  and a verified explorer panel on each lane.
 - Deployment transaction evidence: deploy, Safe creation, guard install, allowed spend and refused
   spend hashes are listed per lane in `docs/live-deployment.md`. All read from chain; none
   fabricated.
 - Public repository URL
-- 3-minute demo video link: **not yet recorded**
+- Screen capture of the live product: `docs/demo/walkthrough-2026-10-02.webm` (silent, 1.35 MB) with
+  its beat-by-beat notes in `docs/demo/walkthrough-2026-10-02.md`
+- Narrated 3-minute demo video: **not yet recorded** — the capture above is the raw material
+- Freeze drill record: `docs/incident-drill.md` (hashes, timings, and what it does not prove)
 - Judge brief (`docs/judge-brief.md`)
 - Grant milestones (`docs/grant-milestones.md`)
 - Judging evidence matrix (`docs/judging-evidence-matrix.md`)

@@ -42,6 +42,8 @@ It helps a team give limited spending access to an agent, bot, or operator.
 The public app is live, and `/api/status` reports `productReady: true` against a deployment
 declared `current`. Both lanes carry the corrected build (2026-10-02): a real Gnosis Safe on each
 holds the guard, installed through the Safe's own `execTransaction`, with an allowed spend and a
-refused spend both onchain. The Robinhood lane is source-verified on its explorer; the Arbitrum
-Sepolia lane is byte-matched to this source but still needs an Arbiscan key to publish its source
-panel.
+refused spend both onchain. A freeze drill has since been run against the live lane: the policy is
+paused onchain, the spend that normally settles is refused while frozen, and the lane resumes after
+unpause (`docs/incident-drill.md`). All six contracts are source-published — Sourcify reports
+`exact_match` and each lane's explorer panel reads as verified; Arbiscan's own panel is the one item
+that still needs an API key.

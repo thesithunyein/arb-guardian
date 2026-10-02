@@ -24,9 +24,12 @@ the corrected contracts are deployed on both lanes as of 2026-10-02. `/api/statu
 `"chainConnected": true`, `"productReady": true`, `"deployment.status": "current"`, and
 `/api/health` reports durable KV persistence. A real Gnosis Safe on each lane carries the guard,
 installed through that Safe's own `execTransaction`, with an allowed and a refused spend recorded
-onchain. Source verification is complete on the Robinhood lane (3/3 `Pass - Verified`); the three
-Arbitrum Sepolia contracts match this source byte-for-byte but are not yet source-published on
-Arbiscan, which needs `ARBISCAN_API_KEY`.
+onchain. All six contracts are source-published: Sourcify reports `exact_match` for both creation and
+runtime bytecode on both lanes, and every one of them reads as verified on its own explorer panel
+(Arbitrum Sepolia Blockscout, Robinhood Chain Testnet). Arbiscan's own panel is still unpublished —
+that needs `ARBISCAN_API_KEY`. An operator freeze drill has also been run end to end against the
+live lane: refused decision, on-chain pause, refusal of the spend that normally settles, unpause, and
+the spend settling again — 33.8 s, hashes in [`docs/incident-drill.md`](docs/incident-drill.md).
 
 > This README is written for operators and judges first. It distinguishes a reproducible local
 > proof from a live deployment claim. See [`docs/live-deployment.md`](docs/live-deployment.md) for
@@ -212,15 +215,20 @@ Every part of that claim has a command behind it:
   `decimals() = 6`, read from the contracts rather than copied from the docs.
 - A real Gnosis Safe v1.4.1 on each lane holds `SafeTreasuryGuard`, installed through the Safe's own
   `execTransaction`, with an allowed spend and a refused spend recorded onchain.
-- Source verification: Robinhood's Blockscout explorer answers `Pass - Verified` for all three
-  contracts. The same three on Arbiscan are byte-matched but not yet source-published — that is the
-  one open verification item, and it needs an Arbiscan key.
+- Source publication: `npm run verify:sourcify` submits the compiler's own standard JSON input for
+  all six contracts and reads the verifier back — Sourcify answers `exact_match` for both creation
+  and runtime bytecode, and every contract reads as verified on its own explorer panel (Arbitrum
+  Sepolia Blockscout, Robinhood Chain). Arbiscan's own panel is the one open item, and it needs an
+  Arbiscan key.
 - `npm run test -w apps/api` — 4 of its 25 tests are read-only `eth_call`s against the live
   `PolicyManager`, so a wrong ABI, a wrong role hash or an undecodable refusal fails the build
   rather than shipping.
 
-Not claimed: mainnet deployment, an independent security review, and any pilot usage. Addresses and
-transaction hashes are in [`docs/live-deployment.md`](docs/live-deployment.md).
+Not claimed: mainnet deployment, an independent security review, any pilot usage, and any live USDG
+movement (the issuer's testnet faucet is geo-restricted from this machine). The freeze drill is real
+traffic but self-operated, and it is described that way. Addresses and transaction hashes are in
+[`docs/live-deployment.md`](docs/live-deployment.md); the drill is in
+[`docs/incident-drill.md`](docs/incident-drill.md).
 
 Never commit private keys, API keys, or fabricated transaction hashes. Re-running the deployment is
 five commands; the first refuses to continue until every prerequisite holds, deriving the deployer
@@ -246,31 +254,33 @@ published criteria, the honest current position is:
 
 | Criterion | Current evidence | Honest score today | What moves it to 9+ |
 | --- | --- | ---: | --- |
-| Smart contract quality | 69 contract tests plus seeded invariants, deny-by-default rules, every standing approval refused, 6/6 drift claims holding on two chains, guard installed on a real Safe through its own `execTransaction` | 9/10 | Source-published on Arbiscan, an independent review, published gas and invariant results |
+| Smart contract quality | 69 contract tests plus seeded invariants, deny-by-default rules, every standing approval refused, 6/6 drift claims holding on two chains, all six published with exact creation+runtime matches on Sourcify and verified explorer panels, guard installed on a real Safe through its own `execTransaction` | 9/10 | The Arbiscan panel specifically, an independent review, published gas and invariant results |
 | Product-market fit | Live operator workflow, plain-language review, alerts, deterministic playbooks, durable audit history across cold starts | 7.5/10 | Two or more pilot teams, measurable time-to-review and blocked-risk outcomes, clear pricing/onboarding |
 | Innovation | Policy attestation plus Safe-native token/native lanes, bounded playbooks, enforcement inside `execTransaction` rather than at the signer | 8.5/10 | Publish a comparison against multisig/manual controls, prove a differentiated agent-permission workflow |
-| Real problem solving | Explorer-verifiable current deployment on two chains, guard genuinely installed on a real Safe, allowed and refused transactions both recorded, freeze path in the product | 9/10 | A documented incident drill and the blocked transaction narrated in the demo video |
-| USDG / Arbitrum fit | Real Paxos USDG configured as a live lane on both current deployments at 6 decimals, with allowance and refusal proven in tests and onchain | 9/10 | A demo recording of a bounded USDG payment end to end |
+| Real problem solving | Explorer-verifiable current deployment on two chains, guard genuinely installed on a real Safe, allowed and refused transactions both recorded, and a freeze drill executed against the live lane with timings (`docs/incident-drill.md`) | 9/10 | The blocked transaction narrated in a voiced demo; a pilot's own blocked request |
+| USDG / Arbitrum fit | Real Paxos USDG configured as a live lane on both current deployments at 6 decimals, with allowance and refusal proven in tests and onchain | 9/10 | A bounded USDG payment on a live lane — currently blocked because the issuer's testnet faucet is geo-restricted from this machine |
 
 ### Priority order
 
-1. **Source-publish the Arbitrum Sepolia contracts.** Add `ARBISCAN_API_KEY` and run
-   `npm run verify -w packages/contracts -- --network arbitrumSepolia`. The bytecode already matches;
-   this is only the explorer's source panel.
-2. **Record the demo video.** Same beats as `npm run demo:sheet`, ending on the refused transaction
-   hash. This is the cheapest remaining point on the board.
+1. **Source-publish the Arbiscan panel specifically.** Add `ARBISCAN_API_KEY` and run
+   `npm run verify -w packages/contracts -- --network arbitrumSepolia`. Everything else is already
+   published: Sourcify answers `exact_match` for all six contracts and their explorer panels read as
+   verified, so this is one explorer's panel rather than an open verification gap.
+2. **Narrate the demo.** A silent capture of the live product already exists
+   (`docs/demo/walkthrough-2026-10-02.md`); what is missing is a voice track over it.
 3. **Run a small pilot.** Measure review time, false positives, blocked unsafe requests, and
    operator response time. Put anonymized results in the submission. This is the only criterion
-   still below 8.
+   still below 8, and the one an agent cannot manufacture.
 4. **Add independent security evidence.** Publish a focused review of access control, Safe guard
    integration, token decoding, reentrancy/refund ordering, and upgrade/deployment assumptions.
-5. **Run and document an incident drill.** Freeze a treasury through the live API, show the alert,
-   unfreeze, and record the timing.
-7. **Record a two-minute judge path.** Problem → request → blocked decision → alert → Safe-level
-   enforcement → policy digest → explorer proof. Keep every claim linked to a command or transaction.
+5. **Record a bounded USDG payment** once the issuer's testnet faucet is reachable from a permitted
+   location. The lane is configured, capped and deny-by-default; only the tokens are missing.
 
-Until these steps are complete, the strongest submission is an honest “working control plane with
-reproducible enforcement proof and a clearly blocked production gate,” not a claim of 9+ readiness.
+Done and recorded rather than listed here: the corrected deployment, the real-Safe enrollment, the
+allowed/refused transaction pair on both lanes, durable production storage, keyless source
+publication, and the freeze drill. Until the five items above are complete, the strongest submission
+is an honest "working control plane with reproducible enforcement proof and a clearly blocked
+production gate," not a claim of 9+ readiness.
 
 ### Research basis
 

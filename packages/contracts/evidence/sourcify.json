@@ -1,0 +1,166 @@
+{
+  "checkedAt": "2026-10-02T16:07:39.924Z",
+  "verifier": "sourcify.dev (keyless, standard JSON input, creation bytecode compared)",
+  "summary": {
+    "verified": 6,
+    "total": 6,
+    "explorerPanels": 6,
+    "lanes": 2
+  },
+  "lanes": [
+    {
+      "lane": "arbitrumSepolia",
+      "network": "arbitrumSepolia",
+      "chainId": 421614,
+      "explorer": "https://arbitrum-sepolia.blockscout.com",
+      "contracts": [
+        {
+          "contract": "PolicyManager",
+          "address": "0x3e394b1d9781a71D71905d028C530B29Aa0021a6",
+          "creationTransactionHash": "0xcf05d7550a84f8f9025d72f1a1ff6a48b56e2f6244e7b28c359b66ec5c8dd02d",
+          "compiler": "0.8.25+commit.b61c2a91",
+          "ok": true,
+          "match": "exact_match",
+          "creationMatch": "exact_match",
+          "runtimeMatch": "exact_match",
+          "verifiedAt": "2026-10-02T16:01:50Z",
+          "repository": "https://repo.sourcify.dev/contracts/exact_match/421614/0x3e394b1d9781a71D71905d028C530B29Aa0021a6/",
+          "forwarded": {
+            "blockscout": null,
+            "etherscanError": null
+          },
+          "explorerPanel": {
+            "explorer": "https://arbitrum-sepolia.blockscout.com/address/0x3e394b1d9781a71D71905d028C530B29Aa0021a6",
+            "verified": true,
+            "fullyVerified": true,
+            "contractName": "PolicyManager"
+          },
+          "detail": "Contract 0x3e394b1d9781a71D71905d028C530B29Aa0021a6 on chain 421614 is already verified with runtimeMatch and creationMatch both being exact matches."
+        },
+        {
+          "contract": "ExecutionGuard",
+          "address": "0x5e60F2D4E3F50eA16Ed0413e718535d720c3D5cC",
+          "creationTransactionHash": "0x23f446d300ea4c6cfaf39191d95091ff7be5a06e32c6482354eac3a03b59dd86",
+          "compiler": "0.8.25+commit.b61c2a91",
+          "ok": true,
+          "match": "exact_match",
+          "creationMatch": "exact_match",
+          "runtimeMatch": "exact_match",
+          "verifiedAt": "2026-10-02T16:01:55Z",
+          "repository": "https://repo.sourcify.dev/contracts/exact_match/421614/0x5e60F2D4E3F50eA16Ed0413e718535d720c3D5cC/",
+          "forwarded": {
+            "blockscout": null,
+            "etherscanError": null
+          },
+          "explorerPanel": {
+            "explorer": "https://arbitrum-sepolia.blockscout.com/address/0x5e60F2D4E3F50eA16Ed0413e718535d720c3D5cC",
+            "verified": true,
+            "fullyVerified": true,
+            "contractName": "ExecutionGuard"
+          },
+          "detail": "Contract 0x5e60F2D4E3F50eA16Ed0413e718535d720c3D5cC on chain 421614 is already verified with runtimeMatch and creationMatch both being exact matches."
+        },
+        {
+          "contract": "SafeTreasuryGuard",
+          "address": "0x01b03b1e0E20F84a9Fa832AbeB58283e30cA2F1b",
+          "creationTransactionHash": "0x8cf1615ca6849bfef4fc3b33ba554a28d8cddb8459b25c3191970d579563eff6",
+          "compiler": "0.8.25+commit.b61c2a91",
+          "ok": true,
+          "match": "exact_match",
+          "creationMatch": "exact_match",
+          "runtimeMatch": "exact_match",
+          "verifiedAt": "2026-10-02T16:02:01Z",
+          "repository": "https://repo.sourcify.dev/contracts/exact_match/421614/0x01b03b1e0E20F84a9Fa832AbeB58283e30cA2F1b/",
+          "forwarded": {
+            "blockscout": null,
+            "etherscanError": null
+          },
+          "explorerPanel": {
+            "explorer": "https://arbitrum-sepolia.blockscout.com/address/0x01b03b1e0E20F84a9Fa832AbeB58283e30cA2F1b",
+            "verified": true,
+            "fullyVerified": true,
+            "contractName": "SafeTreasuryGuard"
+          },
+          "detail": "Contract 0x01b03b1e0E20F84a9Fa832AbeB58283e30cA2F1b on chain 421614 is already verified with runtimeMatch and creationMatch both being exact matches."
+        }
+      ]
+    },
+    {
+      "lane": "robinhoodTestnet",
+      "network": "robinhoodTestnet",
+      "chainId": 46630,
+      "explorer": "https://explorer.testnet.chain.robinhood.com",
+      "contracts": [
+        {
+          "contract": "PolicyManager",
+          "address": "0x3E4a51B35a984f33D4F71CEf96Eb8f08fcC8Ef2b",
+          "creationTransactionHash": "0x732c69171fe297bec508384384aac2d7b3574c1394f40be42bacd8f6bd835a54",
+          "compiler": "0.8.25+commit.b61c2a91",
+          "ok": true,
+          "match": "exact_match",
+          "creationMatch": "exact_match",
+          "runtimeMatch": "exact_match",
+          "verifiedAt": "2026-10-02T16:04:29Z",
+          "repository": "https://repo.sourcify.dev/contracts/exact_match/46630/0x3E4a51B35a984f33D4F71CEf96Eb8f08fcC8Ef2b/",
+          "forwarded": {
+            "blockscout": null,
+            "etherscanError": null
+          },
+          "explorerPanel": {
+            "explorer": "https://explorer.testnet.chain.robinhood.com/address/0x3E4a51B35a984f33D4F71CEf96Eb8f08fcC8Ef2b",
+            "verified": true,
+            "fullyVerified": true,
+            "contractName": "PolicyManager"
+          },
+          "detail": "Contract 0x3E4a51B35a984f33D4F71CEf96Eb8f08fcC8Ef2b on chain 46630 is already verified with runtimeMatch and creationMatch both being exact matches."
+        },
+        {
+          "contract": "ExecutionGuard",
+          "address": "0xD1bbF5e71295696B2011408eAa13dEb69adcD21D",
+          "creationTransactionHash": "0xaba91ef8432d20c0a81e98985afd3678c87629cb9b5c7ce7ef93e0b1190fa802",
+          "compiler": "0.8.25+commit.b61c2a91",
+          "ok": true,
+          "match": "exact_match",
+          "creationMatch": "exact_match",
+          "runtimeMatch": "exact_match",
+          "verifiedAt": "2026-10-02T16:04:35Z",
+          "repository": "https://repo.sourcify.dev/contracts/exact_match/46630/0xD1bbF5e71295696B2011408eAa13dEb69adcD21D/",
+          "forwarded": {
+            "blockscout": null,
+            "etherscanError": null
+          },
+          "explorerPanel": {
+            "explorer": "https://explorer.testnet.chain.robinhood.com/address/0xD1bbF5e71295696B2011408eAa13dEb69adcD21D",
+            "verified": true,
+            "fullyVerified": true,
+            "contractName": "ExecutionGuard"
+          },
+          "detail": "Contract 0xD1bbF5e71295696B2011408eAa13dEb69adcD21D on chain 46630 is already verified with runtimeMatch and creationMatch both being exact matches."
+        },
+        {
+          "contract": "SafeTreasuryGuard",
+          "address": "0xe10afE3da5546fc0F34c6F38DB3920BD5f5C6999",
+          "creationTransactionHash": "0x20a8b36afa59c6c7dcc7b3a35630c838e025dc4884cd7ef2cfe0ab258a7d488a",
+          "compiler": "0.8.25+commit.b61c2a91",
+          "ok": true,
+          "match": "exact_match",
+          "creationMatch": "exact_match",
+          "runtimeMatch": "exact_match",
+          "verifiedAt": "2026-10-02T16:04:40Z",
+          "repository": "https://repo.sourcify.dev/contracts/exact_match/46630/0xe10afE3da5546fc0F34c6F38DB3920BD5f5C6999/",
+          "forwarded": {
+            "blockscout": null,
+            "etherscanError": null
+          },
+          "explorerPanel": {
+            "explorer": "https://explorer.testnet.chain.robinhood.com/address/0xe10afE3da5546fc0F34c6F38DB3920BD5f5C6999",
+            "verified": true,
+            "fullyVerified": true,
+            "contractName": "SafeTreasuryGuard"
+          },
+          "detail": "Contract 0xe10afE3da5546fc0F34c6F38DB3920BD5f5C6999 on chain 46630 is already verified with runtimeMatch and creationMatch both being exact matches."
+        }
+      ]
+    }
+  ]
+}

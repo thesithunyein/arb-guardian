@@ -75,10 +75,13 @@ Open these five Arbiscan links in tabs before you start, then talk over them:
 6. Refused Safe execution (status 0, reverted by the guard) — https://sepolia.arbiscan.io/tx/0xff26308871c5b7c36b477940dc1b7307f8fdbbd979190ef89760b86902a99524
 
 These are the **current** addresses, deployed 2026-10-02 and byte-matched to this repository by
-`npm run check:deployed`. The source panel on Arbiscan still needs an API key, so say "bytecode
-verified against our build" rather than "verified on Arbiscan" until that key exists. The Robinhood
-lane has no such caveat: https://explorer.testnet.chain.robinhood.com/address/0x3E4a51B35a984f33D4F71CEf96Eb8f08fcC8Ef2b
-reads `Pass - Verified`.
+`npm run check:deployed`. All six contracts are source-published: Sourcify answers `exact_match` for
+creation and runtime bytecode on both lanes, and each contract reads as verified on its own explorer
+panel — the Robinhood lane at
+https://explorer.testnet.chain.robinhood.com/address/0x3E4a51B35a984f33D4F71CEf96Eb8f08fcC8Ef2b
+(`Pass - Verified`) and Arbitrum Sepolia on Blockscout. Arbiscan's own panel is the one item still
+missing, because it requires an API key — so say "published on Sourcify with a verified Blockscout
+panel" rather than "verified on Arbiscan" until that key exists.
 
 ---
 

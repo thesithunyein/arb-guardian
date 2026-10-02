@@ -11,9 +11,12 @@ Public on-chain qualification proof for Arb Guardian.
 - `/api/health` → `persistence: {"durable": true, "backend": "vercel-kv", "reachable": true}`.
 - `npm run check:deployed` → 6 contracts read over public RPC, 6 claims held, 0 violated.
 - `npm run check:settlement` → `symbol() = USDG`, `decimals() = 6` at both lanes' token addresses.
-- Source verification: the Robinhood lane answers `Pass - Verified` for all three contracts. The
-  three Arbitrum Sepolia contracts are byte-matched to this source by `check:deployed`, but are not
-  yet source-published on Arbiscan — that needs `ARBISCAN_API_KEY` and is the one open item here.
+- Source verification: all six contracts are published. Sourcify reports `exact_match` for both
+  creation and runtime bytecode on both lanes, and each contract reads as verified on its own
+  explorer panel (Arbitrum Sepolia Blockscout, Robinhood Chain Testnet). Arbiscan's own panel is the
+  one open item — that needs `ARBISCAN_API_KEY`. See "Source published" below.
+- Freeze drill: refused decision → on-chain pause → the normally-settling spend refused while frozen
+  → unpause → the spend settles again, in 33.8 s. Hashes below and in `docs/incident-drill.md`.
 - On both lanes an allowed spend settled and a refused spend reverted inside the guard; both have
   transaction hashes (links below).
 
@@ -50,6 +53,35 @@ npm run check:deployed       # 6/6 claims, or a non-zero exit
 `npm run verify -w packages/contracts -- --network robinhoodTestnet` has already been run against
 the Robinhood lane; the same command against `arbitrumSepolia` is the outstanding step once an
 Arbiscan key is present.
+
+## Source published — what a reader can click
+
+The bytecode match above is a claim only someone willing to run `check:deployed` can check. Source
+publication is the clickable version, and it should not depend on a single vendor's API key:
+
+```bash
+npm run verify:sourcify            # both lanes; writes evidence/sourcify.json
+npm run verify:sourcify -- --network arbitrumSepolia
+```
+
+That script submits the compiler's own standard JSON input — read from the build-info that produced
+each deployed artifact, not from the working tree — and then reads the verifier's answer back rather
+than writing one. Both the Sourcify record and each explorer's own panel are recorded:
+
+| Lane | Sourcify | Explorer panel | Arbiscan |
+| --- | --- | --- | --- |
+| Arbitrum Sepolia (421614) | `exact_match`, 3/3 | [Blockscout](https://arbitrum-sepolia.blockscout.com) · verified, fully verified | pending `ARBISCAN_API_KEY` |
+| Robinhood Chain Testnet (46630) | `exact_match`, 3/3 | [Robinhood explorer](https://explorer.testnet.chain.robinhood.com) · `Pass - Verified` | n/a |
+
+The Sourcify repository entries are linked per contract from the site's Evidence screen, next to the
+drift report they corroborate. `exact_match` means Sourcify recompiled the source, compared the
+creation bytecode *and* the runtime bytecode, and matched the compiler metadata as well — the same
+comparison an explorer performs.
+
+Arbiscan itself is the one panel still missing, and it is missing for a mundane reason: it requires
+an `ARBISCAN_API_KEY`. Sourcify's own attempt to forward the submission there was refused with
+"Daily limit of 500 source code submissions reached", which is Sourcify's shared key rather than
+ours. Nothing about the contracts is unpublished; one explorer's UI is.
 
 ## Settlement token — Paxos USDG, on both lanes
 
@@ -92,7 +124,11 @@ check and the live lanes cover the *address*.
 | Guard installed via the Safe's own `execTransaction` | [tx](https://sepolia.arbiscan.io/tx/0x98dc84c456e81c554ba22a137ac85b6b79da160288fdb796cb9ab8c1d295c907) |
 | Allowed spend (settled, status 1) | [tx](https://sepolia.arbiscan.io/tx/0x1313db311ce1e99b3623c4b42e6d6f1e531f40bc3e7032f88c68a790343ba216) |
 | Refused spend (reverted by the guard, status 0) | [tx](https://sepolia.arbiscan.io/tx/0xff26308871c5b7c36b477940dc1b7307f8fdbbd979190ef89760b86902a99524) |
-| Source on the explorer | byte-matched by `npm run check:deployed`; source panel pending `ARBISCAN_API_KEY` |
+| Source published | Sourcify `exact_match` (creation + runtime) and a verified source panel on Arbitrum Sepolia Blockscout; Arbiscan's own panel pending `ARBISCAN_API_KEY` |
+| Freeze drill · pause | [tx](https://sepolia.arbiscan.io/tx/0xae409c709726042ad9ba526f276951528b89c095e42673ea2efb29599496e3e0) |
+| Freeze drill · refused while frozen (status 0) | [tx](https://sepolia.arbiscan.io/tx/0x11bc033b452358254993cbacee3f146ef9e8823998d37d6177f080f7837e7925) |
+| Freeze drill · unpause | [tx](https://sepolia.arbiscan.io/tx/0x7d12365ec32fc81d0128b51174432151d11015a04dbc87f8d305cc34d0499ff8) |
+| Freeze drill · spend settles again (status 1) | [tx](https://sepolia.arbiscan.io/tx/0xdc4b455856bf141b4282c2e20518ba00f95396b7c52b015d0ce16ad06c91a8b9) |
 | Live product | https://arb-guardian.sithunyein.com (Vercel alias: https://arb-guardian.vercel.app) |
 
 ## Robinhood Chain Testnet — current, deployed 2026-10-02
@@ -110,7 +146,7 @@ check and the live lanes cover the *address*.
 | Guard installed via the Safe's own `execTransaction` | [tx](https://explorer.testnet.chain.robinhood.com/tx/0x64240c9782c7bead68997536063c0cc029bc1df9e46d5551c69af2449f2c73a3) |
 | Allowed spend (settled, status 1) | [tx](https://explorer.testnet.chain.robinhood.com/tx/0xb7f97778c85b99e3188bdb75258fd351ff873a055896ea4781e1363a7ae643c8) |
 | Refused spend (reverted by the guard, status 0) | [tx](https://explorer.testnet.chain.robinhood.com/tx/0x44e08cf915f90b7394eb0be18cd10ac44399e2e685f47821ebbd639d1412f515) |
-| Source on the explorer | **`Pass - Verified`** for all three contracts |
+| Source published | **`Pass - Verified`** for all three contracts on the Robinhood explorer, and Sourcify `exact_match` (creation + runtime) |
 
 > The refused transaction exists onchain on purpose. Gas estimation would reject the send before it
 > reached the network — which is where a refusal most often stays invisible — so the enrollment

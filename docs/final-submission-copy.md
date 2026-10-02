@@ -133,10 +133,13 @@ natively issued Global Dollar and the lending asset in Robinhood Earn — settle
 - Allowed spend: `0xb7f97778c85b99e3188bdb75258fd351ff873a055896ea4781e1363a7ae643c8`
 - Refused spend (status 0, reverted by the guard): `0x44e08cf915f90b7394eb0be18cd10ac44399e2e685f47821ebbd639d1412f515`
 
-> **Verification status.** The Robinhood lane reads `Pass - Verified` on its explorer for all three
-> contracts. The Arbitrum Sepolia bytecode is matched to this build by `npm run check:deployed`,
-> but Arbiscan's source panel still needs an `ARBISCAN_API_KEY`; until then say "bytecode matched
-> to our build", not "verified on Arbiscan".
+> **Verification status.** All six contracts are source-published. Sourcify recompiled the compiler's
+> own standard JSON input and reports `exact_match` for both the creation and runtime bytecode of every
+> contract on both lanes, and each one reads as verified on its panel on Arbitrum Sepolia Blockscout
+> and Robinhood Chain Testnet (`npm run verify:sourcify`, recorded in
+> `packages/contracts/evidence/sourcify.json`). Arbiscan's own panel is the one item still open: it
+> needs an `ARBISCAN_API_KEY`. Until that key exists, say "published on Sourcify with a verified
+> Blockscout panel", not "verified on Arbiscan".
 >
 > The 2026-07-30 addresses are superseded: that build failed open on a limit of `0` and its
 > approval rule could never block, and it had no token lane or attestation. They are kept for
@@ -144,9 +147,15 @@ natively issued Global Dollar and the lending asset in Robinhood Earn — settle
 
 ## Deployment transactions
 
-- Corrected-build deployment transactions: **not available; deployment is blocked pending a funded
-  deployer, Arbitrum Sepolia ETH, an explorer API key, and operator approval. Do not fabricate
-  hashes.**
+- Corrected-build deployment transactions are live and recorded: PolicyManager
+  `0xcf05d7550a84f8f9025d72f1a1ff6a48b56e2f6244e7b28c359b66ec5c8dd02d`, ExecutionGuard
+  `0x23f446d300ea4c6cfaf39191d95091ff7be5a06e32c6482354eac3a03b59dd86`, SafeTreasuryGuard
+  `0x8cf1615ca6849bfef4fc3b33ba554a28d8cddb8459b25c3191970d579563eff6` (Arbitrum Sepolia), with the
+  full set for both lanes in `docs/live-deployment.md`.
+- Freeze drill against the live lane: pause tx `0xae409c709726042ad9ba526f276951528b89c095e42673ea2efb29599496e3e0`,
+  refusal while frozen `0x11bc033b452358254993cbacee3f146ef9e8823998d37d6177f080f7837e7925` (status 0),
+  unpause `0x7d12365ec32fc81d0128b51174432151d11015a04dbc87f8d305cc34d0499ff8`, resumed spend
+  `0xdc4b455856bf141b4282c2e20518ba00f95396b7c52b015d0ce16ad06c91a8b9` (status 1).
 
 ## What we validated
 
