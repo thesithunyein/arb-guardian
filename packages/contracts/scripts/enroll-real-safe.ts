@@ -35,13 +35,17 @@ const CANONICAL_SAFE = {
 const PAYROLL = "0x4444444444444444444444444444444444444444";
 const UNLISTED = "0x5555555555555555555555555555555555555555";
 const NATIVE_DAILY_LIMIT = ethers.parseEther("5");
+/** Two demo spends; the blocked one pays gas without moving value. */
+const DEMO_SPEND = ethers.parseEther("0.001");
+const FUNDING_TARGET = ethers.parseEther("0.01");
+const GAS_RESERVE = ethers.parseEther("0.0005");
 
 const SAFE_ABI = [
   "function setup(address[] _owners, uint256 _threshold, address to, bytes data, address fallbackHandler, address paymentToken, uint256 payment, address paymentReceiver)",
   "function nonce() view returns (uint256)",
   "function getThreshold() view returns (uint256)",
   "function getOwners() view returns (address[])",
-  "function getGuard() view returns (address)",
+  "function setGuard(address guard)",
   "function VERSION() view returns (string)",
   "function approveHash(bytes32 hashToApprove)",
   "function getTransactionHash(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, uint256 _nonce) view returns (bytes32)",
@@ -50,8 +54,75 @@ const SAFE_ABI = [
 
 const FACTORY_ABI = [
   "function createProxyWithNonce(address _singleton, bytes initializer, uint256 saltNonce) returns (address proxy)",
-  "event ProxyCreation(address proxy, address singleton)"
+  // Safe 1.4.1 indexes the proxy, so it arrives in topics[1] and only the singleton is data.
+  // Declaring both fields as data made every log fail to parse — which is how a freshly created
+  // Safe became unrecoverable from its own receipt.
+  "event ProxyCreation(address indexed proxy, address singleton)"
 ];
+
+type FactoryContract = InstanceType<typeof ethers.Contract>;
+type ReceiptLog = { topics: readonly string[]; data: string };
+
+function proxyFromLogs(factory: FactoryContract, logs: readonly ReceiptLog[]): string | null {
+  for (const log of logs) {
+    try {
+      const parsed = factory.interface.parseLog({ topics: [...log.topics], data: log.data });
+      if (parsed?.name === "ProxyCreation") return String(parsed.args[0]);
+    } catch {
+      // Another contract's event in the same receipt.
+    }
+  }
+  return null;
+}
+
+/**
+ * Public RPCs sometimes return a receipt whose logs are empty. The chain still has the event, so
+ * fall back to reading it by block — and check the owner first, because that factory is shared
+ * with every other Safe on the network and its most recent event may not be ours.
+ */
+/**
+ * Safe 1.4.1 deliberately keeps `getGuard()` internal to save bytecode, so the guard is read
+ * from GuardManager's documented slot instead. Calling the function reverts with empty data and
+ * reads as failure even when the install succeeded — the in-process test already asserts this
+ * way; this script did not.
+ */
+const GUARD_STORAGE_SLOT = "0x4a204f620c8c5ccdca3fd54d003badd85ba500436a431f0cbda4f558c93c34c8";
+
+async function guardFromStorage(safeAddress: string): Promise<string> {
+  const raw = await ethers.provider.getStorage(safeAddress, GUARD_STORAGE_SLOT);
+  return ethers.getAddress(`0x${raw.slice(-40)}`);
+}
+
+async function proxyInBlock(
+  factory: FactoryContract,
+  blockNumber: number,
+  owner: string
+): Promise<string | null> {
+  const event = factory.interface.getEvent("ProxyCreation");
+  if (!event) return null;
+  const logs = await ethers.provider.getLogs({
+    address: await factory.getAddress(),
+    topics: [event.topicHash],
+    fromBlock: blockNumber,
+    toBlock: blockNumber
+  });
+  for (const log of logs) {
+    const proxy = proxyFromLogs(factory, [log]);
+    if (!proxy) continue;
+    try {
+      const candidate = new ethers.Contract(
+        proxy,
+        ["function getOwners() view returns (address[])"],
+        factory.runner
+      );
+      const owners = (await candidate.getOwners()) as string[];
+      if (owners.some((o) => o.toLowerCase() === owner.toLowerCase())) return proxy;
+    } catch {
+      // Not a Safe proxy we can read.
+    }
+  }
+  return null;
+}
 
 const GUARD_ABI = [
   "function setSafeEnrollment(address safe, bool enrolled)",
@@ -171,32 +242,42 @@ async function main() {
     ethers.ZeroAddress
   ]);
 
-  const saltNonce = BigInt(Date.now());
-  const createTx = await factory.createProxyWithNonce(safe.singleton, setupData, saltNonce);
-  const createReceipt = await createTx.wait();
-  if (!createReceipt) throw new Error("The Safe creation transaction produced no receipt.");
-
+  // A run that loses its Safe to an unreadable receipt must be resumable rather than repeat the
+  // creation (and the gas). REAL_SAFE_ADDRESS continues from an existing Safe.
+  const reuseAddress = process.env.REAL_SAFE_ADDRESS?.trim();
   let safeAddress: string | null = null;
-  for (const log of createReceipt.logs) {
-    try {
-      const parsed = factory.interface.parseLog({ topics: [...log.topics], data: log.data });
-      if (parsed?.name === "ProxyCreation") {
-        safeAddress = String(parsed.args[0]);
-        break;
-      }
-    } catch {
-      // Not one of ours; ignore.
+  let createTxHash: string | null = process.env.REAL_SAFE_CREATE_TX?.trim() || null;
+
+  if (reuseAddress) {
+    safeAddress = ethers.getAddress(reuseAddress);
+    console.log(`\nReusing the Safe at ${safeAddress} (REAL_SAFE_ADDRESS is set).`);
+  } else {
+    const saltNonce = BigInt(Date.now());
+    const createTx = await factory.createProxyWithNonce(safe.singleton, setupData, saltNonce);
+    console.log(`\nSafe creation sent: ${createTx.hash}`);
+    const createReceipt = await createTx.wait();
+    if (!createReceipt) throw new Error(`Safe creation ${createTx.hash} produced no receipt.`);
+    if (createReceipt.status !== 1) throw new Error(`Safe creation ${createReceipt.hash} reverted.`);
+    createTxHash = createReceipt.hash;
+    safeAddress =
+      proxyFromLogs(factory, createReceipt.logs) ??
+      (await proxyInBlock(factory, createReceipt.blockNumber, deployer.address));
+    if (!safeAddress) {
+      throw new Error(
+        `Safe creation ${createReceipt.hash} succeeded, but its ProxyCreation event could not be read ` +
+          "from this RPC. Open that transaction on the explorer, copy the ProxyCreation address, then " +
+          `re-run with REAL_SAFE_ADDRESS=<address> REAL_SAFE_CREATE_TX=${createReceipt.hash}.`
+      );
     }
   }
-  if (!safeAddress) throw new Error("Could not read the ProxyCreation event, so the Safe address is unknown.");
 
   const safeContract = new ethers.Contract(safeAddress, SAFE_ABI, deployer);
   const version: string = await safeContract.VERSION();
   const threshold = await safeContract.getThreshold();
   const owners = (await safeContract.getOwners()) as string[];
-  console.log(`\nReal Gnosis Safe deployed: ${safeAddress}`);
+  console.log(`\nReal Gnosis Safe: ${safeAddress}`);
   console.log(`  version ${version} · threshold ${threshold} · owners ${owners.join(", ")}`);
-  console.log(`  creation tx: ${createReceipt.hash}`);
+  console.log(`  creation tx: ${createTxHash ?? "not provided (reused Safe)"}`);
 
   /** Execute through the Safe itself, the only way Safe 1.4.1 permits a self-call. */
   async function execSafeTx(to: string, value: bigint, data: string) {
@@ -270,25 +351,46 @@ async function main() {
   const installReceipt = await installTx.wait();
   if (installReceipt?.status !== 1) throw new Error("Installing the guard through the Safe self-call failed.");
 
-  const installedGuard: string = await safeContract.getGuard();
+  const installedGuard = await guardFromStorage(safeAddress);
   if (installedGuard.toLowerCase() !== guardAddress.toLowerCase()) {
-    throw new Error(`The Safe reports guard ${installedGuard}, expected ${guardAddress}.`);
+    throw new Error(
+      `The Safe's guard slot holds ${installedGuard}, expected ${guardAddress}. ` +
+        "Safe 1.4.1 has no public getGuard(), so the storage slot is the authority here."
+    );
   }
   console.log(`Guard installed through the Safe's own execTransaction: ${installReceipt.hash}`);
-  console.log(`  Safe.getGuard() = ${installedGuard}`);
+  console.log(`  guard slot = ${installedGuard}`);
 
   // ------------------------------------------------------------------ prove both directions
 
-  await (await deployer.sendTransaction({ to: safeAddress, value: ethers.parseEther("0.01") })).wait();
+  // A thin deployer must not strand the run at the last step: fund the Safe with what is left
+  // after a gas reserve, capped at the amount the demo needs. The Safe is already created and
+  // enrolled by this point, so a failure here is resumable with REAL_SAFE_ADDRESS.
+  const deployerBalance = await ethers.provider.getBalance(deployer.address);
+  const spare = deployerBalance > GAS_RESERVE ? deployerBalance - GAS_RESERVE : 0n;
+  const funding = spare >= FUNDING_TARGET ? FUNDING_TARGET : spare;
+  if (funding < DEMO_SPEND * 2n) {
+    throw new Error(
+      `The deployer holds ${ethers.formatEther(deployerBalance)} ETH on ${network.name}, which cannot fund the ` +
+        `demo spends (${ethers.formatEther(DEMO_SPEND * 2n)} ETH) and still pay gas. Top the deployer up and re-run ` +
+        `with REAL_SAFE_ADDRESS=${safeAddress} to continue without creating another Safe.`
+    );
+  }
+  console.log(`Funding the Safe with ${ethers.formatEther(funding)} ETH for the demo spends`);
+  await (await deployer.sendTransaction({ to: safeAddress, value: funding })).wait();
 
-  const allowedTx = await execSafeTx(PAYROLL, ethers.parseEther("0.001"), "0x");
+  const allowedTx = await execSafeTx(PAYROLL, DEMO_SPEND, "0x");
   const allowedReceipt = await allowedTx.wait();
   console.log(`\nAllowed: payment to the allowlisted payee settled — ${allowedReceipt?.hash}`);
 
   let blocked = false;
   let blockedReason = "";
+  // A refusal is still a transaction: it is sent, reverts, and pays gas, so it has a hash a judge
+  // can open. Capture it from whichever path the provider takes (receipt or thrown error).
+  let blockedTxHash: string | null = null;
   try {
-    const blockedTx = await execSafeTx(UNLISTED, ethers.parseEther("0.001"), "0x");
+    const blockedTx = await execSafeTx(UNLISTED, DEMO_SPEND, "0x");
+    blockedTxHash = blockedTx.hash;
     const blockedReceipt = await blockedTx.wait();
     if (blockedReceipt?.status === 0) {
       blocked = true;
@@ -297,6 +399,8 @@ async function main() {
   } catch (error) {
     blocked = true;
     blockedReason = error instanceof Error ? error.message.slice(0, 160) : String(error);
+    const withHash = error as { transactionHash?: string; receipt?: { hash?: string } };
+    blockedTxHash = withHash.transactionHash ?? withHash.receipt?.hash ?? blockedTxHash;
   }
 
   if (!blocked) {
@@ -306,6 +410,7 @@ async function main() {
     );
   }
   console.log(`Blocked: payment to ${UNLISTED} was refused inside the Safe — ${blockedReason}`);
+  if (blockedTxHash) console.log(`  refused transaction: ${blockedTxHash}`);
 
   // ------------------------------------------------------------------ record the evidence
 
@@ -320,10 +425,11 @@ async function main() {
       proxyFactory: safe.proxyFactory,
       singleton: safe.singleton,
       fallbackHandler: safe.fallbackHandler,
-      createTxHash: createReceipt.hash,
+      createTxHash,
       enrollTxHash: enrollTx.hash,
       setGuardThroughExecTransactionTxHash: installReceipt.hash,
       allowedExecTxHash: allowedReceipt?.hash ?? null,
+      blockedExecTxHash: blockedTxHash,
       blockedExecRefused: blocked
     }
   };
@@ -335,7 +441,7 @@ async function main() {
     : "https://sepolia.arbiscan.io";
   console.log("\nExplorer links (paste these into the submission, not a screenshot):");
   console.log(`  Safe:                 ${explorer}/address/${safeAddress}`);
-  console.log(`  Safe creation:        ${explorer}/tx/${createReceipt.hash}`);
+  if (createTxHash) console.log(`  Safe creation:        ${explorer}/tx/${createTxHash}`);
   console.log(`  Guard install:        ${explorer}/tx/${installReceipt.hash}`);
   console.log(`  Allowed spend:        ${explorer}/tx/${allowedReceipt?.hash ?? ""}`);
   console.log("\nThen repoint the manifest so the app and the API agree with the chain:");

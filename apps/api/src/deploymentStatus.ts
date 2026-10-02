@@ -97,7 +97,7 @@ type LiveManifest = {
  * deployment had two answers depending on which side asked. This file is the one both read
  * from, and `npm run check:deployed` verifies it against the chain.
  */
-function readLiveManifest(): {
+function readLiveManifest(forChainId?: number | null): {
   network: string;
   chainId: number | null;
   policyManager: string;
@@ -114,7 +114,10 @@ function readLiveManifest(): {
     try {
       const manifest = JSON.parse(readFileSync(path, "utf8")) as LiveManifest;
       const networks = Array.isArray(manifest.networks) ? manifest.networks : [];
-      const chosen = networks.find((n) => n.name === "arbitrumSepolia") ?? networks[0];
+      const chosen =
+        (forChainId != null ? networks.find((n) => n.chainId === forChainId) : undefined) ??
+        networks.find((n) => n.name === "arbitrumSepolia") ??
+        networks[0];
       if (!chosen) continue;
       const addressOf = (contract: string) =>
         chosen.contracts?.find((c) => c.contract === contract)?.address ?? null;
@@ -164,7 +167,20 @@ export function getDeploymentStatus(): DeploymentStatus {
   // network's record is allowed to win; anything else falls through to the committed manifest.
   const localIsRealNetwork =
     local !== null && local.chainId !== undefined && local.chainId !== null && local.chainId !== 31337;
-  if (localIsRealNetwork && local?.policyManager?.address && local?.executionGuard?.address) {
+  // The API only ever serves the Arbitrum Sepolia lane, so a local record for some other
+  // network (a second-lane deploy, say) must not decide what the API reports about its own.
+  const localIsServedLane =
+    localIsRealNetwork && (local?.network === "arbitrumSepolia" || local?.chainId === 421614);
+  if (localIsServedLane && local?.policyManager?.address && local?.executionGuard?.address) {
+    // A freshly written record proves what was deployed, but not that anyone reconciled it.
+    // Only when its addresses agree with the manifest — the file `check:deployed` verifies
+    // against the chain — does it inherit that manifest's status. Anything else stays
+    // "unknown", so an unreconciled deploy cannot masquerade as the product's deployment.
+    const reconciled = readLiveManifest(local.chainId);
+    const agrees =
+      reconciled !== null &&
+      reconciled.policyManager.toLowerCase() === local.policyManager.address.toLowerCase() &&
+      reconciled.executionGuard.toLowerCase() === local.executionGuard.address.toLowerCase();
     const isSepolia = local.network === "arbitrumSepolia" || local.chainId === 421614;
     return buildDeploymentStatus(
       isSepolia ? "Arbitrum Sepolia" : (local.network ?? "local"),
@@ -174,7 +190,7 @@ export function getDeploymentStatus(): DeploymentStatus {
       local.policyManager.txHash ?? null,
       local.executionGuard.txHash ?? null,
       "local-file",
-      "unknown"
+      agrees ? reconciled.status : "unknown"
     );
   }
 

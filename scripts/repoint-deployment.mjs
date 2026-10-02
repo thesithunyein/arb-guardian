@@ -57,14 +57,17 @@ const FIELD_MAP = [
   ["POLICY_MANAGER", (d) => d.policyManager?.address, "VITE_POLICY_MANAGER_ADDRESS"],
   ["EXECUTION_GUARD", (d) => d.executionGuard?.address, "VITE_EXECUTION_GUARD_ADDRESS"],
   ["SAFE_TREASURY_GUARD", (d) => d.safeTreasuryGuard?.address, "VITE_SAFE_TREASURY_GUARD_ADDRESS"],
-  ["TREASURY_SAFE", (d) => d.treasurySafeShell?.address, "VITE_TREASURY_SAFE_ADDRESS"],
+  // The real Gnosis Safe wins over the bespoke shell when a run recorded one: the shell proves the
+  // guard works, the real Safe proves the Safe integration, and it is the address a judge should
+  // land on when they click through.
+  ["TREASURY_SAFE", (d) => d.realSafe?.address ?? d.treasurySafeShell?.address, "VITE_TREASURY_SAFE_ADDRESS"],
   ["POLICY_MANAGER_TX", (d) => d.policyManager?.txHash, "VITE_POLICY_MANAGER_TX"],
   ["EXECUTION_GUARD_TX", (d) => d.executionGuard?.txHash, "VITE_EXECUTION_GUARD_TX"],
   ["SAFE_TREASURY_GUARD_TX", (d) => d.safeTreasuryGuard?.txHash, "VITE_SAFE_TREASURY_GUARD_TX"],
-  ["TREASURY_SAFE_TX", (d) => d.treasurySafeShell?.deployTxHash, "VITE_TREASURY_SAFE_TX"],
-  ["SAFE_ENROLLMENT_TX", (d) => d.treasurySafeShell?.enrollmentTxHash, "VITE_SAFE_ENROLLMENT_TX"],
-  ["SAFE_SET_GUARD_TX", (d) => d.treasurySafeShell?.setGuardTxHash, "VITE_SAFE_SET_GUARD_TX"],
-  ["SAFE_ALLOWED_EXEC_TX", (d) => d.treasurySafeShell?.allowedExecTxHash, "VITE_SAFE_ALLOWED_EXEC_TX"]
+  ["TREASURY_SAFE_TX", (d) => d.realSafe?.createTxHash ?? d.treasurySafeShell?.deployTxHash, "VITE_TREASURY_SAFE_TX"],
+  ["SAFE_ENROLLMENT_TX", (d) => d.realSafe?.enrollTxHash ?? d.treasurySafeShell?.enrollmentTxHash, "VITE_SAFE_ENROLLMENT_TX"],
+  ["SAFE_SET_GUARD_TX", (d) => d.realSafe?.setGuardThroughExecTransactionTxHash ?? d.treasurySafeShell?.setGuardTxHash, "VITE_SAFE_SET_GUARD_TX"],
+  ["SAFE_ALLOWED_EXEC_TX", (d) => d.realSafe?.allowedExecTxHash ?? d.treasurySafeShell?.allowedExecTxHash, "VITE_SAFE_ALLOWED_EXEC_TX"]
 ];
 
 /**

@@ -10,65 +10,65 @@ export const EXPLORER = "https://sepolia.arbiscan.io";
 /** Recorded Arbitrum Sepolia deployment (public, onchain; superseded by the current source). */
 export const POLICY_MANAGER =
   import.meta.env.VITE_POLICY_MANAGER_ADDRESS?.trim() ||
-  "0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76";
+  "0x3e394b1d9781a71D71905d028C530B29Aa0021a6";
 export const EXECUTION_GUARD =
   import.meta.env.VITE_EXECUTION_GUARD_ADDRESS?.trim() ||
-  "0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124";
+  "0x5e60F2D4E3F50eA16Ed0413e718535d720c3D5cC";
 export const SAFE_TREASURY_GUARD =
   import.meta.env.VITE_SAFE_TREASURY_GUARD_ADDRESS?.trim() ||
-  "0xcba30F60BE3FB0fB0e9db0C816c4ab9Fa2f7b211";
+  "0x01b03b1e0E20F84a9Fa832AbeB58283e30cA2F1b";
 export const TREASURY_SAFE =
   import.meta.env.VITE_TREASURY_SAFE_ADDRESS?.trim() ||
-  "0x009D53F97a07d9E141eA5ff90354d7bE748fa542";
+  "0x5769B6973cF7E85acfa7590763549bfCf80Cbb82";
 export const POLICY_MANAGER_TX =
   import.meta.env.VITE_POLICY_MANAGER_TX?.trim() ||
-  "0x9400d2f97914093c516c38242d86d6368d4e352dc867cc9ef735a6c6bd00afc2";
+  "0xcf05d7550a84f8f9025d72f1a1ff6a48b56e2f6244e7b28c359b66ec5c8dd02d";
 export const EXECUTION_GUARD_TX =
   import.meta.env.VITE_EXECUTION_GUARD_TX?.trim() ||
-  "0xad9c6ca6b58c06e10b34701776cf135d97cb5c11a534ce02bb781df189afc1a0";
+  "0x23f446d300ea4c6cfaf39191d95091ff7be5a06e32c6482354eac3a03b59dd86";
 export const SAFE_TREASURY_GUARD_TX =
   import.meta.env.VITE_SAFE_TREASURY_GUARD_TX?.trim() ||
-  "0x809ca1051a8997a307c8e9d0bc66348e01eb51c45564e6425fb59c9fa14c3f1b";
+  "0x8cf1615ca6849bfef4fc3b33ba554a28d8cddb8459b25c3191970d579563eff6";
 export const TREASURY_SAFE_TX =
   import.meta.env.VITE_TREASURY_SAFE_TX?.trim() ||
-  "0x384e35c4da7e667f8a6887af50a8dbb0e8b1f4cc7c787d6179c4b043993b39d5";
+  "0x53267ccaa5b33b4bceb07d251439f479cd3612714c2f524ee191bb09b61913b9";
 export const SAFE_ENROLLMENT_TX =
   import.meta.env.VITE_SAFE_ENROLLMENT_TX?.trim() ||
-  "0x5473cda2369d024b1f802998f64fa6ee5ccf15dc7e6d617052ddae5f89cb28ef";
+  "0x6111dab636eae4dfb29dbeca0b79ab6ea11e13823a68f738dc01b8bbc79d151f";
 export const SAFE_SET_GUARD_TX =
   import.meta.env.VITE_SAFE_SET_GUARD_TX?.trim() ||
-  "0xb2c4aea1168ea84acba7d00b35642eec75522e76d5228f75db73540e300caacf";
+  "0x98dc84c456e81c554ba22a137ac85b6b79da160288fdb796cb9ab8c1d295c907";
 export const SAFE_ALLOWED_EXEC_TX =
   import.meta.env.VITE_SAFE_ALLOWED_EXEC_TX?.trim() ||
-  "0xd4ec25f77a9ea06d053997ea2d7e68e87a91518f8fa4d7b60618d2ca80a6978a";
+  "0x21e996c617c0d3913b8f9543c7f4ec232a20be8e641983c0c706a5950860c9d7";
 
 /** Robinhood Chain Testnet (Overall reserved-lane proof). */
 export const RH_EXPLORER = "https://explorer.testnet.chain.robinhood.com";
 export const RH_CHAIN_ID = 46630;
 export const RH_POLICY_MANAGER =
   import.meta.env.VITE_RH_POLICY_MANAGER_ADDRESS?.trim() ||
-  "0x57077DA6DEFCAAB83aEAbE080641D5D1Ed66758F";
+  "0x3E4a51B35a984f33D4F71CEf96Eb8f08fcC8Ef2b";
 export const RH_EXECUTION_GUARD =
   import.meta.env.VITE_RH_EXECUTION_GUARD_ADDRESS?.trim() ||
-  "0x4019C445bbc593eA5eb13D319Ca427aA8aDc7613";
+  "0xD1bbF5e71295696B2011408eAa13dEb69adcD21D";
 export const RH_SAFE_TREASURY_GUARD =
   import.meta.env.VITE_RH_SAFE_TREASURY_GUARD_ADDRESS?.trim() ||
-  "0xa168227dB7a3340e988Dbf9Cd01894840617E729";
+  "0xe10afE3da5546fc0F34c6F38DB3920BD5f5C6999";
 export const RH_TREASURY_SAFE =
   import.meta.env.VITE_RH_TREASURY_SAFE_ADDRESS?.trim() ||
-  "0x10fbe21ccb611A2aBF12a784C67278eAf6dE6124";
+  "0x8D9540796444ded4dA17fC0FA38CcBb9a701991a";
 export const RH_POLICY_MANAGER_TX =
   import.meta.env.VITE_RH_POLICY_MANAGER_TX?.trim() ||
-  "0x77159f282e6720d6c1258c4cd19b3ade9cb2565a2fe9008041ba1be41c33b584";
+  "0x732c69171fe297bec508384384aac2d7b3574c1394f40be42bacd8f6bd835a54";
 export const RH_EXECUTION_GUARD_TX =
   import.meta.env.VITE_RH_EXECUTION_GUARD_TX?.trim() ||
-  "0xa69a6fc66b926006de43ff009aff9fc91f24775891f6d90d167f4ee6d358adcd";
+  "0xaba91ef8432d20c0a81e98985afd3678c87629cb9b5c7ce7ef93e0b1190fa802";
 export const RH_SAFE_TREASURY_GUARD_TX =
   import.meta.env.VITE_RH_SAFE_TREASURY_GUARD_TX?.trim() ||
-  "0x8b00eb58f8ddc11191bae43083582f465fd5b5c6e4d36c08938e31e8ab549b64";
+  "0x20a8b36afa59c6c7dcc7b3a35630c838e025dc4884cd7ef2cfe0ab258a7d488a";
 export const RH_TREASURY_SAFE_TX =
   import.meta.env.VITE_RH_TREASURY_SAFE_TX?.trim() ||
-  "0xf6968bded0810f6c9ba52db5b17c4c5fa5def1467df92af55cfd7561b5ee7a2f";
+  "0xb10a404f19aa129155ec4518f3db29980fb6318bf487cf827c0dc2ee75896f8f";
 export const RH_READY = /^0x[a-fA-F0-9]{40}$/.test(RH_POLICY_MANAGER) && /^0x[a-fA-F0-9]{40}$/.test(RH_EXECUTION_GUARD);
 
 /**
