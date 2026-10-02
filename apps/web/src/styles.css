@@ -106,6 +106,19 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 @media (prefers-reduced-motion: reduce) { .panel { animation: none; } .surface, button.primary, button.ghost { transition: none; } }
 @media (max-width: 640px) { .app-shell { padding: 1rem 1rem 2rem; } .tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; } .tab { width: 100%; } }
 
+.info-section { margin-top: 1rem; }
+.info-section h3 { margin: 0.35rem 0 1rem; }
+.steps-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.steps-grid article { display: grid; gap: 0.35rem; padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius-product); background: var(--bg-panel); }
+.steps-grid p, .faq-list p { margin: 0; line-height: 1.55; }
+.step-number { color: var(--accent); font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; }
+.faq-list { display: grid; gap: 0.25rem; }
+.faq-list details { border-bottom: 1px solid var(--line); padding: 0.7rem 0; }
+.faq-list details:last-child { border-bottom: 0; }
+.faq-list summary { cursor: pointer; min-height: 40px; padding: 0.4rem 0; color: var(--ink); font-weight: 700; }
+.faq-list summary::marker { color: var(--accent); }
+@media (max-width: 640px) { .steps-grid { grid-template-columns: 1fr; } }
+
 /* Product UI refresh: quiet, high-trust treasury workspace. */
 :root,
 [data-theme="dark"] {

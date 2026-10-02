@@ -336,10 +336,10 @@ function playbookLabel(id: string) {
 }
 
 function plainOutcome(assessment: RiskAssessment, intentId: IntentId) {
-  if (!assessment.blocked) return "Allow — within policy";
+  if (!assessment.blocked) return "Allow: within policy";
   const hint = INTENTS[intentId].outcomeHint;
-  if (assessment.totalScore >= 80) return `Block — ${hint}`;
-  return `Hold — ${hint}`;
+  if (assessment.totalScore >= 80) return `Block: ${hint}`;
+  return `Hold: ${hint}`;
 }
 
 function methodLabel(method: string) {
@@ -349,9 +349,9 @@ function methodLabel(method: string) {
 }
 
 function formatEth(wei: string | undefined | null) {
-  if (wei == null || wei === "" || wei === "undefined") return "—";
+  if (wei == null || wei === "" || wei === "undefined") return "Not set";
   const n = Number(wei) / 1e18;
-  if (!Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "Not set";
   return `${n.toLocaleString(undefined, { maximumFractionDigits: 4 })} ETH`;
 }
 
@@ -653,13 +653,13 @@ export function App() {
       const data = (await res.json()) as Partial<TreasuryStats> & { yours?: { usageCount?: number } };
       applyTreasuryStats(data);
     } catch {
-      // ignore — usage proof is best-effort
+      // Ignore. Usage proof is best effort.
     }
   }
 
   function awardXp(amount: number, _label: string, badgeKey?: BadgeKey, tone: "xp" | "block" | "success" | "freeze" = "xp") {
     setXp((v) => v + amount);
-    // No toast chrome in product mode — keep subtle sound only.
+    // No toast chrome in product mode. Keep subtle sound only.
     if (tone === "block") void sfxBlock();
     else if (tone === "success") void sfxSuccess();
     else if (tone === "freeze") void sfxFreeze();
@@ -716,7 +716,7 @@ export function App() {
   useEffect(() => {
     pingRpc().then(setRpcLive);
     const local = loadLocalEnroll();
-    // Always restore local session first — never flash disconnected while API syncs.
+    // Always restore local session first. Never flash disconnected while API syncs.
     if (local?.address) {
       setWalletAddress(local.address);
       setEnrolled(true);
@@ -786,7 +786,7 @@ export function App() {
         ]);
       })
       .then(([incidentsData, kpiData, evalData, policyData]) => {
-        // Ephemeral serverless memory can be empty on another instance — never wipe local alerts.
+        // Ephemeral serverless memory can be empty on another instance. Never wipe local alerts.
         const remote = ((incidentsData as { items?: IncidentItem[] }).items ?? []).filter(Boolean);
         if (remote.length > 0) {
           setIncidents((prev) => {
@@ -941,7 +941,7 @@ export function App() {
 
   async function applyAction(incidentId: string, action: "acknowledge" | "mitigate" | "ignore") {
     setError(null);
-    // Optimistic local update first — serverless GET must never wipe this queue.
+    // Optimistic local update first. Serverless GET must never wipe this queue.
     setIncidents((prev) =>
       prev.map((item) =>
         item.id === incidentId ? { ...item, status: nextIncidentStatus(item.status, action) } : item
@@ -1159,12 +1159,11 @@ export function App() {
             <span className="accent">Arb</span> Guardian
           </h2>
           <p className="hero-lead">
-            Give an agent, bot or operator money without giving it the ability to drain the account. Check the spend
-            before it clears — and lock the treasury when it looks wrong.
+            Give an agent, bot or operator a budget. Keep the treasury under your control.
           </p>
           <div className="cta-row">
             <button type="button" className="primary" onClick={enterWorld}>
-              Open
+              Enter workspace
             </button>
             <button
               type="button"
@@ -1174,7 +1173,7 @@ export function App() {
               }}
               disabled={loading}
             >
-              {loading ? "Checking…" : "See a risky spend"}
+              {loading ? "Checking…" : "Review a transaction"}
             </button>
           </div>
           {error && <p className="error">{error}</p>}
@@ -1215,7 +1214,7 @@ export function App() {
                       {policyPaused
                         ? "Unlock from Alerts when it is safe"
                         : openIncidents > 0
-                          ? "Open Alerts to lock the treasury or dismiss"
+                          ? "Review Alerts to lock the treasury or dismiss"
                           : "See if a spend is safe before anyone approves it"}
                     </p>
                   </div>
@@ -1230,7 +1229,7 @@ export function App() {
                         }}
                       >
                         <IconAlerts size={16} />
-                        {policyPaused ? "Manage lock" : "Open alerts"}
+                        {policyPaused ? "Manage lock" : "Review alerts"}
                       </button>
                     ) : (
                       <button type="button" className="primary" onClick={() => goCheck("risky-approve")}>
@@ -1262,18 +1261,18 @@ export function App() {
                   </section>
                 )}
 
-                <section className="surface enroll-card" aria-label="Join the pilot">
+                <section className="surface enroll-card" aria-label="Product updates">
                   <div className="enroll-copy">
                     <p className="snapshot-label">For teams</p>
-                    <strong>{interestJoined ? "You're on the list" : "Join with email — no wallet"}</strong>
+                    <strong>{interestJoined ? "You're on the list" : "Get product updates"}</strong>
                     <p className="muted">
-                      Treasury owners and operators: leave your treasury name and email. We'll follow up when enroll opens.
+                      Treasury owners and operators can get launch updates. No wallet needed.
                     </p>
                   </div>
                   {interestJoined ? (
                     <div className="enroll-done">
                       <p>
-                        <strong>{interestMsg || "Thanks — you're on the list."}</strong>
+                        <strong>{interestMsg || "You are on the list."}</strong>
                       </p>
                       <p>
                         <button
@@ -1287,7 +1286,7 @@ export function App() {
                               setInterestMsg("Invite link copied.");
                               void sfxSuccess();
                             } catch {
-                              setInterestMsg("Copy failed — share arb-guardian.vercel.app");
+                              setInterestMsg("Copy failed. Share arb-guardian.sithunyein.com");
                             }
                           }}
                         >
@@ -1330,7 +1329,7 @@ export function App() {
                       <div className="enroll-copy">
                         <p className="snapshot-label">Operator</p>
                         <strong>Wallet linked</strong>
-                        <p className="muted">You can check spends and freeze the treasury.</p>
+                        <p className="muted">                        Check spends and freeze the treasury.</p>
                       </div>
                       <div className="enroll-done">
                         <p>
@@ -1354,12 +1353,12 @@ export function App() {
                           setOperatorOpen((v) => !v);
                         }}
                       >
-                        {operatorOpen ? "Hide operator wallet" : "I'm an operator — connect wallet"}
+                        {operatorOpen ? "Hide operator wallet" : "Connect an operator wallet"}
                       </button>
                       {operatorOpen ? (
                         <>
                           <p className="muted" style={{ margin: 0 }}>
-                            Optional. Link once so checks and freezes count for your treasury.
+                            Link a wallet to check spends and freeze your treasury.
                           </p>
                           <form className="enroll-form" onSubmit={enrollTreasury}>
                             <input
@@ -1395,6 +1394,51 @@ export function App() {
                       ) : null}
                     </>
                   )}
+                </section>
+
+                <section className="surface info-section" aria-labelledby="how-it-works">
+                  <p className="snapshot-label">How it works</p>
+                  <h3 id="how-it-works">A simple control loop for treasury teams</h3>
+                  <div className="steps-grid">
+                    <article>
+                      <span className="step-number">01</span>
+                      <strong>Set the policy</strong>
+                      <p className="muted">Choose payees, assets, and daily limits.</p>
+                    </article>
+                    <article>
+                      <span className="step-number">02</span>
+                      <strong>Review the spend</strong>
+                      <p className="muted">See the amount, payee, and rules before approval.</p>
+                    </article>
+                    <article>
+                      <span className="step-number">03</span>
+                      <strong>Act with confidence</strong>
+                      <p className="muted">Allow safe requests. Block risky ones. Freeze when needed.</p>
+                    </article>
+                  </div>
+                </section>
+
+                <section className="surface info-section" aria-labelledby="faq">
+                  <p className="snapshot-label">FAQ</p>
+                  <h3 id="faq">Questions teams ask first</h3>
+                  <div className="faq-list">
+                    <details>
+                      <summary>Who is Arb Guardian for?</summary>
+                      <p className="muted">DAOs, onchain companies, grant teams, and operators who share treasury access.</p>
+                    </details>
+                    <details>
+                      <summary>Does it move funds for me?</summary>
+                      <p className="muted">No. It checks requests and enforces policy. Your Safe and signers stay in control.</p>
+                    </details>
+                    <details>
+                      <summary>What happens when a request breaks policy?</summary>
+                      <p className="muted">The request is blocked. The team sees the reason and can review the alert.</p>
+                    </details>
+                    <details>
+                      <summary>Can I use it with a Safe?</summary>
+                      <p className="muted">Yes. SafeTreasuryGuard is designed for Safe transaction guards.</p>
+                    </details>
+                  </div>
                 </section>
               </div>
             )}
@@ -1531,7 +1575,7 @@ export function App() {
                       </p>
                       <p className="decision-copy">
                         {assessment.blocked
-                          ? "Do not approve this. The policy helper suggests freezing the treasury — a human must confirm in Alerts."
+                          ? "Do not approve this. Review the alert before you freeze the treasury."
                           : "Looks clean. Within policy. You can approve this."}
                       </p>
                       <div className="operator-ai">
@@ -1547,7 +1591,7 @@ export function App() {
                       {whyOpen && (
                         <ul className="clean why-list">
                           {assessment.matches.length === 0 ? (
-                            <li>No rule flags — destination and amount are inside treasury limits.</li>
+                            <li>No rule flags. Destination and amount are inside treasury limits.</li>
                           ) : (
                             assessment.matches.map((m) => (
                               <li key={m.ruleId}>
@@ -1568,7 +1612,7 @@ export function App() {
                             }}
                           >
                             <IconAlerts size={16} />
-                            Open alerts
+                            Review alerts
                           </button>
                         ) : (
                           <button
@@ -1738,8 +1782,7 @@ export function App() {
                     <IconAutomation size={18} /> Playbooks
                   </h3>
                   <p className="muted">
-                    Clear responses for each risk level. The helper only suggests — freezing the treasury still needs
-                    your click in Alerts.
+                    Clear responses for each risk level. A human confirms every freeze.
                   </p>
                   <div className="evidence-grid" style={{ marginTop: "1rem" }}>
                     <article>
@@ -1765,8 +1808,7 @@ export function App() {
                   {agentEval ? (
                     <p className="muted" style={{ marginBottom: "0.65rem" }}>
                       {agentEval.passed}/{agentEval.total} fixed policy cases match spec (
-                      {((agentEval.conformanceRate ?? 0) * 100).toFixed(0)}%). Regression fixtures only — not
-                      model validation.
+                      {((agentEval.conformanceRate ?? 0) * 100).toFixed(0)}%). Regression fixtures only.
                     </p>
                   ) : (
                     <p className="muted" style={{ marginBottom: "0.65rem" }}>
@@ -1801,7 +1843,7 @@ export function App() {
                     Arbitrum Sepolia and Robinhood Chain Testnet run the earlier native-lane deployment. Those addresses
                     are real and source-verified, but they predate the token lane and the policy attestation, so do not
                     read them as proof of the code you are looking at. Everything below is generated from the current
-                    source by <code>npm run evidence -w packages/contracts</code> — run it and compare. Addresses and
+                    source by <code>npm run evidence -w packages/contracts</code>. Run it and compare. Addresses and
                     explorer links: <code>docs/live-deployment.md</code>.
                   </p>
                   <p className="muted section-lead">
@@ -1820,7 +1862,7 @@ export function App() {
                     {driftReport.summary.unreachable > 0
                       ? `, ${driftReport.summary.unreachable} unreachable`
                       : ""}
-                    . A drifted contract is one whose deployed source is not the source you are reading now — the honest
+                    . A drifted contract is one whose deployed source is not the source you are reading now. The honest
                     status of both networks until the redeploy. {driftReport.note} Generated {DRIFT_GENERATED_AT} by{" "}
                     <code>npm run check:deployed</code>, which fails when a network&apos;s declared status and the chain
                     disagree.
@@ -1831,8 +1873,8 @@ export function App() {
                         <strong>{network.label}</strong> · chain {network.chainId} · declared {" "}
                         <code>{network.declared}</code>
                         {network.declared === "superseded"
-                          ? " — expected to differ from this source, and it does"
-                          : " — expected to match this source"}
+                          ? ": expected to differ from this source, and it does"
+                          : ": expected to match this source"}
                       </p>
                       <ul className="clean">
                         {network.contracts.map((c) => (
@@ -1846,7 +1888,7 @@ export function App() {
                                     ? "No code"
                                     : "Not read"}
                             </strong>
-                            {" — "}
+                            {": "}
                             <a href={c.url} target="_blank" rel="noreferrer noopener">
                               {c.contract}
                             </a>
@@ -1868,7 +1910,7 @@ export function App() {
                     <IconSecurity size={18} /> Contract quality · reproduced from source
                   </h3>
                   <p className="muted section-lead">
-                    Not a claim — the artifact. {guardProof.summary.passed}/{guardProof.summary.total} cases behaved as
+                    Not a claim. This is the artifact. {guardProof.summary.passed}/{guardProof.summary.total} cases behaved as
                     specified against a real Gnosis Safe v{PROOF_SAFE_VERSION}, with the guard installed the only way
                     Safe permits (an owner-approved call the Safe makes to itself). Generated {PROOF_GENERATED_AT} by{" "}
                     <code>npm run evidence -w packages/contracts</code>, which exits non-zero if any row drifts.
@@ -1887,7 +1929,7 @@ export function App() {
                       <span>USDG-ready</span>
                       <p>
                         Register an ERC-20, allowlist its counterparties, cap it per wallet per day in the token&apos;s
-                        own base units — 6 decimals, not wei.
+                        own base units: 6 decimals, not wei.
                       </p>
                     </article>
                     <article className="asset-card">
@@ -1915,16 +1957,16 @@ export function App() {
                 <section className="surface span-2">
                   <h3>Guard proof · every case, with its revert reason</h3>
                   <p className="muted section-lead">
-                    Row 1 is the same payment as row 2, executed <em>before</em> the guard was installed — and it
+                    Row 1 is the same payment as row 2, executed <em>before</em> the guard was installed. It
                     settles. A screenshot of a blocked transaction proves nothing on its own; the before/after pair is
                     what shows the guard is the thing making the difference.
                   </p>
                   <ul className="clean">
                     {guardProof.cases.map((item) => (
                       <li key={item.id}>
-                        <strong>{item.outcome === "blocked" ? "Refused" : "Settled"}</strong>{" — "}
+                        <strong>{item.outcome === "blocked" ? "Refused" : "Settled"}</strong>{": "}
                         {item.description}{" "}
-                        {item.reason !== "—" ? (
+                        {item.reason !== "Not set" ? (
                           <span className="muted">
                             · <code>{item.reason}</code>
                           </span>
@@ -1938,7 +1980,7 @@ export function App() {
                   <h3>Policy attestation · replayable from logs</h3>
                   <p className="muted section-lead">
                     Policy is versioned and hash-chained. Each amendment emits its parameters and folds into a running
-                    digest, so the history can be recomputed from logs alone — no trust in the contract&apos;s storage —
+                    digest, so the history can be recomputed from logs alone. No trust in the contract&apos;s storage.
                     and editing an early amendment changes every later digest.
                   </p>
                   <ul className="clean">
@@ -1958,7 +2000,7 @@ export function App() {
                     </li>
                     <li>
                       {guardProof.policyAttestation.distinctPolicyVersionsInDecisions} distinct policy versions across
-                      those decisions — the stamp tracks amendments rather than reporting a constant
+                      those decisions. The stamp tracks amendments rather than reporting a constant
                     </li>
                     <li>
                       Head policy version {guardProof.policyAttestation.headVersion} · digest{" "}
@@ -2061,7 +2103,7 @@ export function App() {
       )}
 
       <footer className="footer">
-        <div>Arb Guardian — contract-enforced spend policy for delegated funds</div>
+        <div>Arb Guardian: contract-enforced spend policy for delegated funds</div>
         <div>
           <span>Arb Guardian workspace</span>
           {runtime === "api" ? " · Connected" : null}
