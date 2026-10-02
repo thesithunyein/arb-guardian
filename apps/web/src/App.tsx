@@ -2208,11 +2208,37 @@ export function App() {
         </>
       )}
 
-      <footer className="footer">
-        <div>Arb Guardian: contract-enforced spend policy for delegated funds</div>
-        <div>
-          <span>Arb Guardian workspace</span>
-          {runtime === "api" ? " · Connected" : null}
+      <footer className={`footer ${entered ? "workspace-footer" : "landing-footer"}`}>
+        <div className="footer-brand">
+          <strong>
+            <span className="accent">Arb</span> Guardian
+          </strong>
+          <span>Shared funds, safer decisions.</span>
+        </div>
+        {!entered ? (
+          <div className="footer-links" aria-label="Footer navigation">
+            <a href="#landing-how-it-works">How it works</a>
+            <a href="#landing-faq">FAQ</a>
+            <a
+              href="https://github.com/thesithunyein/arb-guardian/tree/master/docs"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Docs
+            </a>
+            <a href="https://github.com/thesithunyein/arb-guardian" target="_blank" rel="noreferrer">
+              GitHub
+            </a>
+          </div>
+        ) : (
+          <div>
+            <span>Arb Guardian workspace</span>
+            {runtime === "api" ? " · Connected" : null}
+          </div>
+        )}
+        <div className="footer-meta">
+          <span>Arbitrum treasury controls</span>
+          <span>© 2026 Arb Guardian</span>
         </div>
       </footer>
       </div>
