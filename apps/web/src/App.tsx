@@ -1155,13 +1155,12 @@ export function App() {
           <LandingBackdrop />
           <section className="hero title-hero">
             <div className="hero-copy">
-              <p className="hero-kicker">SPENDING CONTROLS FOR SHARED FUNDS</p>
+              <p className="hero-kicker">TREASURY CONTROL FOR SHARED FUNDS</p>
               <h2>
                 <span className="accent">Know</span> before money moves.
               </h2>
               <p className="hero-lead">
-                Arb Guardian helps teams check a payment before it is approved. Set clear limits, keep trusted
-                recipients, and stop unusual requests.
+                Clear rules for every payment. A calm review before approval. A fast way to stop unusual spending.
               </p>
               <div className="cta-row">
                 <button type="button" className="primary" onClick={enterWorld}>
@@ -1175,51 +1174,43 @@ export function App() {
                   }}
                   disabled={loading}
                 >
-                  {loading ? "Checking…" : "See a payment review"}
+                  {loading ? "Checking…" : "Review a payment"}
                 </button>
               </div>
-              <p className="landing-note">Built for teams that share access to company, community, or digital funds.</p>
               {error && <p className="error">{error}</p>}
             </div>
-            <div className="hero-panel" aria-label="Payment review example">
-              <div className="hero-panel-head">
-                <span>Payment review</span>
-                <span className="review-badge risk">Needs review</span>
+            <div className="hero-orbit" aria-hidden="true">
+              <div className="orbit-ring orbit-ring-one" />
+              <div className="orbit-ring orbit-ring-two" />
+              <div className="orbit-core">
+                <img src="/logo.png" alt="" width={78} height={78} />
               </div>
-              <strong>Should this payment go out?</strong>
-              <dl className="hero-checks">
-                <div><dt>Recipient</dt><dd>New recipient</dd></div>
-                <div><dt>Amount</dt><dd>$8,400</dd></div>
-                <div><dt>Policy</dt><dd className="risk-text">Over daily limit</dd></div>
-              </dl>
-              <p className="muted">The team sees the reason before anyone approves it.</p>
+              <span className="orbit-node node-one" />
+              <span className="orbit-node node-two" />
+              <span className="orbit-node node-three" />
             </div>
           </section>
 
           <section className="landing-section" aria-labelledby="problem-heading">
             <div className="section-intro">
-              <p className="snapshot-label">The problem</p>
+              <p className="snapshot-label">A safer operating rhythm</p>
               <h3 id="problem-heading">Shared access should not mean shared risk.</h3>
-              <p className="muted">
-                Teams often rely on chat messages, spreadsheets, and trust to approve spending. That breaks down
-                when access grows or payments become automated.
-              </p>
             </div>
             <div className="landing-grid">
               <article className="landing-card">
                 <span className="step-number">01</span>
-                <strong>Make the rule clear</strong>
-                <p className="muted">Set who can be paid, how much can be spent, and when a second review is needed.</p>
+                <strong>Set the rule</strong>
+                <p className="muted">Choose trusted recipients, spending limits, and review rules.</p>
               </article>
               <article className="landing-card">
                 <span className="step-number">02</span>
-                <strong>Check before approval</strong>
-                <p className="muted">See the recipient, amount, and policy result in one short review.</p>
+                <strong>Review the request</strong>
+                <p className="muted">See what is being paid and why it passes or fails policy.</p>
               </article>
               <article className="landing-card">
                 <span className="step-number">03</span>
-                <strong>Stop problems early</strong>
-                <p className="muted">Block requests that break the rule and freeze spending when risk is high.</p>
+                <strong>Protect the fund</strong>
+                <p className="muted">Block unusual requests and freeze spending when needed.</p>
               </article>
             </div>
           </section>
