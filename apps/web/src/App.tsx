@@ -17,7 +17,6 @@ import {
   rhAddressUrl,
   txUrl
 } from "./config";
-import { BrandBackdrop } from "./BrandBackdrop";
 import { LandingBackdrop } from "./LandingBackdrop";
 import {
   IconAlerts,
@@ -1059,7 +1058,6 @@ export function App() {
 
   return (
     <>
-      <BrandBackdrop />
       <div className={`app-shell ${entered ? "entered product-mode" : "title-screen"}`}>
       <header className="topbar">
         <a className="brand" href="/" aria-label="Arb Guardian home">
@@ -1177,7 +1175,7 @@ export function App() {
                   }}
                   disabled={loading}
                 >
-                  {loading ? "Checking…" : "Try a payment review"}
+                  {loading ? "Checking…" : "See a payment review"}
                 </button>
               </div>
               <p className="landing-note">Built for teams that share access to company, community, or digital funds.</p>
@@ -1361,25 +1359,29 @@ export function App() {
                     </div>
                   ) : (
                     <form className="enroll-form" onSubmit={joinInterest}>
-                      <input
-                        type="text"
-                        name="treasury"
-                        maxLength={28}
-                        placeholder="Treasury name"
-                        value={treasuryName === "My Treasury" ? "" : treasuryName}
-                        onChange={(e) => setTreasuryName(e.target.value.slice(0, 28) || "My Treasury")}
-                        aria-label="Treasury name"
-                      />
-                      <input
-                        type="email"
-                        name="email"
-                        autoComplete="email"
-                        placeholder="you@team.gg"
-                        value={interestEmail}
-                        onChange={(e) => setInterestEmail(e.target.value)}
-                        aria-label="Email"
-                        required
-                      />
+                      <label className="field-label">
+                        <span>Team name</span>
+                        <input
+                          type="text"
+                          name="treasury"
+                          maxLength={28}
+                          placeholder="Your team"
+                          value={treasuryName === "My Treasury" ? "" : treasuryName}
+                          onChange={(e) => setTreasuryName(e.target.value.slice(0, 28) || "My Treasury")}
+                        />
+                      </label>
+                      <label className="field-label">
+                        <span>Email</span>
+                        <input
+                          type="email"
+                          name="email"
+                          autoComplete="email"
+                          placeholder="you@company.com"
+                          value={interestEmail}
+                          onChange={(e) => setInterestEmail(e.target.value)}
+                          required
+                        />
+                      </label>
                       <button type="submit" className="primary" disabled={interestBusy}>
                         {interestBusy ? "Saving…" : "Join list"}
                       </button>
@@ -1426,16 +1428,18 @@ export function App() {
                             Link a wallet to check spends and freeze your treasury.
                           </p>
                           <form className="enroll-form" onSubmit={enrollTreasury}>
-                            <input
-                              type="text"
-                              name="treasury-operator"
-                              maxLength={28}
-                              placeholder="Treasury name"
-                              value={treasuryName === "My Treasury" ? "" : treasuryName}
-                              onChange={(e) => setTreasuryName(e.target.value.slice(0, 28) || "My Treasury")}
-                              aria-label="Treasury name"
-                              required
-                            />
+                            <label className="field-label">
+                              <span>Team name</span>
+                              <input
+                                type="text"
+                                name="treasury-operator"
+                                maxLength={28}
+                                placeholder="Your team"
+                                value={treasuryName === "My Treasury" ? "" : treasuryName}
+                                onChange={(e) => setTreasuryName(e.target.value.slice(0, 28) || "My Treasury")}
+                                required
+                              />
+                            </label>
                             {!walletAddress ? (
                               <button
                                 type="button"
