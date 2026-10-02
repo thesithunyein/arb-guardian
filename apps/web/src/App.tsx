@@ -965,7 +965,11 @@ export function App() {
     ["home", "Overview", <IconHome key="h" size={16} />],
     ["review", "Review", <IconReview key="r" size={16} />],
     ["alerts", openIncidents ? `Alerts (${openIncidents})` : "Alerts", <IconAlerts key="a" size={16} />],
-    ["automation", "Automations", <IconAutomation key="u" size={16} />]
+    ["automation", "Automations", <IconAutomation key="u" size={16} />],
+    // Reachable during an alert via "View security evidence", but a judge with no incidents to
+    // respond to had no way in — and this is the tab holding the addresses, the guard proof and the
+    // allowed/refused transaction links.
+    ["security", "Evidence", <IconSecurity key="s" size={16} />]
   ];
   const currentSpend = INTENTS[intent];
 
@@ -1880,16 +1884,18 @@ export function App() {
                 <section className="surface span-2">
                   <h3>What is live, and what the proof covers</h3>
                   <p className="muted section-lead">
-                    Arbitrum Sepolia and Robinhood Chain Testnet run the earlier native-lane deployment. Those addresses
-                    are real and source-verified, but they predate the token lane and the policy attestation, so do not
-                    read them as proof of the code you are looking at. Everything below is generated from the current
-                    source by <code>npm run evidence -w packages/contracts</code>. Run it and compare. Addresses and
-                    explorer links: <code>docs/live-deployment.md</code>.
+                    {driftReport.summary.claimsViolated === 0
+                      ? `Both lanes run the code you are reading: all ${driftReport.summary.checked} recorded contracts were built from these sources and match the deployed bytecode.`
+                      : `${driftReport.summary.claimsViolated} of ${driftReport.summary.checked} recorded deployments do not match this source — read the drift section below before trusting anything else on this page.`}{" "}
+                    Everything else here is generated from the current source by{" "}
+                    <code>npm run evidence -w packages/contracts</code>, so run it and compare. Addresses, transaction
+                    hashes and explorer links: <code>docs/live-deployment.md</code>.
                   </p>
                   <p className="muted section-lead">
-                    That first sentence is not taken on trust either. <code>npm run check:deployed</code> reads the
-                    bytecode at every recorded address over each network&apos;s public RPC and compares the Solidity
-                    metadata fingerprint with this build. Its output is the next section.
+                    None of that is taken on trust. <code>npm run check:deployed</code> reads the bytecode at every
+                    recorded address over each network&apos;s public RPC and compares the Solidity metadata fingerprint
+                    with this build, and it refuses to answer at all when the artifacts on disk were compiled from
+                    different bytes than the working tree. Its output is the next section.
                   </p>
                 </section>
                 <section className="surface span-2">
@@ -1902,8 +1908,9 @@ export function App() {
                     {driftReport.summary.unreachable > 0
                       ? `, ${driftReport.summary.unreachable} unreachable`
                       : ""}
-                    . A drifted contract is one whose deployed source is not the source you are reading now. The honest
-                    status of both networks until the redeploy. {driftReport.note} Generated {DRIFT_GENERATED_AT} by{" "}
+                    . A drifted contract is one whose deployed source is not the source you are reading now. That is
+                    the whole claim: if a declared-current address drifts, the check fails and this page cannot
+                    quietly disagree with the chain. {driftReport.note} Generated {DRIFT_GENERATED_AT} by{" "}
                     <code>npm run check:deployed</code>, which fails when a network&apos;s declared status and the chain
                     disagree.
                   </p>
