@@ -18,6 +18,7 @@ import {
   txUrl
 } from "./config";
 import { BrandBackdrop } from "./BrandBackdrop";
+import { LandingBackdrop } from "./LandingBackdrop";
 import {
   IconAlerts,
   IconAutomation,
@@ -1153,6 +1154,7 @@ export function App() {
 
       {!entered ? (
         <main className="landing">
+          <LandingBackdrop />
           <section className="hero title-hero">
             <div className="hero-copy">
               <p className="hero-kicker">SPENDING CONTROLS FOR SHARED FUNDS</p>
