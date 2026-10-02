@@ -1927,7 +1927,7 @@ export function App() {
                       <strong>An allowed spend settles, and a forbidden one is refused.</strong>{" "}
                       {SAFE_ALLOWED_EXEC_TX ? (
                         <>
-                          <a href={`${EXPLORER}/tx/${SAFE_ALLOWED_EXEC_TX}`} target="_blank" rel="noreferrer">
+                          <a href={txUrl(SAFE_ALLOWED_EXEC_TX)} target="_blank" rel="noreferrer">
                             settled on Arbitrum Sepolia
                           </a>{" "}
                         </>
@@ -1935,7 +1935,7 @@ export function App() {
                       {SAFE_BLOCKED_EXEC_TX ? (
                         <>
                           ·{" "}
-                          <a href={`${EXPLORER}/tx/${SAFE_BLOCKED_EXEC_TX}`} target="_blank" rel="noreferrer">
+                          <a href={txUrl(SAFE_BLOCKED_EXEC_TX)} target="_blank" rel="noreferrer">
                             refused (status 0, reverted inside the Safe)
                           </a>{" "}
                         </>
@@ -1943,11 +1943,11 @@ export function App() {
                       {RH_SAFE_ALLOWED_EXEC_TX && RH_SAFE_BLOCKED_EXEC_TX ? (
                         <>
                           · the same pair on the Robinhood lane:{" "}
-                          <a href={`${RH_EXPLORER}/tx/${RH_SAFE_ALLOWED_EXEC_TX}`} target="_blank" rel="noreferrer">
+                          <a href={rhTxUrl(RH_SAFE_ALLOWED_EXEC_TX)} target="_blank" rel="noreferrer">
                             settled
                           </a>{" "}
                           ·{" "}
-                          <a href={`${RH_EXPLORER}/tx/${RH_SAFE_BLOCKED_EXEC_TX}`} target="_blank" rel="noreferrer">
+                          <a href={rhTxUrl(RH_SAFE_BLOCKED_EXEC_TX)} target="_blank" rel="noreferrer">
                             refused
                           </a>
                         </>
@@ -1962,7 +1962,7 @@ export function App() {
                       spend settled again.{" "}
                       {drillStep("freeze")?.txHash ? (
                         <>
-                          <a href={`${EXPLORER}/tx/${drillStep("freeze")?.txHash}`} target="_blank" rel="noreferrer">
+                          <a href={txUrl(drillStep("freeze")?.txHash ?? "")} target="_blank" rel="noreferrer">
                             pause
                           </a>{" "}
                           ·{" "}
@@ -1971,7 +1971,7 @@ export function App() {
                       {drillStep("refused-while-frozen")?.txHash ? (
                         <>
                           <a
-                            href={`${EXPLORER}/tx/${drillStep("refused-while-frozen")?.txHash}`}
+                            href={txUrl(drillStep("refused-while-frozen")?.txHash ?? "")}
                             target="_blank"
                             rel="noreferrer"
                           >
@@ -1982,7 +1982,7 @@ export function App() {
                       ) : null}
                       {drillStep("unfreeze")?.txHash ? (
                         <>
-                          <a href={`${EXPLORER}/tx/${drillStep("unfreeze")?.txHash}`} target="_blank" rel="noreferrer">
+                          <a href={txUrl(drillStep("unfreeze")?.txHash ?? "")} target="_blank" rel="noreferrer">
                             unpause
                           </a>{" "}
                           ·{" "}
@@ -1990,7 +1990,7 @@ export function App() {
                       ) : null}
                       {drillStep("settled-after-unfreeze")?.txHash ? (
                         <a
-                          href={`${EXPLORER}/tx/${drillStep("settled-after-unfreeze")?.txHash}`}
+                          href={txUrl(drillStep("settled-after-unfreeze")?.txHash ?? "")}
                           target="_blank"
                           rel="noreferrer"
                         >
