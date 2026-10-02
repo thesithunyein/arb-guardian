@@ -1096,7 +1096,7 @@ export function App() {
                   </button>
                 )
               ) : (
-                "Enforceable spend policy"
+                "Shared funds, safer decisions"
               )}
             </p>
           </div>
@@ -1152,32 +1152,95 @@ export function App() {
       </header>
 
       {!entered ? (
-        <section className="hero title-hero">
-          <img className="hero-logo" src="/logo.png" alt="Arb Guardian" width={112} height={112} />
-          <p className="hero-kicker">ENFORCEABLE SPEND POLICY</p>
-          <h2>
-            <span className="accent">Arb</span> Guardian
-          </h2>
-          <p className="hero-lead">
-            Give an agent, bot or operator a budget. Keep the treasury under your control.
-          </p>
-          <div className="cta-row">
-            <button type="button" className="primary" onClick={enterWorld}>
-              Enter workspace
-            </button>
-            <button
-              type="button"
-              className="ghost"
-              onClick={() => {
-                void skipToFirstQuest();
-              }}
-              disabled={loading}
-            >
-              {loading ? "Checking…" : "Review a transaction"}
-            </button>
-          </div>
-          {error && <p className="error">{error}</p>}
-        </section>
+        <main className="landing">
+          <section className="hero title-hero">
+            <div className="hero-copy">
+              <p className="hero-kicker">SPENDING CONTROLS FOR SHARED FUNDS</p>
+              <h2>
+                <span className="accent">Know</span> before money moves.
+              </h2>
+              <p className="hero-lead">
+                Arb Guardian helps teams check a payment before it is approved. Set clear limits, keep trusted
+                recipients, and stop unusual requests.
+              </p>
+              <div className="cta-row">
+                <button type="button" className="primary" onClick={enterWorld}>
+                  Open workspace
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => {
+                    void skipToFirstQuest();
+                  }}
+                  disabled={loading}
+                >
+                  {loading ? "Checking…" : "Try a payment review"}
+                </button>
+              </div>
+              <p className="landing-note">Built for teams that share access to company, community, or digital funds.</p>
+              {error && <p className="error">{error}</p>}
+            </div>
+            <div className="hero-panel" aria-label="Payment review example">
+              <div className="hero-panel-head">
+                <span>Payment review</span>
+                <span className="review-badge risk">Needs review</span>
+              </div>
+              <strong>Should this payment go out?</strong>
+              <dl className="hero-checks">
+                <div><dt>Recipient</dt><dd>New recipient</dd></div>
+                <div><dt>Amount</dt><dd>$8,400</dd></div>
+                <div><dt>Policy</dt><dd className="risk-text">Over daily limit</dd></div>
+              </dl>
+              <p className="muted">The team sees the reason before anyone approves it.</p>
+            </div>
+          </section>
+
+          <section className="landing-section" aria-labelledby="problem-heading">
+            <div className="section-intro">
+              <p className="snapshot-label">The problem</p>
+              <h3 id="problem-heading">Shared access should not mean shared risk.</h3>
+              <p className="muted">
+                Teams often rely on chat messages, spreadsheets, and trust to approve spending. That breaks down
+                when access grows or payments become automated.
+              </p>
+            </div>
+            <div className="landing-grid">
+              <article className="landing-card">
+                <span className="step-number">01</span>
+                <strong>Make the rule clear</strong>
+                <p className="muted">Set who can be paid, how much can be spent, and when a second review is needed.</p>
+              </article>
+              <article className="landing-card">
+                <span className="step-number">02</span>
+                <strong>Check before approval</strong>
+                <p className="muted">See the recipient, amount, and policy result in one short review.</p>
+              </article>
+              <article className="landing-card">
+                <span className="step-number">03</span>
+                <strong>Stop problems early</strong>
+                <p className="muted">Block requests that break the rule and freeze spending when risk is high.</p>
+              </article>
+            </div>
+          </section>
+
+          <section className="landing-section landing-audience" aria-labelledby="audience-heading">
+            <div className="section-intro">
+              <p className="snapshot-label">Who it is for</p>
+              <h3 id="audience-heading">Useful before you know the crypto terms.</h3>
+            </div>
+            <div className="audience-copy">
+              <p className="muted">
+                If your team manages a shared wallet, community fund, grant budget, or automated payment account,
+                the problem is the same: people need permission to spend without unlimited access.
+              </p>
+              <p className="muted">
+                Arb Guardian is made for operators first. The onchain layer adds enforcement for digital assets, but
+                the workflow is familiar to any finance or operations team.
+              </p>
+            </div>
+          </section>
+        </main>
       ) : (
         <>
           <nav className="tabs" aria-label="Primary">
@@ -1205,7 +1268,7 @@ export function App() {
                     <p className="snapshot-label">{treasuryName === "My Treasury" ? "Your treasury" : treasuryName}</p>
                     <strong>
                       {policyPaused
-                        ? "Bank locked"
+                        ? "Spending frozen"
                         : openIncidents > 0
                           ? `${openIncidents} alert${openIncidents === 1 ? "" : "s"} need a decision`
                           : "Ready to check a spend"}
@@ -1280,7 +1343,7 @@ export function App() {
                           className="linkish"
                           onClick={async () => {
                             const text =
-                              "Arb Guardian gives an agent, bot or operator money without giving it the ability to drain the account. Join the list (no wallet needed): https://arb-guardian.vercel.app";
+                              "Arb Guardian helps teams control shared spending before money moves. Join the list: https://arb-guardian.sithunyein.com";
                             try {
                               await navigator.clipboard.writeText(text);
                               setInterestMsg("Invite link copied.");
@@ -2084,7 +2147,7 @@ export function App() {
                   <h3>Product</h3>
                   <ul className="clean">
                     <li>
-                      <a href="https://arb-guardian.vercel.app" target="_blank" rel="noreferrer">
+                      <a href="https://arb-guardian.sithunyein.com" target="_blank" rel="noreferrer">
                         Live app
                       </a>
                     </li>

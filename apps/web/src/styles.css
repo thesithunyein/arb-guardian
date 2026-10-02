@@ -119,6 +119,203 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .faq-list summary::marker { color: var(--accent); }
 @media (max-width: 640px) { .steps-grid { grid-template-columns: 1fr; } }
 
+.landing {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.landing .title-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  align-items: center;
+  gap: clamp(2rem, 6vw, 5rem);
+  min-height: 470px;
+  margin: 0;
+  padding: clamp(2rem, 6vw, 5rem) 0;
+  text-align: left;
+}
+
+.hero-copy {
+  max-width: 680px;
+}
+
+.landing .hero-kicker {
+  margin-bottom: 1rem;
+  color: var(--accent);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.landing .title-hero h2 {
+  max-width: 680px;
+  margin: 0;
+  font-size: clamp(2.9rem, 7vw, 6.25rem);
+  line-height: 0.98;
+  letter-spacing: -0.075em;
+}
+
+.landing .hero-lead {
+  max-width: 590px;
+  margin: 1.5rem 0 0;
+  color: var(--muted);
+  font-size: clamp(1.05rem, 2vw, 1.28rem);
+  line-height: 1.55;
+}
+
+.landing .cta-row {
+  justify-content: flex-start;
+  margin-top: 2rem;
+}
+
+.landing-note {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.hero-panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-product);
+  background: linear-gradient(145deg, var(--bg-elevated), var(--bg-panel));
+  box-shadow: var(--shadow-soft);
+}
+
+.hero-panel-head,
+.hero-checks div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.hero-panel-head {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.hero-panel strong {
+  font-size: 1.4rem;
+  letter-spacing: -0.04em;
+}
+
+.hero-checks {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 1rem 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.hero-checks dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.hero-checks dd {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.risk-text {
+  color: var(--warn);
+}
+
+.landing-section {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.65fr) minmax(0, 1.35fr);
+  gap: 2rem;
+  padding: 2rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.section-intro h3 {
+  max-width: 520px;
+  margin: 0.35rem 0 0.75rem;
+  font-size: clamp(1.5rem, 3vw, 2.4rem);
+  letter-spacing: -0.05em;
+}
+
+.section-intro > p:last-child {
+  max-width: 440px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.landing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.landing-card {
+  display: grid;
+  align-content: start;
+  gap: 0.55rem;
+  min-height: 170px;
+  padding: 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-product);
+  background: var(--bg-elevated);
+}
+
+.landing-card p,
+.audience-copy p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.landing-audience {
+  padding-bottom: 1rem;
+}
+
+.audience-copy {
+  display: grid;
+  gap: 0.8rem;
+  max-width: 650px;
+}
+
+@media (max-width: 800px) {
+  .landing .title-hero,
+  .landing-section {
+    grid-template-columns: 1fr;
+  }
+
+  .landing .title-hero {
+    min-height: 0;
+    gap: 2rem;
+    padding: 2rem 0 3rem;
+  }
+
+  .landing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-card {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .landing .title-hero h2 {
+    font-size: clamp(2.65rem, 14vw, 4rem);
+  }
+
+  .landing .cta-row {
+    display: grid;
+  }
+
+  .landing .cta-row button {
+    width: 100%;
+  }
+}
+
 /* Product UI refresh: quiet, high-trust treasury workspace. */
 :root,
 [data-theme="dark"] {
