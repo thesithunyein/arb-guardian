@@ -17,6 +17,14 @@
   <img src="https://img.shields.io/badge/Contract%20tests-69%20passing-22C55E?style=for-the-badge&labelColor=F5F7F5" alt="Contract tests" />
 </p>
 
+<p align="center">
+  <img src="docs/assets/landing-hero.png" alt="Arb Guardian landing page: Know before money moves." width="860" />
+</p>
+
+<p align="center">
+  <em>The live landing page at <a href="https://arb-guardian.sithunyein.com">arb-guardian.sithunyein.com</a>.</em>
+</p>
+
 **Live product:** [arb-guardian.sithunyein.com](https://arb-guardian.sithunyein.com)
 **Repository:** [github.com/thesithunyein/arb-guardian](https://github.com/thesithunyein/arb-guardian)
 **Current product status:** the web console, policy admin console and serverless API are live, and
