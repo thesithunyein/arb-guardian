@@ -1,6 +1,8 @@
 {
   "network": "robinhoodTestnet",
   "chainId": 46630,
+  "status": "superseded",
+  "note": "Historical record of the 2026-07-30 deployment, kept for reference. Current addresses: docs/live-deployment.md and packages/contracts/evidence/live-deployments.json.",
   "deployedAt": "2026-07-30T14:52:40.069Z",
   "deployer": "0x61a79efe7Acc6fBD23E24B0d7deCFAcb169404Ce",
   "policyManager": {

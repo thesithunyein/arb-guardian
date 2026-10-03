@@ -51,8 +51,8 @@ npm run check:deployed       # 6/6 claims, or a non-zero exit
 ```
 
 `npm run verify -w packages/contracts -- --network robinhoodTestnet` has already been run against
-the Robinhood lane; the same command against `arbitrumSepolia` is the outstanding step once an
-Arbiscan key is present.
+the Robinhood lane. For Arbitrum Sepolia that command targets Arbiscan's panel — the one
+outstanding step once an Arbiscan key is present; the Blockscout panel is already verified via Sourcify.
 
 ## Source published — what a reader can click
 

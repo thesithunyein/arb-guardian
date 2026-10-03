@@ -19,7 +19,7 @@ function getPolicy() {
   const policyAddress =
     trim(process.env.VITE_POLICY_MANAGER_ADDRESS) ||
     trim(process.env.SUBMISSION_POLICY_MANAGER_ADDRESS) ||
-    "0x4f3dC29Ed0c8844E31fD84c3eE22C1C94158Cf76";
+    "0x3e394b1d9781a71D71905d028C530B29Aa0021a6";
 
   if (!key) return { error: "operator_key_missing" as const };
   const provider = new JsonRpcProvider(rpc);

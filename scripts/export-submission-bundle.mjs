@@ -12,7 +12,6 @@ const requiredFiles = [
   "docs/demo-runbook.md",
   "docs/judge-brief.md",
   "docs/grant-milestones.md",
-  "docs/prize-optimization.md",
   "docs/production-readiness-checklist.md",
   "docs/security-ops-runbook.md",
   "docs/submission-package.md"

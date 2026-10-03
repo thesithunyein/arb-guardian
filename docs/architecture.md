@@ -11,7 +11,7 @@ Live product: [arb-guardian.sithunyein.com](https://arb-guardian.sithunyein.com)
 ```mermaid
 flowchart TB
   subgraph Console["Operator console · apps/web"]
-    UI[Home · Review · Alerts · Playbooks · Policy · Vault]
+    UI[Overview · Review · Alerts · Automations · Evidence]
   end
 
   subgraph Edge["API · Vercel /api + apps/api"]
@@ -37,7 +37,7 @@ flowchart TB
   EG -->|validateAndRecord| PM
   Safe --> STG
   STG --> PM
-  UI -->|Vault explorers| Onchain
+  UI -->|Evidence explorers| Onchain
 ```
 
 ---
@@ -46,7 +46,7 @@ flowchart TB
 
 | Layer | Package / path | Responsibility |
 | --- | --- | --- |
-| Operator console | `apps/web` | Review spends, alerts, playbooks, Vault proof |
+| Operator console | `apps/web` | Review spends, alerts, playbooks, Evidence proof |
 | Risk engine | `apps/api/src/riskEngine.ts` · `api/risk/assess.ts` | Deterministic scoring + block decision |
 | Agent coordinator | `apps/api/src/agentCoordinator.ts` | Score → playbook (bounded) |
 | Playbook executor | `apps/api/src/playbookExecutor.ts` · `api/incidents/[id]/action.ts` | Human-gated mitigate → `pause()` |
@@ -176,21 +176,22 @@ Full bounds: [`agent-permissions-matrix.md`](agent-permissions-matrix.md).
 
 ```mermaid
 flowchart LR
-  Home --> Review
+  Overview --> Review
   Review -->|blocked| Alerts
-  Alerts -->|freeze| Vault
-  Review --> Playbooks
-  Home --> Vault
+  Alerts -->|freeze| Evidence
+  Review --> Automations
+  Overview --> Evidence
 ```
 
 | Tab | Role in the system |
 | --- | --- |
-| **Home** | Bank status, session KPIs, waitlist |
+| **Overview** | Treasury status, session KPIs, waitlist, operator wallet |
 | **Review** | Enter a treasury, payee, amount and type → the policy is read from the contract for those addresses → Allow/Block/Refuse |
 | **Alerts** | Incident queue · freeze / dismiss |
-| **Playbooks** | Catalog + policy conformance fixtures (14 fixed cases) |
-| **Policy** | Administer the rules the guard enforces: allowlist a payee, set daily limits, register a token lane, freeze. Gated on the connected wallet's own roles; every change is signed in the operator's wallet and read back from the contract |
-| **Vault** | Explorer links for Arb + Robinhood contracts |
+| **Automations** | Playbook catalog + policy conformance fixtures (14 fixed cases) |
+| **Evidence** | Generated proof: drift report, source publication, guard cases, policy attestation, explorer links for both lanes |
+
+Policy administration itself is not a console tab: allowlists, daily limits and the token lane are written by `POLICY_ADMIN_ROLE` holders through `PolicyManager` (the deploy/seed/enrollment path), and the console reads them back per request.
 
 Web entry: `apps/web/src/App.tsx` · config: `apps/web/src/config.ts`.
 
@@ -221,8 +222,8 @@ flowchart TB
 
   UI --> API
   API -->|pause / policy read| Arb
-  UI -->|Vault explorers| Arb
-  UI -->|Vault explorers| RH
+  UI -->|Evidence explorers| Arb
+  UI -->|Evidence explorers| RH
 ```
 
 | | Arbitrum Sepolia | Robinhood testnet |

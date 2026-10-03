@@ -1,5 +1,9 @@
 # Sep 13 submission copy (max-win)
 
+> Historical draft, kept for reference. It describes the superseded 2026-07-30 deployment; the
+> current submission copy is [`final-submission-copy.md`](final-submission-copy.md) and the current
+> addresses are in [`live-deployment.md`](live-deployment.md).
+
 ## Tracks
 - Overall Prize (Arbitrum lane + Robinhood lane both covered)
 - Promising Products

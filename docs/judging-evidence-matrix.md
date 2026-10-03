@@ -13,9 +13,9 @@
   - Spend recorded pre-execution (no re-entrancy bypass) and **refunded** on failed execution
   - Bounds-checked assembly decoding isolated in one library
   - **Versioned policy attestation**: every policy mutation advances a hash-chained `policyVersion` / `policyDigest`, the amendment is emitted with its parameters so the chain replays from logs alone, and every decision record carries the version and digest that judged it (`test/PolicyAttestation.test.ts`)
-- **Validation command:** `npm run test -w packages/contracts` (65 tests)
+- **Validation command:** `npm run test -w packages/contracts` (69 tests)
 - **Integration path:** `npm run example:operator -w packages/contracts` — a runnable operator bot that dry-runs policy, decodes the refusal, and records the policy version/digest of each allowed decision. Exercised in CI.
-- **Reproducible proof:** `npm run evidence -w packages/contracts` → 15/15 cases, before/after pair, exact revert reason per case, plus an 11-amendment digest-chain replay with 5/5 allowed decisions stamped
+- **Reproducible proof:** `npm run evidence -w packages/contracts` → 15/15 cases, before/after pair, exact revert reason per case, plus an 11-amendment digest-chain replay with 4/4 allowed decisions stamped
 - **One policy client:** the ABI, role hashes, limit semantics and revert decoding live once, in `packages/shared/src/policy.ts`, and are consumed by the web app and the API. Previously four hand-written copies, one of which had already drifted past the token lane and the attestation
 - **Logic tests:** `npm run test -w packages/shared` (20) — `0` blocks, `UNLIMITED_LIMIT` uncaps, the role matrix (`pause` is not `POLICY_ADMIN_ROLE`), 6-decimal parsing, and refusal messages
 - **Live client tests:** `npm run test -w apps/api` (25, including 4 live) — the shared client is driven against the deployed PolicyManager by read-only `eth_call` from a throwaway address, proving the ABI names functions that exist and that a real `AccessControlUnauthorizedAccount` is decoded into an actionable refusal. No key, no gas, no state change. They run by default: a local deployment artifact only wins when it agrees with the committed manifest, otherwise the manifest answers
@@ -32,7 +32,7 @@
   - On the chains where those teams are being pointed: Arbitrum for mature DeFi and Safe tooling, Robinhood Chain for agents and USDG
   - Core workflows: policy setup, risk assessment, incident response
 - **Validation command:** `npm run build -w apps/web`
-- **Honesty gate:** the Vault tab renders the generated drift report, so the deployment status a judge sees on screen comes from `evidence/deployed-drift.json` rather than from marketing copy — as does every allowed and refused transaction hash, which link to the explorer
+- **Honesty gate:** the Evidence tab renders the generated drift report, so the deployment status a judge sees on screen comes from `evidence/deployed-drift.json` rather than from marketing copy — as does every allowed and refused transaction hash, which link to the explorer
 
 ## Innovation and creativity
 
@@ -61,4 +61,4 @@
 - **Live product:** https://arb-guardian.sithunyein.com (Vercel alias: https://arb-guardian.vercel.app)
 - **Public repo:** https://github.com/thesithunyein/arb-guardian
 - **Deploy guide:** `docs/deploy-sepolia.md`
-- **Deployment command:** `npm run deploy:p0`
+- **Deployment command:** `npm run deploy:preflight` → `npm run redeploy:sepolia` → `npm run redeploy:robinhood` → `npm run repoint`

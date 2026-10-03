@@ -87,15 +87,15 @@ flowchart TB
     Validate["Schema validation"]
     Risk["Deterministic risk engine"]
     Coordinator["Bounded playbook recommender"]
-    State[("Runtime state\nproduction persistence pending")]
+    State[("Runtime state\ndurable Vercel KV")]
   end
 
-  subgraph Chain["Arbitrum Sepolia · corrected deployment required"]
+  subgraph Chain["Arbitrum Sepolia + Robinhood Chain · deployed 2026-10-02"]
     PM["PolicyManager\nallowlist · caps · pause · attestation"]
     EG["ExecutionGuard\noperator pre-flight oracle"]
     STG["SafeTreasuryGuard\nSafe ITransactionGuard"]
     Safe["Gnosis Safe treasury"]
-    Token["Registered ERC-20 lane\nUSDG-compatible, address required"]
+    Token["Registered ERC-20 lane\nUSDG registered, capped, allowlisted"]
   end
 
   Operator --> Review
@@ -198,7 +198,7 @@ handler. It is not a Safe-compatible mock.
 15/15 guard cases reproduced
 14/14 policy playbook fixtures passed
 69 contract tests passed
-110 tests across contracts, shared, and api
+128 tests across four suites (69 contracts · 25 api · 20 shared · 14 durable store)
 ```
 
 Run the proof locally:

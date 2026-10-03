@@ -7,7 +7,7 @@ export const RPC_URL =
   import.meta.env.VITE_ARB_SEPOLIA_RPC_URL?.trim() || "https://sepolia-rollup.arbitrum.io/rpc";
 export const EXPLORER = "https://sepolia.arbiscan.io";
 
-/** Recorded Arbitrum Sepolia deployment (public, onchain; superseded by the current source). */
+/** Current Arbitrum Sepolia deployment (public, onchain; re-read by `npm run check:deployed`). */
 export const POLICY_MANAGER =
   import.meta.env.VITE_POLICY_MANAGER_ADDRESS?.trim() ||
   "0x3e394b1d9781a71D71905d028C530B29Aa0021a6";

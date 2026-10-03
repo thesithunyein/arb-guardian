@@ -69,15 +69,15 @@ npm run evidence -w packages/contracts   # → 15/15 cases behaved as specified
 
 `packages/contracts/test/RealSafeGuard.test.ts` drives a **real Gnosis Safe v1.4.1** — real
 singleton, proxy factory and fallback handler, not a bespoke "Safe-compatible" shell. The
-evidence pack executes 14 cases and records the exact revert reason for each. It includes a
+evidence pack executes 15 cases and records the exact revert reason for each. It includes a
 **before/after pair**: the same non-allowlisted payment settles before the guard is installed and
 is refused after, which is what shows the guard is making the difference.
 
 The generator exits non-zero if any case drifts, so the table cannot silently go stale.
 Artifacts: `packages/contracts/evidence/guard-proof.md` and `guard-proof.json`.
 
-Test totals should be regenerated with `npm run quality:gate` before submission; this branch adds
-coverage for finite-approval and `transferFrom` bypass attempts.
+Measured on this commit: 128 tests across four suites — 69 contract tests, 25 API tests (4 live,
+read-only), 20 shared, and 14 for the durable store.
 
 ## Why Arbitrum / Robinhood Chain
 
@@ -165,7 +165,7 @@ natively issued Global Dollar and the lending asset in Robinhood Earn — settle
 - Contract test suite covers real Gnosis Safe v1.4.1 integration, token caps, approval refusal,
   and Safe-source `transferFrom`; rerun `npm run test -w packages/contracts` after installing
   dependencies in a networked environment.
-- 17 API unit/integration tests pass (`npm run test -w apps/api`)
+- 25 API unit/integration tests pass (`npm run test -w apps/api`), 4 of them live read-only `eth_call`s against the deployed PolicyManager
 - 14 policy-conformance fixtures pass (`npm run eval:policy -w apps/api`) — a regression suite
   over fixed cases, **not** model validation
 - Guard proof regenerates 15/15 (`npm run evidence -w packages/contracts`)

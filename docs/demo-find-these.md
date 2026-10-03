@@ -33,12 +33,12 @@ idea — a delegate can spend, but it cannot spend past the ceiling.
    spending even for spends that would otherwise be allowed.
 4. **Unfreeze** reverses it. The audit log below records who did what.
 
-## 3) The proof — Vault tab
+## 3) The proof — Evidence tab
 
-Click the tab **Vault**. Everything there is generated, not written:
+Click the tab **Evidence**. Everything there is generated, not written:
 
-- **What is live, and what the proof covers** — states plainly that the deployed testnet
-  addresses are the earlier native-lane build (see `docs/live-deployment.md`).
+- **What is live, and what the proof covers** — states plainly that every deployed address runs
+  this source: 6 of 6 contracts matched, 0 drifted, on both lanes (see `docs/live-deployment.md`).
 - **Guard proof · every case, with its revert reason** — the 15 cases from
   `packages/contracts/evidence/guard-proof.json`, including row 1: the same payment as row 2,
   executed *before* the guard was installed, which settles.
@@ -50,10 +50,10 @@ Regenerate it with one command and the numbers change if the contracts do.”*
 
 ---
 
-## 4) Policy conformance — Playbooks tab
+## 4) Policy conformance — Automations tab
 
-1. Click the tab **Playbooks**.
-2. Look for **What the helper can do**. You should see
+1. Click the tab **Automations** (the section inside it is headed **Playbooks**).
+2. Look for **What the policy engine can do**. You should see
    `14/14 fixed policy cases match spec (100%). Regression fixtures only — not model validation.`
 
 **Do not call this “accuracy” on camera.** It is a regression suite: expected outcomes were
@@ -91,5 +91,5 @@ panel" rather than "verified on Arbiscan" until that key exists.
 2. **Review** → “Agent asks for standing approval” → **Block**
 3. **Review** → “Normal vendor payout” → **Allow**
 4. **Alerts** → **Freeze the treasury** → **Unfreeze**
-5. **Vault** → guard proof table + attestation replay (say: *rendered, not asserted*)
-6. **Playbooks** → conformance fixtures (say “regression suite”, never “AI accuracy”)
+5. **Evidence** → guard proof table + attestation replay (say: *rendered, not asserted*)
+6. **Automations** → conformance fixtures (say “regression suite”, never “AI accuracy”)

@@ -34,7 +34,7 @@
 - [x] Allowed and refused Safe transactions recorded onchain (both lanes)
 - [x] Durable production storage: incidents, KPI and audit history survive a new serverless instance (`/api/health` reports `vercel-kv`, reachable)
 - [x] Public product on Vercel with the current onchain addresses and transaction links on screen
-- [ ] Public API on Render (optional; console works with onchain reads)
+- [x] Public API live on Vercel serverless routes (`/api/*`, durable KV); the Render blueprint remains an optional alternative
 - [x] Freeze drill run end to end against the live lane (refused decision → on-chain pause → refusal while frozen → unpause → resume), recorded in `docs/incident-drill.md`
 - [x] Screen capture of the live product along the judge path (`docs/demo/walkthrough-2026-10-02.md`)
 - [ ] Narrated demo video with the blocked transaction spoken over it

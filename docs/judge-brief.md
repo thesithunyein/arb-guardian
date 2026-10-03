@@ -25,7 +25,7 @@ Small DAOs and onchain startups lose funds from approval misuse, weak operationa
 - Pausable circuit breaker.
 - Zero-address and invalid-amount guards.
 - Custom errors for clear failure reasons.
-- 65 Hardhat tests including rollover, pause, deny-by-default and the 18-vs-6 decimal trap.
+- 69 Hardhat tests including rollover, pause, deny-by-default and the 18-vs-6 decimal trap.
 - **SafeTreasuryGuard** — Gnosis Safe `ITransactionGuard` for production multisig treasuries.
 - **Deny-by-default** limits in both the native and token lanes: `0` blocks spending, uncapped
   spending requires an explicit `UNLIMITED_LIMIT`.
@@ -39,13 +39,13 @@ Small DAOs and onchain startups lose funds from approval misuse, weak operationa
 1. Configure the allowlist, the per-asset caps and the token lane.
 2. Submit a spend from an agent, bot or operator key.
 3. Show the refusal, the revert reason, and the policy version stamped on the allowed ones.
-4. Show the Vault tab: the proof is the generated artifact, not prose.
+4. Show the Evidence tab: the proof is the generated artifact (drift report, source publication, guard cases, attestation), not prose.
 5. Show SafeTreasuryGuard as the enforcement path inside a real Safe's `execTransaction`.
 
 ## Scale roadmap
 
-- Redeploy the current build (token lane + attestation) to Arbitrum Sepolia and Robinhood Chain,
-  then replace `docs/live-deployment.md`; today those addresses run the earlier semantics.
-- Wire live Gnosis Safe instances to SafeTreasuryGuard enrollment.
+- Both lanes run the current build (token lane + attestation) and are source-published; next is a
+  narrated demo and a first external pilot.
+- Enroll further real Gnosis Safe instances through SafeTreasuryGuard, starting with the pilot's.
 - Introduce queue-backed event ingestion and alerting.
 - Expand policy templates for payroll, grant disbursement, and market ops.
