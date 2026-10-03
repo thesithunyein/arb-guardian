@@ -1,10 +1,10 @@
 /**
  * Source verification, as recorded by the verifier rather than as claimed here.
  *
- * A judge's cheapest check on smart-contract quality is the explorer's source panel. Arbiscan wants
+ * The cheapest check on smart-contract quality is the explorer's source panel. Arbiscan wants
  * an API key, so the keyless path is Sourcify: it recompiles the compiler's own standard JSON input
  * and compares both the creation and runtime bytecode. `node scripts/verify-sourcify.mjs` submits the
- * six contracts, then reads each explorer's own API to record whether the panel a judge would click
+ * six contracts, then reads each explorer's own API to record whether the panel a visitor would click
  * agrees. The report is committed and bundled here, so this page cannot claim a verification that the
  * verifier did not answer.
  *
@@ -64,7 +64,7 @@ export const sourceExplorerPanels =
   sourceVerificationReport.summary.explorerPanels === sourceVerificationReport.summary.total;
 
 /**
- * Arbiscan, which is the panel a judge is most likely to open and the only one that needs an API key.
+ * Arbiscan, which is the most commonly opened panel and the only one that needs an API key.
  *
  * The record is written by `npm run verify:arbiscan`, which submits the same standard JSON input,
  * waits for the queue, and reads the result back from Arbiscan rather than assuming it. When no key

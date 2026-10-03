@@ -121,6 +121,7 @@ code, .mono { font-family: var(--font-mono); font-size: .84em; }
 .landing-grid, .steps-grid, .evidence-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .landing-card, .steps-grid article, .evidence-grid article { min-height: 180px; padding: 22px; border: 1px solid var(--line); border-radius: var(--radius-product); background: rgba(255,255,255,.58); }
 .landing-card { color: var(--ink); text-decoration: none; }
+.landing-grid .landing-card { min-height: 150px; }
 .landing-card strong, .steps-grid strong { display: block; margin: 19px 0 9px; font-size: 1.02rem; }
 .landing-card p, .steps-grid p { margin: 0; line-height: 1.55; font-size: .9rem; }
 .step-number { color: var(--accent); font-family: var(--font-mono); font-size: .72rem; font-weight: 800; letter-spacing: .08em; }

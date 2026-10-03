@@ -6,7 +6,7 @@
  * without the build turning red.
  *
  * Bundling the committed file (rather than hard-coding numbers in JSX) is deliberate: prose
- * about a proof ages badly, and a judge should be able to diff this page against the repo.
+ * about committed numbers ages badly, and a reader should be able to diff this page against the repo.
  */
 import raw from "../../../packages/contracts/evidence/guard-proof.json";
 

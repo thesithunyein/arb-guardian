@@ -984,10 +984,10 @@ export function App() {
     ["review", "Review", <IconReview key="r" size={16} />],
     ["alerts", openIncidents ? `Alerts (${openIncidents})` : "Alerts", <IconAlerts key="a" size={16} />],
     ["automation", "Automations", <IconAutomation key="u" size={16} />],
-    // Reachable during an alert via "View security evidence", but a judge with no incidents to
-    // respond to had no way in — and this is the tab holding the addresses, the guard proof and the
-    // allowed/refused transaction links.
-    ["security", "Evidence", <IconSecurity key="s" size={16} />]
+    // Reachable during an alert via "View trust page", and always available from the tab bar: this
+    // is where the deployment addresses, the source verification and the allowed/refused
+    // transactions live.
+    ["security", "Trust", <IconSecurity key="s" size={16} />]
   ];
   const currentSpend = INTENTS[intent];
 
@@ -1276,9 +1276,10 @@ export function App() {
           <section className="landing-section" aria-labelledby="docs">
             <div className="section-intro">
               <p className="snapshot-label">Docs</p>
-              <h3 id="docs">Understand the controls before you connect.</h3>
+              <h3 id="docs">Everything you need before you go live.</h3>
               <p className="muted">
-                Learn the operating model, review flow, and current deployment status in plain language.
+                The operating model, the security model, the current deployment, and its limits — in plain
+                language.
               </p>
             </div>
             <div className="landing-grid">
@@ -1305,6 +1306,42 @@ export function App() {
                 <span>
                   <strong>Technical reference</strong>
                   <span className="muted">Read deployment and production details.</span>
+                </span>
+                <span aria-hidden="true">↗</span>
+              </a>
+              <a
+                className="landing-card"
+                href="https://github.com/thesithunyein/arb-guardian/blob/master/docs/threat-model.md"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span>
+                  <strong>Security model</strong>
+                  <span className="muted">What the guard stops, and what it cannot.</span>
+                </span>
+                <span aria-hidden="true">↗</span>
+              </a>
+              <a
+                className="landing-card"
+                href="https://github.com/thesithunyein/arb-guardian/blob/master/docs/live-deployment.md"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span>
+                  <strong>Deployments</strong>
+                  <span className="muted">Every contract and transaction, on both lanes.</span>
+                </span>
+                <span aria-hidden="true">↗</span>
+              </a>
+              <a
+                className="landing-card"
+                href="https://github.com/thesithunyein/arb-guardian/blob/master/SECURITY.md"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span>
+                  <strong>Security policy</strong>
+                  <span className="muted">How we report issues, and current limits.</span>
                 </span>
                 <span aria-hidden="true">↗</span>
               </a>
@@ -1746,7 +1783,7 @@ export function App() {
                       </p>
                       <div className="cta-row left">
                         <button type="button" className="primary" onClick={goVault}>
-                          View security evidence
+                          View trust page
                         </button>
                         <button
                           type="button"
@@ -1933,29 +1970,29 @@ export function App() {
             {tab === "security" && (
               <div className="grid">
                 <section className="surface span-2">
-                  <h3>What is live, and what the proof covers</h3>
+                  <h3>Deployment and verification</h3>
                   <p className="muted section-lead">
                     {driftReport.summary.claimsViolated === 0
                       ? `Both lanes run the code you are reading: all ${driftReport.summary.checked} recorded contracts were built from these sources and match the deployed bytecode.`
                       : `${driftReport.summary.claimsViolated} of ${driftReport.summary.checked} recorded deployments do not match this source — read the drift section below before trusting anything else on this page.`}{" "}
-                    Everything else here is generated from the current source by{" "}
-                    <code>npm run evidence -w packages/contracts</code>, so run it and compare. Addresses, transaction
-                    hashes and explorer links: <code>docs/live-deployment.md</code>.
+                    Every figure on this page is generated from the current source by{" "}
+                    <code>npm run evidence -w packages/contracts</code>. Addresses, transaction hashes and explorer
+                    links are published in the repository.
                   </p>
                   <p className="muted section-lead">
-                    None of that is taken on trust. <code>npm run check:deployed</code> reads the bytecode at every
-                    recorded address over each network&apos;s public RPC and compares the Solidity metadata fingerprint
-                    with this build, and it refuses to answer at all when the artifacts on disk were compiled from
-                    different bytes than the working tree. Its output is the next section.
+                    <code>npm run check:deployed</code> reads the bytecode at every recorded address over each
+                    network&apos;s public RPC and compares the Solidity metadata fingerprint with this build. It
+                    refuses to answer when the artifacts on disk were compiled from different bytes than the working
+                    tree. Its output is the next section.
                   </p>
                 </section>
                 <section className="surface span-2">
                   <h3>
-                    <IconSecurity size={18} /> Start here · the judge path
+                    <IconSecurity size={18} /> Start here · the essentials
                   </h3>
                   <p className="muted section-lead">
-                    Every claim below has one click to the thing that proves it — a transaction, a contract, a
-                    command, or a committed record. Nothing here asks to be taken on trust.
+                    Each item below links to the transaction, contract or record behind it, so nothing here has to
+                    be taken on trust.
                   </p>
                   <ol className="clean">
                     <li>
@@ -2048,7 +2085,7 @@ export function App() {
                       {sourceVerificationComplete && sourceExplorerPanels ? "Six of six, on both counts." : null}
                     </li>
                     <li>
-                      <strong>The suites.</strong> 128 tests across four suites, plus 15 guard cases and 14 policy
+                      <strong>Test coverage.</strong> 128 tests across four suites, plus 15 guard cases and 14 policy
                       fixtures, all reproducible from source:{" "}
                       <a
                         href="https://github.com/thesithunyein/arb-guardian/blob/master/README.md#development"
@@ -2060,41 +2097,22 @@ export function App() {
                       .
                     </li>
                     <li>
-                      <strong>The demo.</strong>{" "}
-                      <a
-                        href="https://github.com/thesithunyein/arb-guardian/blob/master/docs/demo/walkthrough-2026-10-02.webm"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        A screen capture of this live product
-                      </a>{" "}
-                      along the judge path, with its beats written out in{" "}
-                      <a
-                        href="https://github.com/thesithunyein/arb-guardian/blob/master/docs/demo/walkthrough-2026-10-02.md"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        the walkthrough notes
-                      </a>
-                      . It is silent and labelled as silent; the narrated cut is still to be recorded.
-                    </li>
-                    <li>
-                      <strong>What is not claimed.</strong> No mainnet deployment, no third-party audit, no pilot
-                      users, and no live USDG movement.{" "}
+                      <strong>Current limitations.</strong> No mainnet deployment, no third-party audit, no pilot
+                      customers, and no live USDG movement yet.{" "}
                       <a
                         href="https://github.com/thesithunyein/arb-guardian/blob/master/SECURITY.md"
                         target="_blank"
                         rel="noreferrer"
                       >
-                        SECURITY.md
+                        Security policy
                       </a>{" "}
-                      says the same thing in more detail.
+                      documents this in more detail.
                     </li>
                   </ol>
                 </section>
                 <section className="surface span-2">
                   <h3>
-                    <IconSecurity size={18} /> Deployed bytecode vs this build · checked, not asserted
+                    <IconSecurity size={18} /> Deployed contracts and this build
                   </h3>
                   <p className="muted section-lead">
                     {driftReport.summary.checked} contract{driftReport.summary.checked === 1 ? "" : "s"} read from
@@ -2102,11 +2120,9 @@ export function App() {
                     {driftReport.summary.unreachable > 0
                       ? `, ${driftReport.summary.unreachable} unreachable`
                       : ""}
-                    . A drifted contract is one whose deployed source is not the source you are reading now. That is
-                    the whole claim: if a declared-current address drifts, the check fails and this page cannot
-                    quietly disagree with the chain. {driftReport.note} Generated {DRIFT_GENERATED_AT} by{" "}
-                    <code>npm run check:deployed</code>, which fails when a network&apos;s declared status and the chain
-                    disagree.
+                    . A drifted contract is one whose deployed source is not the source you are reading now: if a
+                    declared-current address drifts, this check fails rather than letting the page disagree with the
+                    chain. {driftReport.note} Last run {DRIFT_GENERATED_AT}.
                   </p>
                   {driftReport.networks.map((network) => (
                     <div key={network.name}>
@@ -2148,7 +2164,7 @@ export function App() {
                 </section>
                 <section className="surface span-2">
                   <h3>
-                    <IconSecurity size={18} /> Source published · recomputed by a third party
+                    <IconSecurity size={18} /> Source verification
                   </h3>
                   <p className="muted section-lead">
                     {sourceVerificationReport.summary.verified} of {" "}
@@ -2159,21 +2175,18 @@ export function App() {
                       ? `, and all ${sourceVerificationReport.summary.total} read as verified on their explorer panel`
                       : ""}
                     . {sourceVerificationComplete ? "That is the whole set." : "Some are still missing."}{" "}
-                    Verified {sourceVerifiedAt} by <code>npm run verify:sourcify</code>, which reads the
-                    verifier&apos;s answer rather than writing one.
+                    Last checked {sourceVerifiedAt}.
                   </p>
                   <p className="muted section-lead">
                     <strong>Arbiscan</strong> · chain {arbiscanReport.chainId} · {arbiscanReport.summary.published} of{" "}
                     {arbiscanReport.summary.total} published.{" "}
                     {arbiscanPublishedAll ? (
-                      <>All three panels are live on the explorer a judge is most likely to open.</>
+                      <>All three panels are published.</>
                     ) : arbiscanReport.blockedOn ? (
                       <>
-                        Still unpublished: the submission needs <code>{arbiscanReport.blockedOn}</code>. The
-                        recorder is already in place — <code>npm run verify:arbiscan</code> submits the same
-                        standard JSON input, waits for the queue, reads the result back from Arbiscan, and
-                        rewrites this record, so adding the key finishes the job. Last checked{" "}
-                        {arbiscanCheckedAt}.
+                        Pending an API key: <code>{arbiscanReport.blockedOn}</code>. The recorder is already in
+                        place — it submits the same standard JSON input, waits for the queue and reads the result
+                        back, so the panel publishes as soon as a key exists. Last checked {arbiscanCheckedAt}.
                       </>
                     ) : (
                       <>
@@ -2273,21 +2286,19 @@ export function App() {
                     ))}
                   </div>
                   <p className="muted section-lead">
-                    Configured is not the same as exercised: the treasury holds 0 USDG on both lanes and the
-                    issuer&apos;s testnet faucet is geo-restricted from the machine that built this, so no USDG
-                    payment has been executed. The lane&apos;s logic is proven by{" "}
-                    <code>npm run evidence -w packages/contracts</code> against a USDG-shaped token.
+                    Configured is not the same as exercised: the treasury holds 0 USDG on both lanes, so no USDG
+                    payment has been made yet. The lane&apos;s logic is exercised in the test suite against a
+                    USDG-shaped token.
                   </p>
                 </section>
                 <section className="surface span-2">
                   <h3>
-                    <IconSecurity size={18} /> Contract quality · reproduced from source
+                    <IconSecurity size={18} /> Policy enforcement
                   </h3>
                   <p className="muted section-lead">
-                    Not a claim. This is the artifact. {guardProof.summary.passed}/{guardProof.summary.total} cases behaved as
-                    specified against a real Gnosis Safe v{PROOF_SAFE_VERSION}, with the guard installed the only way
-                    Safe permits (an owner-approved call the Safe makes to itself). Generated {PROOF_GENERATED_AT} by{" "}
-                    <code>npm run evidence -w packages/contracts</code>, which exits non-zero if any row drifts.
+                    {guardProof.summary.passed}/{guardProof.summary.total} guard cases pass against a real Gnosis
+                    Safe v{PROOF_SAFE_VERSION}, with the guard installed the only way Safe permits: an owner-approved
+                    call the Safe makes to itself. Re-checked {PROOF_GENERATED_AT}; the suite fails if any row drifts.
                   </p>
                   <div className="asset-grid">
                     <article className="asset-card">
@@ -2314,7 +2325,7 @@ export function App() {
                     <article className="asset-card">
                       <strong>Policy attestation</strong>
                       <span>Versioned</span>
-                      <p>Every decision is stamped with the policy version and digest that judged it.</p>
+                      <p>Every decision is stamped with the policy version and digest that governed it.</p>
                     </article>
                     <article className="asset-card">
                       <strong>Access control</strong>
@@ -2330,12 +2341,11 @@ export function App() {
                 </section>
                 <section className="surface span-2">
                   <h3>
-                    <IconSecurity size={18} /> Why not just an alert, or a multisig
+                    <IconSecurity size={18} /> How this differs from alerts and multisig review
                   </h3>
                   <p className="muted section-lead">
                     These controls stop different things at different moments, and only one of them bounds a
-                    delegated spender. Capability classes, not vendors — and a design comparison, not an audit of
-                    anyone&apos;s product.
+                    delegated spender. This compares capability classes rather than reviewing anyone&apos;s product.
                   </p>
                   <div className="asset-grid">
                     <article className="asset-card">
@@ -2369,7 +2379,7 @@ export function App() {
                       </p>
                     </article>
                     <article className="asset-card">
-                      <h4>Guard inside Safe execution · this project</h4>
+                      <h4>Guard inside Safe execution · Arb Guardian</h4>
                       <p>
                         <strong>Stops it in the Safe&apos;s own execTransaction</strong> before the inner call runs,
                         deny-by-default.
@@ -2386,11 +2396,10 @@ export function App() {
                   </p>
                 </section>
                 <section className="surface span-2">
-                  <h3>Guard proof · every case, with its revert reason</h3>
+                  <h3>Guard behaviour · every case, with its revert reason</h3>
                   <p className="muted section-lead">
-                    Row 1 is the same payment as row 2, executed <em>before</em> the guard was installed. It
-                    settles. A screenshot of a blocked transaction proves nothing on its own; the before/after pair is
-                    what shows the guard is the thing making the difference.
+                    The first two cases are the same payment, executed <em>before</em> and after the guard is
+                    installed: one settles, one is refused. The pair is what shows the guard is doing the work.
                   </p>
                   <ul className="clean">
                     {guardProof.cases.map((item) => (
@@ -2410,9 +2419,9 @@ export function App() {
                 <section className="surface span-2">
                   <h3>Policy attestation · replayable from logs</h3>
                   <p className="muted section-lead">
-                    Policy is versioned and hash-chained. Each amendment emits its parameters and folds into a running
-                    digest, so the history can be recomputed from logs alone. No trust in the contract&apos;s storage.
-                    and editing an early amendment changes every later digest.
+                    Policy is versioned and hash-chained. Each amendment emits its parameters and folds into a
+                    running digest, so the history can be recomputed from logs alone, and editing an early amendment
+                    changes every later digest.
                   </p>
                   <ul className="clean">
                     <li>

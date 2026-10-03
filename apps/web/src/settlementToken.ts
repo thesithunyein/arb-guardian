@@ -1,7 +1,7 @@
 /**
  * The settlement token, as read from the issuer's contract rather than as repeated.
  *
- * The submission copy quotes the token lane's caps in USDG, which makes every one of those numbers
+ * The docs quote the token lane's caps in USDG, which makes every one of those numbers
  * a claim about somebody else's contract on a testnet — the kind of claim this repository refuses to
  * leave in prose. `npm run check:settlement` reads `symbol()`, `decimals()` and the code at the
  * declared address on each lane, compares them with `evidence/live-deployments.json`, and writes the

@@ -46,7 +46,7 @@ export const SAFE_ALLOWED_EXEC_TX =
  *
  * Gas estimation would reject this send before it reached the network, so the enrollment sends it
  * with a supplied gas limit: it is mined, reverts inside the guard, and keeps a hash. A block a
- * judge can open beats a block that only ever existed in a log.
+ * reader can open beats a block that only ever existed in a log.
  */
 export const SAFE_BLOCKED_EXEC_TX =
   import.meta.env.VITE_SAFE_BLOCKED_EXEC_TX?.trim() ||
