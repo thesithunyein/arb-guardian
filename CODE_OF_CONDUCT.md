@@ -2,7 +2,7 @@
 
 ## Our standard
 
-Arb Guardian is a security-sensitive open-source project. Contributors, maintainers, judges,
+Arb Guardian is a security-sensitive open-source project. Contributors, maintainers,
 operators, and users should communicate with respect, assume good intent, and keep technical
 disagreement focused on evidence and outcomes.
 

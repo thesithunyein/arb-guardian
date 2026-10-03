@@ -22,7 +22,7 @@
 - [x] Scenario-based assess workflow (ops console UX)
 - [x] Public live dashboard on Vercel
 
-## Go-live gate for judging
+## Go-live gate
 - [x] Public production URL: https://arb-guardian.sithunyein.com (HTTP 200; DNS resolves to Vercel)
 - [x] Vercel alias remains reachable: https://arb-guardian.vercel.app (HTTP 200)
 - [x] Public repository: https://github.com/thesithunyein/arb-guardian
@@ -36,8 +36,8 @@
 - [x] Public product on Vercel with the current onchain addresses and transaction links on screen
 - [x] Public API live on Vercel serverless routes (`/api/*`, durable KV); the Render blueprint remains an optional alternative
 - [x] Freeze drill run end to end against the live lane (refused decision → on-chain pause → refusal while frozen → unpause → resume), recorded in `docs/incident-drill.md`
-- [x] Screen capture of the live product along the judge path (`docs/demo/walkthrough-2026-10-02.md`)
-- [ ] Narrated demo video with the blocked transaction spoken over it
+- [x] Screen capture of the live product along the operator path
+- [ ] Narrated walkthrough with the blocked transaction spoken over it
 - [ ] Bounded USDG payment on a live lane — blocked by the issuer's geo-restricted testnet faucet
 
 ## Evidence artifacts added after the deployment
@@ -47,15 +47,12 @@
 - [x] USDG lane configuration read back from each `PolicyManager` by `npm run check:settlement`
 - [x] Capability comparison against alert-only, manual multisig, and signer-side policy (README + site)
 - [x] Internal enforcement review, labelled internal, with findings and residual risk (`docs/internal-review.md`)
-- [x] Silent screen capture of the live product (`docs/demo/walkthrough-2026-10-02.webm`)
-- [ ] Narrated demo video — script and storyboard are written (`docs/demo/narration-script.md`), the voice is not recorded
+- [x] Silent screen capture of the live product
+- [ ] Narrated walkthrough — the script is written, the voice is not recorded
 
-## Bounty criteria map
-| Criterion | Status |
+## Open items
+
+| Item | Status |
 | --- | --- |
-| Deployed on Arbitrum chain | Both lanes deployed 2026-10-02 and declared `current`, 6/6 drift claims holding; source panel on Arbiscan still needs a key — see `docs/live-deployment.md` |
-| Smart contract quality | Ready (tests + RBAC + pause) |
-| Product-market fit | Evidence-ready workflow; pilot metrics still required |
-| Innovation / creativity | Evidence-ready Safe enforcement + policy attestation; comparative proof still required |
-| Real problem solving | Allowed and refused Safe transactions recorded onchain on both lanes; freeze drill executed against the live lane with timings and hashes (`docs/incident-drill.md`) |
-| Best agentic track | Deterministic, bounded actions; no autonomous fund movement |
+| Arbiscan source panel | Waiting on a free `ARBISCAN_API_KEY` in `.env`; `npm run verify:arbiscan` publishes and records it |
+| Bounded USDG payment on a live lane | Lane configured and capped on both chains; blocked by the issuer's geo-restricted testnet faucet |

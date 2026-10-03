@@ -39,7 +39,7 @@ that needs `ARBISCAN_API_KEY`. An operator freeze drill has also been run end to
 live lane: refused decision, on-chain pause, refusal of the spend that normally settles, unpause, and
 the spend settling again — 33.8 s, hashes in [`docs/incident-drill.md`](docs/incident-drill.md).
 
-> This README is written for operators and judges first. It distinguishes a reproducible local
+> This README is written for operators. It distinguishes a reproducible local
 > proof from a live deployment claim. See [`docs/live-deployment.md`](docs/live-deployment.md) for
 > addresses, explorers, and the exact deployment blocker.
 
@@ -226,8 +226,7 @@ simulation alone would not prove enforcement.
 Useful artifacts:
 
 - [`packages/contracts/evidence/guard-proof.md`](packages/contracts/evidence/guard-proof.md)
-- [`docs/judging-evidence-matrix.md`](docs/judging-evidence-matrix.md)
-- [`docs/demo-runbook.md`](docs/demo-runbook.md)
+- [`docs/live-deployment.md`](docs/live-deployment.md)
 - [`docs/security-ops-runbook.md`](docs/security-ops-runbook.md)
 - [`docs/threat-model.md`](docs/threat-model.md)
 
@@ -280,68 +279,45 @@ npm run deploy:preflight     # refuses until keys and funds hold; names the fauc
 npm run redeploy:sepolia     # deploy + seed + enrol, then verify the source
 npm run redeploy:robinhood   # the same on the second lane
 npm run repoint              # manifest -> current, app constants rewritten, then proved on-chain
-npm run preflight            # quality gate + drift + settlement + submission + push audit
+npm run preflight            # quality gate + drift + settlement + readiness + push audit
 ```
 
-## Submission scorecard and the path to 9+
+## Known gaps
 
-The buildathon page says projects must be deployed on an Arbitrum chain and judges score smart
-contract quality, product-market fit, innovation, and real problem solving. USDG receives extra
-consideration. The Prizes & Judging tab states the gate verbatim: "Your project must be deployed on
-an Arbitrum chain to qualify. For example: Arbitrum Sepolia, Arbitrum One, Robinhood Chain, or
-others." Both deployed lanes are named on that list. (The marketing copy further up mentions only
-Arbitrum One and custom chains, so the criteria tab is the sentence that matters.) Based on the
-published criteria, the honest current position is:
+Both lanes are live, byte-matched to this source, and reproducible. This is what is still missing,
+stated here rather than left to be discovered:
 
-| Criterion | Current evidence | Honest score today | What moves it to 9+ |
-| --- | --- | ---: | --- |
-| Smart contract quality | 69 contract tests plus seeded invariants, deny-by-default rules, every standing approval refused, 6/6 drift claims holding on two chains, all six published with exact creation+runtime matches on Sourcify and verified explorer panels, guard installed on a real Safe through its own `execTransaction` | 9/10 | The Arbiscan panel specifically, an independent review, published gas and invariant results |
-| Product-market fit | Live operator workflow, plain-language review, alerts, deterministic playbooks, durable audit history across cold starts | 7.5/10 | Two or more pilot teams, measurable time-to-review and blocked-risk outcomes, clear pricing/onboarding |
-| Innovation | Policy attestation plus Safe-native token/native lanes, bounded playbooks, enforcement inside `execTransaction` rather than at the signer | 8.5/10 | Publish a comparison against multisig/manual controls, prove a differentiated agent-permission workflow |
-| Real problem solving | Explorer-verifiable current deployment on two chains, guard genuinely installed on a real Safe, allowed and refused transactions both recorded, and a freeze drill executed against the live lane with timings (`docs/incident-drill.md`) | 9/10 | The blocked transaction narrated in a voiced demo; a pilot's own blocked request |
-| USDG / Arbitrum fit | Real Paxos USDG configured as a live lane on both current deployments at 6 decimals, with allowance and refusal proven in tests and onchain | 9/10 | A bounded USDG payment on a live lane — currently blocked because the issuer's testnet faucet is geo-restricted from this machine |
+- **Arbiscan's own source panel is unpublished.** All six contracts are published on Sourcify with
+  `exact_match` for creation and runtime bytecode, and each reads as verified on its own explorer
+  panel (Arbitrum Sepolia Blockscout, Robinhood Chain Testnet). Arbiscan's panel needs one thing
+  that does not exist in this repository: a free Etherscan API key. Put `ARBISCAN_API_KEY=<key>` in
+  `.env` and run `npm run verify:arbiscan` - it submits all three contracts from the build-info's
+  own compiler input, waits for the queue, reads the result back from Arbiscan, and writes
+  `evidence/arbiscan.json`. Without a key it records `pending_key` and exits 0; a key that cannot
+  read the panel is recorded as `read_failed` rather than as an unpublished contract. It already
+  runs inside `npm run preflight`, so the step happens on the normal path rather than being
+  remembered.
+- **No pilot usage.** Review time, false positives, blocked unsafe requests and operator response
+  time are not measured against a real team yet. The freeze drill is real traffic, but it is
+  self-operated and described that way.
+- **No independent security review.** [`docs/internal-review.md`](docs/internal-review.md) is
+  labelled internal on purpose. Nobody outside this repository has reviewed the guard, the policy
+  admin path, or the token decoding.
+- **No USDG has moved.** The lane is configured, capped and deny-by-default on both chains, but the
+  treasury holds 0 USDG and the issuer's testnet faucet is geo-restricted from the machine that
+  built this. A bounded USDG payment on a live lane is still pending.
 
-### Priority order
+### USDG references
 
-1. **Source-publish the Arbiscan panel specifically.** This needs one thing that does not exist yet:
-   a free Etherscan API key. Put `ARBISCAN_API_KEY=<key>` in `.env` (the recorder reads that file
-   itself) and run `npm run verify:arbiscan` — it submits all three contracts from the build-info's
-   own compiler input, waits for the queue, reads the result back from Arbiscan, writes
-   `evidence/arbiscan.json`, and the site then shows it beside the Sourcify record. It already runs
-   inside `npm run preflight`, so the step happens on the normal path rather than being remembered;
-   without a key it records `pending_key` and exits 0, and a key that cannot read the panel is
-   recorded as `read_failed` rather than as an unpublished contract. Everything else is already
-   published: Sourcify answers `exact_match` for all six contracts and their explorer panels read as
-   verified, so this is one explorer's panel rather than an open verification gap.
-2. **Narrate the demo.** A silent capture of the live product already exists
-   (`docs/demo/walkthrough-2026-10-02.md`); what is missing is a voice track over it.
-3. **Run a small pilot.** Measure review time, false positives, blocked unsafe requests, and
-   operator response time. Put anonymized results in the submission. This is the only criterion
-   still below 8, and the one an agent cannot manufacture.
-4. **Add independent security evidence.** Publish a focused review of access control, Safe guard
-   integration, token decoding, reentrancy/refund ordering, and upgrade/deployment assumptions.
-5. **Record a bounded USDG payment** once the issuer's testnet faucet is reachable from a permitted
-   location. The lane is configured, capped and deny-by-default; only the tokens are missing.
-
-Done and recorded rather than listed here: the corrected deployment, the real-Safe enrollment, the
-allowed/refused transaction pair on both lanes, durable production storage, keyless source
-publication, and the freeze drill. Until the five items above are complete, the strongest submission
-is an honest "working control plane with reproducible enforcement proof and a clearly blocked
-production gate," not a claim of 9+ readiness.
-
-### Research basis
-
-- [Buildathon brief](https://www.hackquest.io/hackathons/Arbitrum-Open-House-Singapore-Online-Buildathon)
-- [Arbitrum chain information](https://docs.arbitrum.io/for-devs/dev-tools-and-resources/chain-info)
-- [Arbitrum Open House judging signal](https://blog.arbitrum.foundation/open-house-nyc-buildathon-concludes-meet-the-winning-teams/)
 - [USDG overview](https://globaldollar.com/about-usdg)
 - [USDG developer information](https://globaldollar.com/build-with-usdg)
 - [Paxos USDG contract repository](https://github.com/paxosglobal/usdg-contract)
 
-The official USDG network list retrieved during research does not list Arbitrum. Treat USDG as
-**USDG-compatible token-lane code** until Paxos or the organizers provide an official Arbitrum
-address and confirm that its use is eligible for extra consideration.
-
+Paxos's own testnet page lists both addresses this project uses - Arbitrum Sepolia
+(`0xFFC95faa...b41892`) and Robinhood Testnet (`0x7E955252...81802F`) - but the production network
+list retrieved during research does not list Arbitrum. So the lane is **real on testnet,
+unconfirmed for Arbitrum production**: treat it as USDG-compatible token-lane code until Paxos
+confirms production addresses.
 ## Product walkthrough
 
 The public site starts in light mode and explains the workflow before wallet connection:
@@ -349,18 +325,13 @@ The public site starts in light mode and explains the workflow before wallet con
 1. [Open the landing page](https://arb-guardian.sithunyein.com)
 2. Choose **Review a payment** to see a deterministic assessment.
 3. Choose **Open workspace** to inspect Overview, Review, Alerts, and Automations.
-4. Open the **Evidence** tab: its first section is a judge path, and every claim in it links to the
-   transaction, contract, or command behind it. The settlement-token cards on that screen are read
-   from each chain, including whether the USDG lane is actually configured.
+4. Open the **Trust** tab: every claim in it links to the transaction, contract, or command behind
+   it. The settlement-token cards on that screen are read from each chain, including whether the
+   USDG lane is actually configured.
 5. Use **Docs** for the in-app explanation; use [technical docs](docs/) for implementation detail.
 
-Recorded demo material:
+Enforcement evidence:
 
-- [`docs/demo/walkthrough-2026-10-02.webm`](docs/demo/walkthrough-2026-10-02.webm) — silent screen
-  capture of the live product, with its beats written out in
-  [`docs/demo/walkthrough-2026-10-02.md`](docs/demo/walkthrough-2026-10-02.md).
-- [`docs/demo/narration-script.md`](docs/demo/narration-script.md) — the 2:45 narration script and
-  storyboard, including which beats still have to be shot.
 - [`docs/incident-drill.md`](docs/incident-drill.md) — the freeze drill, with hashes and timings.
 - [`docs/internal-review.md`](docs/internal-review.md) — an **internal** review of the enforcement
   path, labelled as internal, listing what the guard does not cover.
@@ -373,8 +344,8 @@ apps/api/                 deterministic risk engine and API service
 api/                      Vercel serverless route adapters
 packages/contracts/       Solidity contracts, Hardhat tests, evidence generators
 packages/shared/          shared schemas, policy types, and client logic
-docs/                     architecture, threat model, deployment, demo, and judging evidence
-scripts/                  preflight, drift, submission, and deployment tooling
+docs/                     architecture, threat model, deployment, and operator runbooks
+scripts/                  preflight, drift, and deployment tooling
 ```
 
 ## Development
