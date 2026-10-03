@@ -1,6 +1,6 @@
 # Architecture
 
-Arb Guardian is a dual-chain delegated-spend control stack: onchain policy + guards, a deterministic risk engine, a policy playbook engine (no model in the loop), and an operator console. Deployments and proof live in the repo; see `docs/judging-evidence-matrix.md` for where each claim is checked.
+Arb Guardian is a dual-chain delegated-spend control stack: onchain policy + guards, a deterministic risk engine, a policy playbook engine (no model in the loop), and an operator console. Deployments and proof live in the repo; see [`live-deployment.md`](live-deployment.md) for the addresses, the transaction hashes, and where each claim can be checked.
 
 Live product: [arb-guardian.sithunyein.com](https://arb-guardian.sithunyein.com)
 
@@ -310,4 +310,3 @@ docs/               Architecture, deployment, agent matrix
 
 - [`live-deployment.md`](live-deployment.md) — addresses + explorers  
 - [`agent-permissions-matrix.md`](agent-permissions-matrix.md) — playbooks and hard limits  
-- [`sep13-submission-copy.md`](sep13-submission-copy.md) — submission one-pager  

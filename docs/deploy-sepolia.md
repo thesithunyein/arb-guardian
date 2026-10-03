@@ -61,12 +61,7 @@ vercel env add VITE_RH_EXECUTION_GUARD_ADDRESS production
 
 Redeploy web: `vercel --prod` (or merge to `master` — Vercel builds on push).
 
-## 5. Demo recording
-
-Follow `docs/demo-runbook.md` for the shoot and `docs/demo-find-these.md` for the click labels; the
-2:45 narration script is `docs/demo/narration-script.md`. The web path needs no wallet.
-
-## 6. Verify
+## 5. Verify
 
 ```bash
 npm run quality:gate

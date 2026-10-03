@@ -23,5 +23,18 @@ docs/submission-bundle/
 docs/final-submission-ready.md
 docs/deployment-evidence.md
 docs/deployment-evidence.json
+
+# Local-only working material: demo planning and submission paperwork never ship in the repo.
+docs/demo/
+docs/demo-runbook.md
+docs/demo-find-these.md
+docs/demo-timing-track.md
+docs/final-submission-copy.md
+docs/submission-package.md
+docs/sep13-submission-copy.md
+docs/judging-evidence-matrix.md
+docs/judge-brief.md
+docs/grant-milestones.md
+docs/proof/
 .vercel
 .env*

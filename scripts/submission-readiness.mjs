@@ -1,12 +1,17 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const requiredFiles = [
+const requiredFiles = ["docs/production-readiness-checklist.md"];
+
+/**
+ * Submission paperwork and demo planning are deliberately untracked (see .gitignore). They exist on
+ * the maintainer's machine and are absent from a clone, so absence is reported rather than failed.
+ */
+const localOnlyFiles = [
   "docs/final-submission-copy.md",
   "docs/judging-evidence-matrix.md",
   "docs/demo-timing-track.md",
-  "docs/submission-package.md",
-  "docs/production-readiness-checklist.md"
+  "docs/submission-package.md"
 ];
 
 const placeholderTargets = [
@@ -35,6 +40,13 @@ for (const rel of requiredFiles) {
     console.error(`Missing required file: ${rel}`);
     hasFailure = true;
   }
+}
+
+const absentLocalOnly = localOnlyFiles.filter((rel) => !existsSync(resolve(process.cwd(), rel)));
+if (absentLocalOnly.length > 0) {
+  console.log(
+    `Local-only submission docs not present in this checkout (expected): ${absentLocalOnly.join(", ")}`
+  );
 }
 
 for (const rel of placeholderTargets) {
