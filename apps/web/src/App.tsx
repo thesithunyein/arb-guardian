@@ -367,6 +367,7 @@ function vendorName(addr: string) {
 
 export function App() {
   const { theme, toggleTheme } = useTheme();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [tab, setTab] = useState<TabId>("home");
   const [intent, setIntent] = useState<IntentId>("risky-approve");
   const [assessment, setAssessment] = useState<RiskAssessment | null>(null);
@@ -426,6 +427,7 @@ export function App() {
   }, [incidents]);
 
   function enterWorld() {
+    setMenuOpen(false);
     setEntered(true);
     setTab("home");
     setIntent("risky-approve");
@@ -1033,11 +1035,28 @@ export function App() {
           </div>
         </a>
         {!entered && (
-          <nav className="landing-nav" aria-label="Public site">
-            <a href="#landing-how-it-works">How it works</a>
-            <a href="#landing-faq">FAQ</a>
-            <a href="#docs">Docs</a>
-            <button type="button" className="landing-nav-cta" onClick={enterWorld}>
+          <nav
+            id="landing-nav"
+            className={`landing-nav ${menuOpen ? "open" : ""}`}
+            aria-label="Public site"
+          >
+            <a href="#landing-how-it-works" onClick={() => setMenuOpen(false)}>
+              How it works
+            </a>
+            <a href="#landing-faq" onClick={() => setMenuOpen(false)}>
+              FAQ
+            </a>
+            <a href="#docs" onClick={() => setMenuOpen(false)}>
+              Docs
+            </a>
+            <button
+              type="button"
+              className="landing-nav-cta"
+              onClick={() => {
+                setMenuOpen(false);
+                enterWorld();
+              }}
+            >
               Open workspace
             </button>
           </nav>
@@ -1079,6 +1098,22 @@ export function App() {
           >
             {theme === "light" ? <IconMoon size={16} /> : <IconSun size={16} />}
           </button>
+          {!entered && (
+            <button
+              type="button"
+              className={`nav-toggle ${menuOpen ? "open" : ""}`}
+              aria-expanded={menuOpen}
+              aria-controls="landing-nav"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              <span className="nav-toggle-icon" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+            </button>
+          )}
         </div>
       </header>
 
